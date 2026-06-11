@@ -1,14 +1,60 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Plus, FileText, Trash2, Clock, ArrowDown } from 'lucide-react';
+import { Plus, FileText, Trash2, Clock, ArrowDown, Search, ArrowUpDown } from 'lucide-react';
 import { useDocuments } from '@/hooks/useApi';
+
+type SortKey = 'newest' | 'oldest' | 'alpha' | 'alpha-rev';
+
+const SORT_LABELS: Record<SortKey, string> = {
+  newest: 'Newest first',
+  oldest: 'Oldest first',
+  alpha: 'A–Z',
+  'alpha-rev': 'Z–A',
+};
+
+const SORT_OPTIONS: SortKey[] = ['newest', 'oldest', 'alpha', 'alpha-rev'];
 
 export function Dashboard() {
   const { documents, loading, pendingCount, loadPending, createDocument, deleteDocument } = useDocuments();
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortKey>('newest');
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    let docs = documents;
+
+    if (q) {
+      docs = docs.filter(
+        (d) =>
+          (d.title || '').toLowerCase().includes(q) ||
+          (d.content || '').toLowerCase().includes(q) ||
+          d.id.toLowerCase().includes(q)
+      );
+    }
+
+    const sorted = [...docs];
+    switch (sort) {
+      case 'newest':
+        sorted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        break;
+      case 'oldest':
+        sorted.sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
+        break;
+      case 'alpha':
+        sorted.sort((a, b) => (a.title || 'Untitled').localeCompare(b.title || 'Untitled'));
+        break;
+      case 'alpha-rev':
+        sorted.sort((a, b) => (b.title || 'Untitled').localeCompare(a.title || 'Untitled'));
+        break;
+    }
+
+    return sorted;
+  }, [documents, search, sort]);
 
   const handleCreate = useCallback(async () => {
     const doc = await createDocument('Untitled');
@@ -61,6 +107,34 @@ export function Dashboard() {
           </p>
         </div>
 
+        {!loading && documents.length > 0 && (
+          <div className="flex items-center gap-3 mb-6">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search documents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex items-center gap-1 border rounded-md p-0.5">
+              <ArrowUpDown className="h-4 w-4 mx-1.5 text-muted-foreground" />
+              {SORT_OPTIONS.map((key) => (
+                <Button
+                  key={key}
+                  variant={sort === key ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setSort(key)}
+                >
+                  {SORT_LABELS[key]}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="relative">
           {pendingCount > 0 && (
             <div className="absolute -top-3 left-0 right-0 z-10 flex justify-center pointer-events-none">
@@ -92,9 +166,13 @@ export function Dashboard() {
               </Button>
             </CardContent>
           </Card>
+        ) : filtered.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-muted-foreground">No documents match your search.</div>
+          </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {documents.map((doc) => (
+            {filtered.map((doc) => (
               <Card
                 key={doc.id}
                 className="cursor-pointer hover:bg-muted/50 transition-colors"

@@ -95,13 +95,16 @@ export function useDocuments() {
     setPendingDocs([]);
   }, [pendingDocs]);
 
-  const createDocument = useCallback(async (title?: string) => {
+  const createDocument = useCallback(async (title?: string, slug?: string) => {
     const res = await fetch(`${API_BASE}/docs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, slug: slug || undefined }),
     });
     const doc = await res.json();
+    if (!res.ok) {
+      throw new Error(doc.error || 'Failed to create document');
+    }
     setDocuments((prev) => [doc, ...prev]);
     return doc;
   }, []);

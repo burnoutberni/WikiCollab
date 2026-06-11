@@ -13,7 +13,21 @@ docs.get('/', (c) => {
 
 docs.post('/', async (c) => {
   const body = await c.req.json();
-  const id = nanoid(7);
+  const slug = body.slug?.trim();
+
+  if (slug && !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    return c.json({ error: 'Slug can only contain letters, numbers, hyphens, and underscores' }, 400);
+  }
+
+  const id = slug || nanoid(7);
+
+  if (slug) {
+    const existing = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
+    if (existing) {
+      return c.json({ error: 'A document with this slug already exists' }, 409);
+    }
+  }
+
   const now = new Date().toISOString();
 
   const doc = {
