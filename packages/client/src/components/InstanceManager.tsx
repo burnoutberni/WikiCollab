@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Server, Trash2, Plus, ExternalLink } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
 const WIKI_PRESETS: { name: string; api_url: string }[] = [
@@ -68,6 +67,8 @@ export function InstanceManager({
   const [nameIndex, setNameIndex] = useState(-1);
   const [selectedPreset, setSelectedPreset] = useState<{ name: string; api_url: string } | null>(null);
   const justSelectedRef = useRef(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const filteredPresets = WIKI_PRESETS.filter(
     (p) =>
@@ -84,46 +85,46 @@ export function InstanceManager({
     setDialogOpen(true);
   };
 
-  const handleNameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setNameOpen(true);
-      setNameIndex((i) => Math.min(i + 1, filteredPresets.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setNameIndex((i) => Math.max(i - 1, -1));
-    } else if (e.key === 'Enter') {
-      if (nameOpen && nameIndex >= 0 && nameIndex < filteredPresets.length) {
-        e.preventDefault();
-        const preset = filteredPresets[nameIndex];
-        setName(preset.name);
-        setApiUrl(preset.api_url);
-        setSelectedPreset(preset);
-        justSelectedRef.current = true;
-        setNameOpen(false);
-        setNameIndex(-1);
-      } else if (nameOpen) {
-        e.preventDefault();
-        justSelectedRef.current = true;
-        setNameOpen(false);
-        setNameIndex(-1);
-      }
-    } else if (e.key === 'Escape') {
-      setNameOpen(false);
-      setNameIndex(-1);
-    } else if (e.key === 'Tab') {
-      setNameOpen(false);
-      setNameIndex(-1);
-    }
-  };
-
-  const handlePresetSelect = (preset: { name: string; api_url: string }) => {
+  const selectPreset = (preset: { name: string; api_url: string }) => {
     setName(preset.name);
     setApiUrl(preset.api_url);
     setSelectedPreset(preset);
     justSelectedRef.current = true;
     setNameOpen(false);
     setNameIndex(-1);
+    nameInputRef.current?.focus();
+  };
+
+  const closeDropdown = () => {
+    setNameOpen(false);
+    setNameIndex(-1);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!nameOpen) {
+        setNameOpen(true);
+        setNameIndex(0);
+      } else {
+        setNameIndex((i) => Math.min(i + 1, filteredPresets.length - 1));
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setNameIndex((i) => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nameOpen && nameIndex >= 0 && nameIndex < filteredPresets.length) {
+        selectPreset(filteredPresets[nameIndex]);
+      } else {
+        justSelectedRef.current = true;
+        closeDropdown();
+      }
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    } else if (e.key === 'Tab') {
+      closeDropdown();
+    }
   };
 
   const handleNameChange = (value: string) => {
@@ -140,6 +141,13 @@ export function InstanceManager({
     }
     setNameOpen(true);
   }, []);
+
+  // Scroll selected item into view
+  useEffect(() => {
+    if (!listRef.current || nameIndex < 0) return;
+    const item = listRef.current.children[nameIndex] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: 'nearest' });
+  }, [nameIndex]);
 
   const handleSave = async () => {
     if (!name || !apiUrl) return;
@@ -165,49 +173,53 @@ export function InstanceManager({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <Label htmlFor="instance-name">Name</Label>
-            <Popover open={nameOpen} onOpenChange={setNameOpen}>
-              <PopoverTrigger asChild>
-                <Input
-                  id="instance-name"
-                  placeholder="Search presets or enter custom name..."
-                  value={name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  onFocus={handleNameFocus}
-                  onKeyDown={handleNameKeyDown}
-                  className="text-left"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                />
-              </PopoverTrigger>
-              <PopoverContent className="p-0">
-                <div className="max-h-48 overflow-y-auto">
-                  {filteredPresets.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      No matching presets — type a custom name and API URL below
-                    </div>
-                  ) : (
-                    filteredPresets.map((preset, i) => (
-                      <button
-                        key={preset.api_url}
-                        className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
-                          i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
-                        }`}
-                        onClick={() => handlePresetSelect(preset)}
-                      >
-                        <span className="font-medium">{preset.name}</span>
-                        <span className="text-xs text-muted-foreground truncate">
-                          {preset.api_url}
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Input
+              ref={nameInputRef}
+              id="instance-name"
+              placeholder="Search presets or enter custom name..."
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              onFocus={handleNameFocus}
+              onKeyDown={handleNameKeyDown}
+              className="text-left"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+            />
+            {nameOpen && (
+              <div
+                ref={listRef}
+                className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-0 shadow-md"
+              >
+                {filteredPresets.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    No matching presets — type a custom name and API URL below
+                  </div>
+                ) : (
+                  filteredPresets.map((preset, i) => (
+                    <button
+                      key={preset.api_url}
+                      type="button"
+                      className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                        i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
+                      }`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectPreset(preset);
+                      }}
+                    >
+                      <span className="font-medium">{preset.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {preset.api_url}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="instance-api-url">API URL</Label>
