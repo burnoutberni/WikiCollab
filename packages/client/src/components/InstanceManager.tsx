@@ -254,7 +254,7 @@ export function InstanceManager({
       </div>
 
       <div className="rounded-md border p-3">
-        <div className="flex items-start justify-between">
+        <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">{instance.name}</span>
