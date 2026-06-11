@@ -21,6 +21,8 @@ function lockKey(documentId: string) {
   return `wiki-colab-editor-lock-${documentId}`;
 }
 
+const STALE_MS = 30_000;
+
 export function useEditorLock(documentId: string | null) {
   const [lockedByOther, setLockedByOther] = useState<Lock | null>(null);
   const tabIdRef = useRef(getTabId());
@@ -55,6 +57,10 @@ export function useEditorLock(documentId: string | null) {
     setLockedByOther(null);
   }, [documentId]);
 
+  const isStale = useCallback((lock: Lock) => {
+    return Date.now() - lock.timestamp > STALE_MS;
+  }, []);
+
   // Claim lock on mount, release on unmount, refresh periodically
   useEffect(() => {
     if (!documentId) return;
@@ -64,10 +70,12 @@ export function useEditorLock(documentId: string | null) {
     if (stored) {
       try {
         const lock: Lock = JSON.parse(stored);
-        if (lock.tabId !== tabIdRef.current) {
-          setLockedByOther(lock);
-        } else {
+        if (lock.tabId === tabIdRef.current) {
           claim();
+        } else if (isStale(lock)) {
+          claim();
+        } else {
+          setLockedByOther(lock);
         }
       } catch {
         claim();
@@ -83,6 +91,8 @@ export function useEditorLock(documentId: string | null) {
           const lock: Lock = JSON.parse(current);
           if (lock.tabId === tabIdRef.current) {
             claim();
+          } else if (isStale(lock)) {
+            claim();
           }
         } catch {
           // ignore
@@ -90,11 +100,17 @@ export function useEditorLock(documentId: string | null) {
       }
     }, 10_000);
 
-    return () => {
-      clearInterval(interval);
+    const handleBeforeUnload = () => {
       release();
     };
-  }, [documentId, claim, release]);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      release();
+    };
+  }, [documentId, claim, release, isStale]);
 
   // Listen for lock changes from other tabs
   useEffect(() => {
