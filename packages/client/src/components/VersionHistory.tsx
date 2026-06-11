@@ -79,19 +79,18 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
           </DialogDescription>
         </DialogHeader>
 
-        {pendingCount > 0 && (
-          <div className="px-1">
-            <button
-              onClick={fetchVersions}
-              className="w-full flex items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 bg-primary/5 p-3 text-sm text-primary hover:bg-primary/10 transition-colors"
-            >
-              <ArrowDown className="h-4 w-4 animate-bounce" />
-              {pendingCount} new version{pendingCount !== 1 ? 's' : ''} — click to load
-            </button>
-          </div>
-        )}
-
-        <ScrollArea className="h-[500px]">
+        <ScrollArea className="h-[500px] relative">
+          {pendingCount > 0 && (
+            <div className="absolute top-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
+              <button
+                onClick={fetchVersions}
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary text-primary-foreground px-3.5 py-1.5 text-xs font-medium shadow-lg hover:bg-primary/90 transition-colors"
+              >
+                <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+                {pendingCount} new version{pendingCount !== 1 ? 's' : ''}
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center p-8 text-muted-foreground">
               Loading versions...
