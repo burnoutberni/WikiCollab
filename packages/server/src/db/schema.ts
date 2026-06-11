@@ -23,6 +23,7 @@ export const documentRevisions = sqliteTable('document_revisions', {
   id: text('id').primaryKey(),
   document_id: text('document_id').notNull().references(() => documents.id),
   yjs_state: text('yjs_state'),
+  starred: integer('starred', { mode: 'boolean' }).notNull().default(false),
   created_at: text('created_at').notNull().default(new Date().toISOString()),
 });
 

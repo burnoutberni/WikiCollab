@@ -31,6 +31,7 @@ sqlite.exec(`
     id TEXT PRIMARY KEY,
     document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     yjs_state TEXT,
+    starred INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -46,6 +47,13 @@ sqlite.exec(`
 // Migration: add css column to existing mediawiki_instances tables
 try {
   sqlite.exec(`ALTER TABLE mediawiki_instances ADD COLUMN css TEXT`);
+} catch {
+  // Column already exists, ignore
+}
+
+// Migration: add starred column to existing document_revisions tables
+try {
+  sqlite.exec(`ALTER TABLE document_revisions ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`);
 } catch {
   // Column already exists, ignore
 }

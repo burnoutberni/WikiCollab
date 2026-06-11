@@ -20,6 +20,7 @@ export interface DocumentRevision {
   id: string;
   document_id: string;
   yjs_state: Uint8Array;
+  starred: boolean;
   created_at: string;
 }
 

@@ -12,6 +12,7 @@ import type { Server } from 'http';
 
 const messageSync = 0;
 const messageAwareness = 1;
+const messageCustom = 2;
 
 const wsReadyStateConnecting = 0;
 const wsReadyStateOpen = 1;
@@ -121,6 +122,18 @@ function closeConn(doc: WSSharedDoc, conn: WebSocket) {
   conn.close();
 }
 
+function broadcastCustom(doc: WSSharedDoc, data: Uint8Array, excludeConn: WebSocket | null = null) {
+  const encoder = encoding.createEncoder();
+  encoding.writeVarUint(encoder, messageCustom);
+  encoding.writeVarUint8Array(encoder, data);
+  const message = encoding.toUint8Array(encoder);
+  doc.conns.forEach((_, conn) => {
+    if (conn !== excludeConn) {
+      send(doc, conn, message);
+    }
+  });
+}
+
 function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array) {
   try {
     const encoder = encoding.createEncoder();
@@ -141,9 +154,53 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
           conn
         );
         break;
+      case messageCustom:
+        const customData = decoding.readVarUint8Array(decoder);
+        handleCustomMessage(doc, customData, conn);
+        break;
     }
   } catch (err) {
     console.error(err);
+  }
+}
+
+function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, conn: WebSocket) {
+  const decoder = decoding.createDecoder(data);
+  const messageType = decoding.readVarString(decoder);
+
+  switch (messageType) {
+    case 'star': {
+      let versionId = '';
+      let starred = false;
+      while (decoder.pos < data.length) {
+        const key = decoding.readVarString(decoder);
+        const valueType = decoding.readVarUint(decoder);
+        if (key === 'versionId' && valueType === 0) {
+          versionId = decoding.readVarString(decoder);
+        } else if (key === 'starred' && valueType === 1) {
+          starred = decoding.readVarUint(decoder) === 1;
+        } else {
+          if (valueType === 0) decoding.readVarString(decoder);
+          else decoding.readVarUint(decoder);
+        }
+      }
+
+      db.update(schema.documentRevisions)
+        .set({ starred })
+        .where(eq(schema.documentRevisions.id, versionId))
+        .run();
+
+      const responseEncoder = encoding.createEncoder();
+      encoding.writeVarString(responseEncoder, 'star');
+      encoding.writeVarString(responseEncoder, 'versionId');
+      encoding.writeVarUint(responseEncoder, 0);
+      encoding.writeVarString(responseEncoder, versionId);
+      encoding.writeVarString(responseEncoder, 'starred');
+      encoding.writeVarUint(responseEncoder, 1);
+      encoding.writeVarUint(responseEncoder, starred ? 1 : 0);
+      broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
+      break;
+    }
   }
 }
 

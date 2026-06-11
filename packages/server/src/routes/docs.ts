@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
+import * as Y from 'yjs';
 
 const docs = new Hono();
 
@@ -80,7 +81,8 @@ docs.get('/:id/versions', (c) => {
   const versions = db.select()
     .from(schema.documentRevisions)
     .where(eq(schema.documentRevisions.document_id, id))
-    .all();
+    .all()
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return c.json(versions);
 });
@@ -99,6 +101,75 @@ docs.post('/:id/versions/:v/restore', (c) => {
   }
 
   return c.json({ success: true, yjs_state: version.yjs_state });
+});
+
+docs.post('/:id/versions/:v/star', (c) => {
+  const vId = c.req.param('v');
+
+  const version = db.select()
+    .from(schema.documentRevisions)
+    .where(eq(schema.documentRevisions.id, vId))
+    .get();
+
+  if (!version) {
+    return c.json({ error: 'Version not found' }, 404);
+  }
+
+  db.update(schema.documentRevisions)
+    .set({ starred: true })
+    .where(eq(schema.documentRevisions.id, vId))
+    .run();
+
+  return c.json({ success: true });
+});
+
+docs.delete('/:id/versions/:v/star', (c) => {
+  const vId = c.req.param('v');
+
+  const version = db.select()
+    .from(schema.documentRevisions)
+    .where(eq(schema.documentRevisions.id, vId))
+    .get();
+
+  if (!version) {
+    return c.json({ error: 'Version not found' }, 404);
+  }
+
+  db.update(schema.documentRevisions)
+    .set({ starred: false })
+    .where(eq(schema.documentRevisions.id, vId))
+    .run();
+
+  return c.json({ success: true });
+});
+
+docs.get('/:id/versions/:v/preview', (c) => {
+  const vId = c.req.param('v');
+
+  const version = db.select()
+    .from(schema.documentRevisions)
+    .where(eq(schema.documentRevisions.id, vId))
+    .get();
+
+  if (!version) {
+    return c.json({ error: 'Version not found' }, 404);
+  }
+
+  if (!version.yjs_state) {
+    return c.json({ content: '' });
+  }
+
+  try {
+    const state = Buffer.from(version.yjs_state, 'base64');
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, state);
+    const ytext = doc.getText('wikitext');
+    const content = ytext.toString();
+    doc.destroy();
+    return c.json({ content });
+  } catch (error) {
+    return c.json({ error: 'Failed to decode version' }, 500);
+  }
 });
 
 docs.get('/:id/templates', (c) => {

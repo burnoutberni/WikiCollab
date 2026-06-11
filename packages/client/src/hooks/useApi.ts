@@ -32,6 +32,7 @@ export interface Version {
   id: string;
   document_id: string;
   yjs_state: string | null;
+  starred: boolean;
   created_at: string;
 }
 
@@ -187,28 +188,97 @@ export function useTemplates(documentId: string | null) {
   return { templates, loading };
 }
 
-export function useVersions(documentId: string | null) {
+export function useVersions(
+  documentId: string | null,
+  sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void,
+  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void
+) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchVersions = useCallback(async () => {
     if (!documentId) return;
 
-    const fetchVersions = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/docs/${documentId}/versions`);
-        const data = await res.json();
-        setVersions(data);
-      } catch (error) {
-        console.error('Failed to fetch versions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchVersions();
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/docs/${documentId}/versions`);
+      const data = await res.json();
+      setVersions(data);
+    } catch (error) {
+      console.error('Failed to fetch versions:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [documentId]);
 
-  return { versions, loading };
+  useEffect(() => {
+    fetchVersions();
+  }, [fetchVersions]);
+
+  useEffect(() => {
+    if (!onCustomMessage) return;
+
+    const unsubscribe = onCustomMessage('star', (payload: { versionId: string; starred: boolean }) => {
+      setVersions((prev) =>
+        prev.map((v) => (v.id === payload.versionId ? { ...v, starred: payload.starred } : v))
+      );
+    });
+
+    return unsubscribe;
+  }, [onCustomMessage]);
+
+  const starVersion = useCallback(async (versionId: string) => {
+    if (!documentId) return;
+
+    if (sendCustomMessage) {
+      sendCustomMessage('star', { versionId, starred: true });
+    } else {
+      try {
+        await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+          method: 'POST',
+        });
+        setVersions((prev) =>
+          prev.map((v) => (v.id === versionId ? { ...v, starred: true } : v))
+        );
+      } catch (error) {
+        console.error('Failed to star version:', error);
+      }
+    }
+  }, [documentId, sendCustomMessage]);
+
+  const unstarVersion = useCallback(async (versionId: string) => {
+    if (!documentId) return;
+
+    if (sendCustomMessage) {
+      sendCustomMessage('star', { versionId, starred: false });
+    } else {
+      try {
+        await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+          method: 'DELETE',
+        });
+        setVersions((prev) =>
+          prev.map((v) => (v.id === versionId ? { ...v, starred: false } : v))
+        );
+      } catch (error) {
+        console.error('Failed to unstar version:', error);
+      }
+    }
+  }, [documentId, sendCustomMessage]);
+
+  const getVersionPreview = useCallback(async (versionId: string): Promise<string | null> => {
+    if (!documentId) return null;
+
+    try {
+      const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/preview`);
+      if (res.ok) {
+        const data = await res.json();
+        return data.content || null;
+      }
+    } catch (error) {
+      console.error('Failed to fetch version preview:', error);
+    }
+    return null;
+  }, [documentId]);
+
+  return { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview };
 }

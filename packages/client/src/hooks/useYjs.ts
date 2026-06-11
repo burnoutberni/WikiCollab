@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { IndexeddbPersistence } from 'y-indexeddb';
+import * as encoding from 'lib0/encoding';
+import * as decoding from 'lib0/decoding';
 
 export interface Presence {
   userId: string;
@@ -43,12 +45,15 @@ function generateColor(): string {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
+type CustomMessageHandler = (data: any) => void;
+
 export function useYjs(docId: string | null) {
   const [ydoc] = useState(() => new Y.Doc());
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
   const [ytext, setYtext] = useState<Y.Text | null>(null);
   const [connected, setConnected] = useState(false);
   const [peers, setPeers] = useState<Presence[]>([]);
+  const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
   const [userId] = useState(() => {
     const stored = localStorage.getItem('wiki-colab-user-id');
     if (stored) return stored;
@@ -122,6 +127,34 @@ export function useYjs(docId: string | null) {
 
     const text = ydoc.getText('wikitext');
     setYtext(text);
+
+    const messageCustom = 2;
+    wsProvider.messageHandlers[messageCustom] = (
+      _encoder: encoding.Encoder,
+      decoder: decoding.Decoder,
+      _provider: WebsocketProvider,
+      _inc: boolean
+    ) => {
+      const customData = decoding.readVarUint8Array(decoder);
+      const customDecoder = decoding.createDecoder(customData);
+      const customType = decoding.readVarString(customDecoder);
+      const handlers = customHandlersRef.current.get(customType);
+      if (handlers) {
+        const payload: any = {};
+        try {
+          while (customDecoder.pos < customData.length) {
+            const key = decoding.readVarString(customDecoder);
+            const valueType = decoding.readVarUint(customDecoder);
+            switch (valueType) {
+              case 0: payload[key] = decoding.readVarString(customDecoder); break;
+              case 1: payload[key] = decoding.readVarUint(customDecoder) === 1; break;
+            }
+          }
+        } catch {}
+        handlers.forEach((handler) => handler(payload));
+      }
+    };
+
     setProvider(wsProvider);
 
     return () => {
@@ -162,6 +195,41 @@ export function useYjs(docId: string | null) {
     });
   }, [ytext, ydoc]);
 
+  const sendCustomMessage = useCallback((type: string, payload: Record<string, string | boolean>) => {
+    if (!provider?.ws || provider.ws.readyState !== WebSocket.OPEN) return;
+
+    const messageCustom = 2;
+    const encoder = encoding.createEncoder();
+    encoding.writeVarUint(encoder, messageCustom);
+
+    const payloadEncoder = encoding.createEncoder();
+    encoding.writeVarString(payloadEncoder, type);
+    for (const [key, value] of Object.entries(payload)) {
+      encoding.writeVarString(payloadEncoder, key);
+      if (typeof value === 'string') {
+        encoding.writeVarUint(payloadEncoder, 0);
+        encoding.writeVarString(payloadEncoder, value);
+      } else {
+        encoding.writeVarUint(payloadEncoder, 1);
+        encoding.writeVarUint(payloadEncoder, value ? 1 : 0);
+      }
+    }
+
+    encoding.writeVarUint8Array(encoder, encoding.toUint8Array(payloadEncoder));
+    provider.ws.send(encoding.toUint8Array(encoder));
+  }, [provider]);
+
+  const onCustomMessage = useCallback((type: string, handler: CustomMessageHandler) => {
+    if (!customHandlersRef.current.has(type)) {
+      customHandlersRef.current.set(type, new Set());
+    }
+    customHandlersRef.current.get(type)!.add(handler);
+
+    return () => {
+      customHandlersRef.current.get(type)?.delete(handler);
+    };
+  }, []);
+
   return {
     ydoc,
     ytext,
@@ -177,5 +245,7 @@ export function useYjs(docId: string | null) {
     clearCursor,
     getContent,
     setContent,
+    sendCustomMessage,
+    onCustomMessage,
   };
 }

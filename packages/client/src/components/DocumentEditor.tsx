@@ -50,6 +50,8 @@ export function DocumentEditor() {
     setUserColor,
     provider,
     updateCursor,
+    sendCustomMessage,
+    onCustomMessage,
   } = useYjs(id || null);
 
   const [title, setTitle] = useState('');
@@ -205,7 +207,12 @@ export function DocumentEditor() {
 
           <Separator orientation="vertical" className="h-6" />
 
-          <VersionHistory documentId={id!} onRestore={handleRestoreVersion} />
+          <VersionHistory
+            documentId={id!}
+            onRestore={handleRestoreVersion}
+            sendCustomMessage={sendCustomMessage}
+            onCustomMessage={onCustomMessage}
+          />
 
           <PushToWiki
             documentId={id!}
