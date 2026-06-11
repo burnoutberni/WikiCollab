@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Server, Trash2, Edit, Plus, ExternalLink } from 'lucide-react';
+import { Server, Trash2, Plus, ExternalLink } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
@@ -51,7 +51,6 @@ interface InstanceManagerProps {
   loading: boolean;
   createInstance: (name: string, apiUrl: string, token?: string) => Promise<MediaWikiInstance>;
   deleteInstance: (id: string) => Promise<void>;
-  updateInstance: (id: string, updates: { name?: string; api_url?: string; token?: string }) => Promise<MediaWikiInstance>;
 }
 
 export function InstanceManager({
@@ -59,12 +58,10 @@ export function InstanceManager({
   loading,
   createInstance,
   deleteInstance,
-  updateInstance,
 }: InstanceManagerProps) {
   const instance = instances.length > 0 ? instances[0] : null;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingInstance, setEditingInstance] = useState<MediaWikiInstance | null>(null);
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [nameSearch, setNameSearch] = useState('');
@@ -79,24 +76,12 @@ export function InstanceManager({
   );
 
   const openAddDialog = () => {
-    setEditingInstance(null);
     setName('');
     setApiUrl('');
     setNameSearch('');
     setNameIndex(-1);
     setSelectedPreset(null);
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = () => {
-    if (!instance) return;
-    setEditingInstance(instance);
-    setName(instance.name);
-    setApiUrl(instance.api_url);
-    const match = WIKI_PRESETS.find((p) => p.api_url === instance.api_url);
-    setSelectedPreset(match || null);
-    setNameSearch('');
-    setNameIndex(-1);
+    setNameOpen(true);
     setDialogOpen(true);
   };
 
@@ -138,16 +123,12 @@ export function InstanceManager({
     setSelectedPreset(null);
     setNameSearch(value);
     setNameIndex(-1);
-    setNameOpen(value.length > 0);
+    setNameOpen(true);
   };
 
   const handleSave = async () => {
     if (!name || !apiUrl) return;
-    if (editingInstance) {
-      await updateInstance(editingInstance.id, { name, api_url: apiUrl });
-    } else {
-      await createInstance(name, apiUrl);
-    }
+    await createInstance(name, apiUrl);
     setDialogOpen(false);
   };
 
@@ -163,13 +144,9 @@ export function InstanceManager({
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {editingInstance ? 'Edit Instance' : 'Add MediaWiki Instance'}
-          </DialogTitle>
+          <DialogTitle>Add MediaWiki Instance</DialogTitle>
           <DialogDescription>
-            {editingInstance
-              ? 'Update the MediaWiki instance configuration.'
-              : 'Configure a MediaWiki instance for preview and publishing.'}
+            Configure a MediaWiki instance for preview and publishing.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -183,15 +160,13 @@ export function InstanceManager({
                   value={nameOpen ? nameSearch : name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   onFocus={() => {
-                    if (name.length > 0) {
-                      setNameSearch(name);
-                      setNameOpen(true);
-                    }
+                    setNameSearch(name);
+                    setNameOpen(true);
                   }}
                   onKeyDown={handleNameKeyDown}
                 />
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" sideOffset={4}>
                 <div className="max-h-48 overflow-y-auto">
                   {filteredPresets.map((preset, i) => (
                     <button
@@ -224,11 +199,6 @@ export function InstanceManager({
               disabled={isPresetLocked}
               readOnly={isPresetLocked}
             />
-            {isPresetLocked && (
-              <p className="text-xs text-muted-foreground">
-                Preset selected — URL is locked.
-              </p>
-            )}
           </div>
         </div>
         <DialogFooter>
@@ -236,7 +206,7 @@ export function InstanceManager({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!name || !apiUrl}>
-            {editingInstance ? 'Update' : 'Add'}
+            Add
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -296,14 +266,6 @@ export function InstanceManager({
             </div>
           </div>
           <div className="flex items-center gap-1 ml-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={openEditDialog}
-              className="h-7 w-7 p-0"
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </Button>
             <Button
               variant="ghost"
               size="sm"

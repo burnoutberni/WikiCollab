@@ -37,7 +37,7 @@ export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { document: doc, loading } = useDocument(id || null);
-  const { instances, loading: instancesLoading, createInstance, deleteInstance, updateInstance } = useInstances();
+  const { instances, loading: instancesLoading, createInstance, deleteInstance } = useInstances();
   const {
     ytext,
     connected,
@@ -229,7 +229,6 @@ export function DocumentEditor() {
                   loading={instancesLoading}
                   createInstance={createInstance}
                   deleteInstance={deleteInstance}
-                  updateInstance={updateInstance}
                 />
               </div>
 
