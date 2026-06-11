@@ -21,14 +21,6 @@ export interface MediaWikiInstance {
   configured_at: string;
 }
 
-export interface Template {
-  id: string;
-  instance_id: string;
-  template_name: string;
-  template_data: string;
-  fetched_at: string;
-}
-
 export interface Version {
   id: string;
   document_id: string;
@@ -194,40 +186,7 @@ export function useInstances() {
     setInstances((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  const refreshTemplates = useCallback(async (id: string) => {
-    const res = await fetch(`${API_BASE}/instances/${id}/templates/refresh`, {
-      method: 'POST',
-    });
-    return res.json();
-  }, []);
-
-  return { instances, loading, createInstance, deleteInstance, refreshTemplates, refetch: fetchInstances };
-}
-
-export function useTemplates(documentId: string | null) {
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!documentId) return;
-
-    const fetchTemplates = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/docs/${documentId}/templates`);
-        const data = await res.json();
-        setTemplates(data);
-      } catch (error) {
-        console.error('Failed to fetch templates:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTemplates();
-  }, [documentId]);
-
-  return { templates, loading };
+  return { instances, loading, createInstance, deleteInstance, refetch: fetchInstances };
 }
 
 export function useVersions(

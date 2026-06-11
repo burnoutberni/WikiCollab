@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import { useDocument, useInstances, useTemplates, type MediaWikiInstance } from '@/hooks/useApi';
+import { useDocument, useInstances, type MediaWikiInstance } from '@/hooks/useApi';
 import { useYjs } from '@/hooks/useYjs';
 import { WikitextEditor } from './WikitextEditor';
 import { SplitPaneEditor } from './SplitPaneEditor';
@@ -39,7 +38,6 @@ export function DocumentEditor() {
   const navigate = useNavigate();
   const { document: doc, loading } = useDocument(id || null);
   const { instances } = useInstances();
-  const { templates } = useTemplates(id || null);
   const {
     ytext,
     connected,
@@ -245,28 +243,6 @@ export function DocumentEditor() {
                   onSelect={handleInstanceSelect}
                   selectedId={selectedInstance?.id}
                 />
-              </div>
-
-              <div className="p-4 border-b">
-                <h3 className="text-sm font-medium mb-2">Templates</h3>
-                {templates.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    No templates available. Select a MediaWiki instance to load templates.
-                  </p>
-                ) : (
-                  <ScrollArea className="h-[200px]">
-                    <div className="space-y-1">
-                      {templates.map((template) => (
-                        <div
-                          key={template.id}
-                          className="text-xs px-2 py-1 rounded hover:bg-muted cursor-pointer"
-                        >
-                          {template.template_name}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
               </div>
 
               <div className="p-4 mt-auto border-t">

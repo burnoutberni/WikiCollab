@@ -5,8 +5,49 @@ import { eq } from 'drizzle-orm';
 
 const instances = new Hono();
 
+function getWikiArticleBase(apiUrl: string): string {
+  return apiUrl.replace(/\/w\/api\.php$/, '/wiki/');
+}
+
 instances.post('/preview', async (c) => {
   const { wikitext, instance_id } = await c.req.json();
+
+  if (instance_id) {
+    const instance = db.select()
+      .from(schema.mediawikiInstances)
+      .where(eq(schema.mediawikiInstances.id, instance_id))
+      .get();
+
+    if (instance?.api_url) {
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'parse');
+        formData.append('text', wikitext || '');
+        formData.append('prop', 'text');
+        formData.append('contentmodel', 'wikitext');
+        formData.append('format', 'json');
+
+        const res = await fetch(instance.api_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
+        });
+
+        const data = await res.json() as {
+          parse?: { text?: { '*': string } };
+          error?: { info: string };
+        };
+
+        if (data.parse?.text?.['*']) {
+          return c.json({ html: data.parse.text['*'], css: instance.css || null });
+        }
+      } catch {
+        // Fall through to local parsing
+      }
+    }
+  }
+
+  // Fallback: local parsing without template resolution
   const Parser = (await import('wikiparser-node')).default;
   const root = Parser.parse(wikitext || '');
   const html = root.toHtml();
@@ -119,50 +160,6 @@ instances.delete('/:id', (c) => {
   }
 
   return c.json({ success: true });
-});
-
-instances.post('/:id/templates/refresh', async (c) => {
-  const id = c.req.param('id');
-
-  const instance = db.select()
-    .from(schema.mediawikiInstances)
-    .where(eq(schema.mediawikiInstances.id, id))
-    .get();
-
-  if (!instance) {
-    return c.json({ error: 'Instance not found' }, 404);
-  }
-
-  try {
-    const url = `${instance.api_url}?action=query&list=alltemplates&atlimit=500&format=json`;
-    const response = await fetch(url);
-    const data = await response.json() as {
-      query?: { alltemplates?: Array<{ name: string }> };
-    };
-
-    if (!data.query?.alltemplates) {
-      return c.json({ error: 'Failed to fetch templates' }, 500);
-    }
-
-    db.delete(schema.templateCache)
-      .where(eq(schema.templateCache.instance_id, id))
-      .run();
-
-    const now = new Date().toISOString();
-    for (const template of data.query.alltemplates) {
-      db.insert(schema.templateCache).values({
-        id: nanoid(7),
-        instance_id: id,
-        template_name: template.name,
-        template_data: JSON.stringify(template),
-        fetched_at: now,
-      }).run();
-    }
-
-    return c.json({ success: true, count: data.query.alltemplates.length });
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch templates from MediaWiki' }, 500);
-  }
 });
 
 export default instances;
