@@ -56,6 +56,10 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
   }, []);
 
   useEffect(() => {
+    fetchPreview();
+  }, [instanceId]);
+
+  useEffect(() => {
     if (!ytext) return;
 
     const observer = () => {
