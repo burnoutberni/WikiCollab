@@ -74,6 +74,8 @@ export function useYjs(docId: string | null) {
     localStorage.setItem('wiki-colab-user-name', name);
     return name;
   });
+  const userNameRef = useRef(userName);
+  userNameRef.current = userName;
 
   const setUserName = useCallback((name: string) => {
     const trimmed = name.trim();
@@ -121,6 +123,7 @@ export function useYjs(docId: string | null) {
         if (clientId === ydoc.clientID) continue;
         const s = state as AwarenessState;
         const uid = s.user?.name || 'Anonymous';
+        if (uid === userNameRef.current) continue;
         if (seen.has(uid)) continue;
         seen.add(uid);
         presenceList.push({
