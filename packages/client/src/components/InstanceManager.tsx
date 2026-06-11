@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,8 +11,35 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Globe, Pencil } from 'lucide-react';
+import { Plus, Trash2, Globe, Pencil, Search } from 'lucide-react';
 import { useInstances, type MediaWikiInstance } from '@/hooks/useApi';
+
+interface WikiPreset {
+  name: string;
+  apiUrl: string;
+}
+
+const WIKI_PRESETS: WikiPreset[] = [
+  { name: 'Wikipedia (English)', apiUrl: 'https://en.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (Deutsch)', apiUrl: 'https://de.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (Français)', apiUrl: 'https://fr.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (Español)', apiUrl: 'https://es.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (日本語)', apiUrl: 'https://ja.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (中文)', apiUrl: 'https://zh.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (Русский)', apiUrl: 'https://ru.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (Português)', apiUrl: 'https://pt.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (Italiano)', apiUrl: 'https://it.wikipedia.org/w/api.php' },
+  { name: 'Wikipedia (Polski)', apiUrl: 'https://pl.wikipedia.org/w/api.php' },
+  { name: 'Wikimedia Commons', apiUrl: 'https://commons.wikimedia.org/w/api.php' },
+  { name: 'Wikidata', apiUrl: 'https://www.wikidata.org/w/api.php' },
+  { name: 'Wiktionary (English)', apiUrl: 'https://en.wiktionary.org/w/api.php' },
+  { name: 'Wikiquote (English)', apiUrl: 'https://en.wikiquote.org/w/api.php' },
+  { name: 'Wikibooks (English)', apiUrl: 'https://en.wikibooks.org/w/api.php' },
+  { name: 'Wikisource (English)', apiUrl: 'https://en.wikisource.org/w/api.php' },
+  { name: 'Wikiversity (English)', apiUrl: 'https://en.wikiversity.org/w/api.php' },
+  { name: 'MediaWiki.org', apiUrl: 'https://www.mediawiki.org/w/api.php' },
+  { name: 'Meta-Wiki', apiUrl: 'https://meta.wikimedia.org/w/api.php' },
+];
 
 interface InstanceManagerProps {
   onSelect?: (instance: MediaWikiInstance | null) => void;
@@ -26,11 +53,23 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [token, setToken] = useState('');
+  const [presetQuery, setPresetQuery] = useState('');
+  const [showPresets, setShowPresets] = useState(false);
+
+  const filteredPresets = useMemo(() => {
+    if (!presetQuery) return WIKI_PRESETS;
+    const q = presetQuery.toLowerCase();
+    return WIKI_PRESETS.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.apiUrl.toLowerCase().includes(q)
+    );
+  }, [presetQuery]);
 
   const resetForm = useCallback(() => {
     setName('');
     setApiUrl('');
     setToken('');
+    setPresetQuery('');
+    setShowPresets(false);
     setEditingInstance(null);
   }, []);
 
@@ -69,7 +108,16 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
     setName(instance.name);
     setApiUrl(instance.api_url);
     setToken('');
+    setPresetQuery('');
+    setShowPresets(false);
     setOpen(true);
+  }, []);
+
+  const selectPreset = useCallback((preset: WikiPreset) => {
+    setName(preset.name);
+    setApiUrl(preset.apiUrl);
+    setPresetQuery('');
+    setShowPresets(false);
   }, []);
 
   return (
@@ -88,10 +136,50 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
               <DialogDescription>
                 {editingInstance
                   ? 'Update the configuration for this MediaWiki instance.'
-                  : 'Configure a MediaWiki API endpoint to push articles and render templates.'}
+                  : 'Choose a preset or configure a custom MediaWiki API endpoint.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              {!editingInstance && (
+                <div className="space-y-2">
+                  <Label>Preset</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search presets or type a custom name..."
+                      value={showPresets ? presetQuery : name}
+                      onChange={(e) => {
+                        setPresetQuery(e.target.value);
+                        setName(e.target.value);
+                        setShowPresets(true);
+                      }}
+                      onFocus={() => setShowPresets(true)}
+                      className="pl-9"
+                    />
+                    {showPresets && (
+                      <div className="absolute z-50 top-full mt-1 w-full max-h-48 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
+                        {filteredPresets.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                            No matches — keep typing a custom name
+                          </div>
+                        ) : (
+                          filteredPresets.map((preset) => (
+                            <button
+                              key={preset.apiUrl}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex flex-col"
+                              onClick={() => selectPreset(preset)}
+                            >
+                              <span className="font-medium">{preset.name}</span>
+                              <span className="text-xs text-muted-foreground truncate">{preset.apiUrl}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="instance-name">Name</Label>
                 <Input
