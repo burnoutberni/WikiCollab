@@ -169,6 +169,20 @@ export function useInstances() {
     }
   }, []);
 
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key !== 'wiki-colab-instances') return;
+      try {
+        const parsed = e.newValue ? JSON.parse(e.newValue) : [];
+        setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
+      } catch {
+        setInstances([]);
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
   const persist = useCallback((next: MediaWikiInstance[]) => {
     setInstances(next);
     localStorage.setItem('wiki-colab-instances', JSON.stringify(next));
