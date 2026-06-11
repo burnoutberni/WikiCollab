@@ -10,6 +10,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   ArrowLeft,
   FileText,
   Code,
@@ -24,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useDocument, useInstances } from '@/hooks/useApi';
 import { useYjs } from '@/hooks/useYjs';
+import { useEditorLock } from '@/hooks/useEditorLock';
 import { WikitextEditor } from './WikitextEditor';
 import { SplitPaneEditor } from './SplitPaneEditor';
 import { InstanceManager } from './InstanceManager';
@@ -38,6 +47,7 @@ export function DocumentEditor() {
   const navigate = useNavigate();
   const { document: doc, loading } = useDocument(id || null);
   const { instances, loading: instancesLoading, createInstance, deleteInstance } = useInstances();
+  const { lockedByOther, takeOver } = useEditorLock(id || null);
   const {
     ytext,
     connected,
@@ -306,6 +316,27 @@ export function DocumentEditor() {
           </div>
         </footer>
       </div>
+
+      {/* Takeover Dialog */}
+      <Dialog open={!!lockedByOther} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Session already open</DialogTitle>
+            <DialogDescription>
+              This document is already open in another tab. Taking over will close
+              the other session.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => navigate('/')}>
+              Go Back
+            </Button>
+            <Button onClick={takeOver}>
+              Take Over
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
