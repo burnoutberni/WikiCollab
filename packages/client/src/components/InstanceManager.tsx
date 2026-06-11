@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Plus, Trash2, Globe, Pencil, Search } from 'lucide-react';
-import { useInstances, type MediaWikiInstance } from '@/hooks/useApi';
+import { type MediaWikiInstance } from '@/hooks/useApi';
 
 interface WikiPreset {
   name: string;
@@ -42,12 +42,16 @@ const WIKI_PRESETS: WikiPreset[] = [
 ];
 
 interface InstanceManagerProps {
+  instances: MediaWikiInstance[];
+  loading: boolean;
+  createInstance: (name: string, apiUrl: string, token?: string) => Promise<MediaWikiInstance>;
+  deleteInstance: (id: string) => Promise<void>;
+  updateInstance: (id: string, updates: { name?: string; api_url?: string; token?: string }) => Promise<MediaWikiInstance>;
   onSelect?: (instance: MediaWikiInstance | null) => void;
   selectedId?: string | null;
 }
 
-export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) {
-  const { instances, loading, createInstance, deleteInstance, updateInstance } = useInstances();
+export function InstanceManager({ instances, loading, createInstance, deleteInstance, updateInstance, onSelect, selectedId }: InstanceManagerProps) {
   const [open, setOpen] = useState(false);
   const [editingInstance, setEditingInstance] = useState<MediaWikiInstance | null>(null);
   const [name, setName] = useState('');

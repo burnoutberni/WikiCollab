@@ -37,7 +37,7 @@ export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { document: doc, loading } = useDocument(id || null);
-  const { instances } = useInstances();
+  const { instances, loading: instancesLoading, createInstance, deleteInstance, updateInstance } = useInstances();
   const {
     ytext,
     connected,
@@ -222,6 +222,7 @@ export function DocumentEditor() {
             documentId={id!}
             title={title}
             content={content}
+            instances={instances}
           />
 
           <Button
@@ -240,6 +241,11 @@ export function DocumentEditor() {
             <aside className="w-64 border-r flex flex-col">
               <div className="p-4 border-b">
                 <InstanceManager
+                  instances={instances}
+                  loading={instancesLoading}
+                  createInstance={createInstance}
+                  deleteInstance={deleteInstance}
+                  updateInstance={updateInstance}
                   onSelect={handleInstanceSelect}
                   selectedId={selectedInstance?.id}
                 />

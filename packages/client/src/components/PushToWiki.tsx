@@ -12,16 +12,16 @@ import {
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Send, FileText } from 'lucide-react';
-import { useInstances, type MediaWikiInstance } from '@/hooks/useApi';
+import { type MediaWikiInstance } from '@/hooks/useApi';
 
 interface PushToWikiProps {
   documentId: string;
   title: string;
   content: string;
+  instances: MediaWikiInstance[];
 }
 
-export function PushToWiki({ documentId, title, content }: PushToWikiProps) {
-  const { instances } = useInstances();
+export function PushToWiki({ documentId, title, content, instances }: PushToWikiProps) {
   const [open, setOpen] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<MediaWikiInstance | null>(null);
   const [wikiTitle, setWikiTitle] = useState(title);
@@ -32,6 +32,12 @@ export function PushToWiki({ documentId, title, content }: PushToWikiProps) {
   useEffect(() => {
     setWikiTitle(title);
   }, [title]);
+
+  useEffect(() => {
+    if (selectedInstance && !instances.find((i) => i.id === selectedInstance.id)) {
+      setSelectedInstance(null);
+    }
+  }, [instances, selectedInstance]);
 
   const handlePush = useCallback(async () => {
     if (!selectedInstance || !wikiTitle) return;
