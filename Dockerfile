@@ -9,7 +9,7 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/client/package.json ./packages/client/
 COPY shared/package.json ./shared/
 
-RUN pnpm install --frozen-lockfile
+RUN echo "minimum-release-age=0" >> .npmrc && pnpm install --frozen-lockfile
 
 COPY . .
 
