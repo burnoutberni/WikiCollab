@@ -33,13 +33,14 @@ function generateUserName(): string {
   return `${adj} ${noun}`;
 }
 
+export const COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+  '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+  '#BB8FCE', '#85C1E9', '#82E0AA', '#F8C471',
+];
+
 function generateColor(): string {
-  const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
-    '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-    '#BB8FCE', '#85C1E9', '#82E0AA', '#F8C471',
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
+  return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
 export function useYjs(docId: string | null) {
@@ -55,20 +56,33 @@ export function useYjs(docId: string | null) {
     localStorage.setItem('wiki-colab-user-id', id);
     return id;
   });
-  const [userName] = useState(() => {
+  const [userName, setUserNameState] = useState(() => {
     const stored = localStorage.getItem('wiki-colab-user-name');
     if (stored) return stored;
     const name = generateUserName();
     localStorage.setItem('wiki-colab-user-name', name);
     return name;
   });
-  const [userColor] = useState(() => {
+
+  const setUserName = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setUserNameState(trimmed);
+    localStorage.setItem('wiki-colab-user-name', trimmed);
+  }, []);
+
+  const [userColor, setUserColorState] = useState(() => {
     const stored = localStorage.getItem('wiki-colab-user-color');
     if (stored) return stored;
     const color = generateColor();
     localStorage.setItem('wiki-colab-user-color', color);
     return color;
   });
+
+  const setUserColor = useCallback((color: string) => {
+    setUserColorState(color);
+    localStorage.setItem('wiki-colab-user-color', color);
+  }, []);
 
   useEffect(() => {
     if (!docId) return;
@@ -84,10 +98,6 @@ export function useYjs(docId: string | null) {
       setConnected(status === 'connected');
     });
 
-    wsProvider.awareness.setLocalStateField('user', {
-      name: userName,
-      color: userColor,
-    });
     wsProvider.awareness.setLocalStateField('cursor', null);
 
     const awareness = wsProvider.awareness;
@@ -119,7 +129,15 @@ export function useYjs(docId: string | null) {
       wsProvider.destroy();
       idbPersistence.destroy();
     };
-  }, [docId, ydoc, userName, userColor]);
+  }, [docId, ydoc]);
+
+  useEffect(() => {
+    if (!provider) return;
+    provider.awareness.setLocalStateField('user', {
+      name: userName,
+      color: userColor,
+    });
+  }, [provider, userName, userColor]);
 
   const updateCursor = useCallback((anchor: number, head: number) => {
     if (!provider) return;
@@ -153,6 +171,8 @@ export function useYjs(docId: string | null) {
     userId,
     userName,
     userColor,
+    setUserName,
+    setUserColor,
     updateCursor,
     clearCursor,
     getContent,

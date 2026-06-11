@@ -46,6 +46,8 @@ export function DocumentEditor() {
     peers,
     userName,
     userColor,
+    setUserName,
+    setUserColor,
     provider,
     updateCursor,
   } = useYjs(id || null);
@@ -272,6 +274,8 @@ export function DocumentEditor() {
                     peers={peers}
                     userName={userName}
                     userColor={userColor}
+                    onUserNameChange={setUserName}
+                    onUserColorChange={setUserColor}
                   />
                 )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
