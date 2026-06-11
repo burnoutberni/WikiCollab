@@ -43,20 +43,27 @@ export function WikitextEditor({ content, onChange: _onChange, ytext, provider: 
     const observer = (event: Y.YTextEvent) => {
       if (updatingRef.current) return;
 
-      const cursorPos = textarea.selectionStart;
       const text = ytext.toString();
+      const scrollTop = textarea.scrollTop;
+      const scrollLeft = textarea.scrollLeft;
 
       textarea.value = text;
 
-      const newLen = text.length;
-      const delta = newLen - (event.delta as any[]).reduce((acc, d) => {
+      const delta = (event.delta as any[]).reduce((acc, d) => {
         if (d.retain) return acc - d.retain;
         if (d.delete) return acc + d.delete;
         return acc + (d.insert?.length || 0);
       }, 0);
 
-      const newCursorPos = Math.min(cursorPos + delta, newLen);
+      const newLen = text.length;
+      const newCursorPos = Math.min(
+        textarea.selectionStart + delta,
+        newLen
+      );
       textarea.setSelectionRange(newCursorPos, newCursorPos);
+
+      textarea.scrollTop = scrollTop;
+      textarea.scrollLeft = scrollLeft;
     };
 
     ytext.observe(observer);
