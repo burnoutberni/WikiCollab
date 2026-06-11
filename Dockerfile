@@ -26,6 +26,8 @@ COPY --from=base /app/packages/server/package.json ./packages/server/
 COPY --from=base /app/packages/client/package.json ./packages/client/
 COPY --from=base /app/shared/package.json ./shared/
 COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/packages/server/node_modules ./packages/server/node_modules
+COPY --from=base /app/packages/client/node_modules ./packages/client/node_modules
 COPY --from=base /app/packages/server/dist ./packages/server/dist
 COPY --from=base /app/packages/client/dist ./packages/client/dist
 
