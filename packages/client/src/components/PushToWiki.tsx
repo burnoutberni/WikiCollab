@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Send, FileText } from 'lucide-react';
 import { useInstances, type MediaWikiInstance } from '@/hooks/useApi';
 
@@ -63,12 +64,33 @@ export function PushToWiki({ documentId, title, content }: PushToWikiProps) {
     }
   }, [selectedInstance, wikiTitle, content, summary, documentId]);
 
+  const noInstances = instances.length === 0;
+
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Send className="h-4 w-4 mr-2" />
-        Push to Wiki
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(true)}
+                disabled={noInstances}
+                className={noInstances ? 'opacity-50 cursor-not-allowed' : ''}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Push to Wiki
+              </Button>
+            </span>
+          </TooltipTrigger>
+          {noInstances && (
+            <TooltipContent>
+              Configure a MediaWiki instance first
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
