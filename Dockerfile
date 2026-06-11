@@ -9,7 +9,7 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/client/package.json ./packages/client/
 COPY shared/package.json ./shared/
 
-RUN pnpm install --frozen-lockfile --config.minimumReleaseAge=0 --config.onlyBuiltDependencies='better-sqlite3,esbuild'
+RUN pnpm install --frozen-lockfile --config.minimumReleaseAge=0
 
 COPY . .
 
