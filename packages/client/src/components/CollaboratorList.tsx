@@ -1,4 +1,4 @@
-import { Users, MousePointer2 } from 'lucide-react';
+import { MousePointer2 } from 'lucide-react';
 import type { Presence } from '@/hooks/useYjs';
 
 interface CollaboratorListProps {
@@ -20,11 +20,6 @@ function formatCursor(cursor: { anchor: number; head: number } | null): string |
 export function CollaboratorList({ peers, userName, userColor }: CollaboratorListProps) {
   return (
     <div className="space-y-1">
-      <h3 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-        <Users className="h-3.5 w-3.5" />
-        Collaborators ({peers.length + 1})
-      </h3>
-
       {/* Current user */}
       <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50">
         <div

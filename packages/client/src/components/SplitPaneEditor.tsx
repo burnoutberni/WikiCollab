@@ -10,12 +10,11 @@ interface SplitPaneEditorProps {
   onChange: (value: string) => void;
   documentId: string;
   ytext?: Y.Text | null;
-  ydoc?: Y.Doc | null;
   provider?: WebsocketProvider | null;
   onCursorChange?: (anchor: number, head: number) => void;
 }
 
-export function SplitPaneEditor({ content, onChange, ytext, ydoc, provider, onCursorChange }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, ytext, provider, onCursorChange }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +47,6 @@ export function SplitPaneEditor({ content, onChange, ytext, ydoc, provider, onCu
           content={content}
           onChange={onChange}
           ytext={ytext}
-          ydoc={ydoc}
           provider={provider}
           onCursorChange={onCursorChange}
         />

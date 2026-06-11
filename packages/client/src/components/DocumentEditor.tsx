@@ -15,7 +15,6 @@ import {
   FileText,
   Code,
   Columns,
-  Edit3,
   Settings,
   Users,
   Wifi,
@@ -28,13 +27,12 @@ import { useDocument, useInstances, useTemplates, type MediaWikiInstance } from 
 import { useYjs } from '@/hooks/useYjs';
 import { WikitextEditor } from './WikitextEditor';
 import { SplitPaneEditor } from './SplitPaneEditor';
-import { WysiwygEditor } from './WysiwygEditor';
 import { InstanceManager } from './InstanceManager';
 import { PushToWiki } from './PushToWiki';
 import { VersionHistory } from './VersionHistory';
 import { CollaboratorList } from './CollaboratorList';
 
-type ViewMode = 'source' | 'split' | 'wysiwyg';
+type ViewMode = 'source' | 'split';
 
 export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
@@ -201,19 +199,6 @@ export function DocumentEditor() {
               <TooltipContent>Split View</TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewMode === 'wysiwyg' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('wysiwyg')}
-                  className="rounded-l-none"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>WYSIWYG</TooltipContent>
-            </Tooltip>
           </div>
 
           <Separator orientation="vertical" className="h-6" />
@@ -320,13 +305,6 @@ export function DocumentEditor() {
                 ytext={ytext}
                 provider={provider}
                 onCursorChange={updateCursor}
-              />
-            )}
-            {viewMode === 'wysiwyg' && (
-              <WysiwygEditor
-                content={content}
-                onChange={handleContentChange}
-                ytext={ytext}
               />
             )}
           </main>
