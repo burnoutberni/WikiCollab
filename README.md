@@ -25,7 +25,6 @@ Open `http://localhost:5173` in your browser.
 
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, Yjs
 - **Backend**: Hono, better-sqlite3, Yjs WebSocket
-- **Editor**: CodeMirror 6 (via `@codemirror/lang-wiki`)
 
 ## Project Structure
 
