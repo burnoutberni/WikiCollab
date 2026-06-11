@@ -1,0 +1,20 @@
+{
+  "name": "wiki-colab",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev -w packages/server",
+    "dev:client": "npm run dev -w packages/client",
+    "build": "npm run build -w packages/server && npm run build -w packages/client",
+    "start": "npm run start -w packages/server",
+    "lint": "npm run lint -w packages/client && npm run lint -w packages/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}
