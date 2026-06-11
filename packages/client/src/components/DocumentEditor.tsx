@@ -64,7 +64,7 @@ export function DocumentEditor() {
 
   const [title, setTitle] = useState('');
   const [content, setContentState] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('source');
+  const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(true);
 
