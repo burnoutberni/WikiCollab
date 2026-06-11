@@ -8,9 +8,10 @@ interface WikitextEditorProps {
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
   onCursorChange?: (anchor: number, head: number) => void;
+  onRemoteChange?: (value: string) => void;
 }
 
-export function WikitextEditor({ content, onChange: _onChange, ytext, provider: _provider, onCursorChange }: WikitextEditorProps) {
+export function WikitextEditor({ content, onChange: _onChange, ytext, provider: _provider, onCursorChange, onRemoteChange }: WikitextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const updatingRef = useRef(false);
 
@@ -48,6 +49,7 @@ export function WikitextEditor({ content, onChange: _onChange, ytext, provider: 
       const scrollLeft = textarea.scrollLeft;
 
       textarea.value = text;
+      onRemoteChange?.(text);
 
       const delta = (event.delta as any[]).reduce((acc, d) => {
         if (d.retain) return acc - d.retain;
@@ -72,7 +74,7 @@ export function WikitextEditor({ content, onChange: _onChange, ytext, provider: 
     return () => {
       ytext.unobserve(observer);
     };
-  }, [ytext]);
+  }, [ytext, onRemoteChange]);
 
   useEffect(() => {
     const textarea = textareaRef.current;

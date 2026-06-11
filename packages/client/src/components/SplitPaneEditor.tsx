@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { WikitextEditor } from './WikitextEditor';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -20,6 +20,7 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPreview = useCallback(async () => {
     setLoading(true);
@@ -44,6 +45,26 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
     }
   }, [content, instanceId]);
 
+  const debouncedPreview = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(fetchPreview, 500);
+  }, [fetchPreview]);
+
+  useEffect(() => {
+    fetchPreview();
+  }, []);
+
+  useEffect(() => {
+    debouncedPreview();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [content, debouncedPreview]);
+
+  const handleRemoteChange = useCallback(() => {
+    debouncedPreview();
+  }, [debouncedPreview]);
+
   return (
     <div className="flex h-full">
       <div className="w-1/2 border-r">
@@ -53,21 +74,21 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
           ytext={ytext}
           provider={provider}
           onCursorChange={onCursorChange}
+          onRemoteChange={handleRemoteChange}
         />
       </div>
-      <div className="w-1/2 flex flex-col">
-        <div className="flex items-center justify-between border-b px-4 py-2">
-          <span className="text-sm font-medium">Preview</span>
-          <Button variant="ghost" size="sm" onClick={fetchPreview} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-        <div className="flex-1 overflow-auto">
+      <div className="w-1/2 relative">
+        <div className="h-full overflow-auto">
           <style>{previewCss}</style>
           <div
             className="mw-preview-container p-4"
             dangerouslySetInnerHTML={{ __html: previewHtml }}
           />
+        </div>
+        <div className="absolute bottom-3 right-3">
+          <Button variant="secondary" size="sm" onClick={fetchPreview} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </div>
     </div>
