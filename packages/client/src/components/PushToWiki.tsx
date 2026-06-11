@@ -24,7 +24,6 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
   const [open, setOpen] = useState(false);
   const [wikiTitle, setWikiTitle] = useState(title);
   const [summary, setSummary] = useState('');
-  const [pushing, setPushing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
@@ -39,7 +38,6 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
   const handlePush = useCallback(async () => {
     if (!instance || !wikiTitle) return;
 
-    setPushing(true);
     setResult(null);
 
     try {
@@ -64,8 +62,6 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
       }
     } catch {
       setResult({ success: false, message: 'Network error' });
-    } finally {
-      setPushing(false);
     }
   }, [instance, wikiTitle, content, summary, documentId]);
 
@@ -104,6 +100,11 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300">
+              Push to Wiki is not yet implemented. Authentication with MediaWiki bot
+              passwords needs to be built first.
+            </div>
+
             <div className="rounded-md bg-muted px-3 py-2 text-sm">
               <span className="text-muted-foreground">Target:</span>{' '}
               <span className="font-medium">{instance?.name}</span>
@@ -148,9 +149,10 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
             </Button>
             <Button
               onClick={handlePush}
-              disabled={!wikiTitle || pushing}
+              disabled={true}
+              title="Not yet implemented"
             >
-              {pushing ? 'Pushing...' : 'Push to Wiki'}
+              Push to Wiki
             </Button>
           </DialogFooter>
         </DialogContent>
