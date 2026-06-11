@@ -166,7 +166,7 @@ export function InstanceManager({
                   onKeyDown={handleNameKeyDown}
                 />
               </PopoverTrigger>
-              <PopoverContent className="p-0" sideOffset={4}>
+              <PopoverContent className="p-0">
                 <div className="max-h-48 overflow-y-auto">
                   {filteredPresets.map((preset, i) => (
                     <button
