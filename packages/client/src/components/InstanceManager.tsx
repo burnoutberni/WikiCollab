@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,22 +53,36 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [token, setToken] = useState('');
-  const [presetQuery, setPresetQuery] = useState('');
   const [showPresets, setShowPresets] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const presetsRef = useRef<HTMLDivElement>(null);
 
   const filteredPresets = useMemo(() => {
-    if (!presetQuery) return WIKI_PRESETS;
-    const q = presetQuery.toLowerCase();
+    if (!name) return WIKI_PRESETS;
+    const q = name.toLowerCase();
     return WIKI_PRESETS.filter(
       (p) => p.name.toLowerCase().includes(q) || p.apiUrl.toLowerCase().includes(q)
     );
-  }, [presetQuery]);
+  }, [name]);
+
+  useEffect(() => {
+    if (!showPresets) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        presetsRef.current && !presetsRef.current.contains(e.target as Node) &&
+        nameRef.current && !nameRef.current.contains(e.target as Node)
+      ) {
+        setShowPresets(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPresets]);
 
   const resetForm = useCallback(() => {
     setName('');
     setApiUrl('');
     setToken('');
-    setPresetQuery('');
     setShowPresets(false);
     setEditingInstance(null);
   }, []);
@@ -108,7 +122,6 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
     setName(instance.name);
     setApiUrl(instance.api_url);
     setToken('');
-    setPresetQuery('');
     setShowPresets(false);
     setOpen(true);
   }, []);
@@ -116,7 +129,6 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
   const selectPreset = useCallback((preset: WikiPreset) => {
     setName(preset.name);
     setApiUrl(preset.apiUrl);
-    setPresetQuery('');
     setShowPresets(false);
   }, []);
 
@@ -136,59 +148,57 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
               <DialogDescription>
                 {editingInstance
                   ? 'Update the configuration for this MediaWiki instance.'
-                  : 'Choose a preset or configure a custom MediaWiki API endpoint.'}
+                  : 'Search for a wiki or enter a custom name and API URL.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              {!editingInstance && (
-                <div className="space-y-2">
-                  <Label>Preset</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search presets or type a custom name..."
-                      value={showPresets ? presetQuery : name}
-                      onChange={(e) => {
-                        setPresetQuery(e.target.value);
-                        setName(e.target.value);
-                        setShowPresets(true);
-                      }}
-                      onFocus={() => setShowPresets(true)}
-                      className="pl-9"
-                    />
-                    {showPresets && (
-                      <div className="absolute z-50 top-full mt-1 w-full max-h-48 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
-                        {filteredPresets.length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">
-                            No matches — keep typing a custom name
-                          </div>
-                        ) : (
-                          filteredPresets.map((preset) => (
-                            <button
-                              key={preset.apiUrl}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex flex-col"
-                              onClick={() => selectPreset(preset)}
-                            >
-                              <span className="font-medium">{preset.name}</span>
-                              <span className="text-xs text-muted-foreground truncate">{preset.apiUrl}</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-2">
                 <Label htmlFor="instance-name">Name</Label>
-                <Input
-                  id="instance-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Wikipedia"
-                />
+                <div className="relative">
+                  {!editingInstance && (
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Input
+                    ref={nameRef}
+                    id="instance-name"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (!editingInstance) setShowPresets(true);
+                    }}
+                    onFocus={() => { if (!editingInstance) setShowPresets(true); }}
+                    placeholder={editingInstance ? 'Instance name' : 'Search Wikipedia, Commons...'}
+                    className={!editingInstance ? 'pl-9' : undefined}
+                  />
+                  {!editingInstance && showPresets && (
+                    <div
+                      ref={presetsRef}
+                      className="absolute z-50 top-full mt-1 w-full max-h-48 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
+                    >
+                      {filteredPresets.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          Custom instance — enter the API URL below
+                        </div>
+                      ) : (
+                        filteredPresets.map((preset) => (
+                          <button
+                            key={preset.apiUrl}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex flex-col"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              selectPreset(preset);
+                            }}
+                          >
+                            <span className="font-medium">{preset.name}</span>
+                            <span className="text-xs text-muted-foreground truncate">{preset.apiUrl}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="instance-url">API URL</Label>
                 <Input
