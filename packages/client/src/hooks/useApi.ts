@@ -10,6 +10,7 @@ export interface Document {
   updated_at: string;
   expiry: string | null;
   mediawiki_instance_id: string | null;
+  restored_version_id: string | null;
 }
 
 export interface MediaWikiInstance {
@@ -39,6 +40,7 @@ export interface Version {
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingDocs, setPendingDocs] = useState<Document[]>([]);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -55,6 +57,43 @@ export function useDocuments() {
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/docs`);
+        const latest: Document[] = await res.json();
+        setDocuments((current) => {
+          const currentIds = new Set(current.map((d) => d.id));
+          const newDocs = latest.filter((d) => !currentIds.has(d.id));
+          if (newDocs.length > 0) {
+            setPendingDocs((prev) => {
+              const existingIds = new Set(prev.map((d) => d.id));
+              const toAdd = newDocs.filter((d) => !existingIds.has(d.id));
+              return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+            });
+          }
+          return current;
+        });
+      } catch {
+        // silently ignore poll failures
+      }
+    };
+
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const loadPending = useCallback(() => {
+    setDocuments((prev) => {
+      const existingIds = new Set(prev.map((d) => d.id));
+      const toAdd = pendingDocs.filter((d) => !existingIds.has(d.id));
+      return toAdd.length > 0 ? [...toAdd, ...prev] : prev;
+    });
+    setPendingDocs([]);
+  }, [pendingDocs]);
 
   const createDocument = useCallback(async (title?: string) => {
     const res = await fetch(`${API_BASE}/docs`, {
@@ -83,7 +122,7 @@ export function useDocuments() {
     return doc;
   }, []);
 
-  return { documents, loading, createDocument, deleteDocument, updateDocument, refetch: fetchDocuments };
+  return { documents, loading, pendingCount: pendingDocs.length, loadPending, createDocument, deleteDocument, updateDocument, refetch: fetchDocuments };
 }
 
 export function useDocument(id: string | null) {
@@ -191,11 +230,13 @@ export function useTemplates(documentId: string | null) {
 export function useVersions(
   documentId: string | null,
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void,
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void
+  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void,
+  initialRestoredVersionId?: string | null
 ) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [restoredVersionId, setRestoredVersionId] = useState<string | null>(initialRestoredVersionId ?? null);
 
   const fetchVersions = useCallback(async () => {
     if (!documentId) return;
@@ -236,6 +277,16 @@ export function useVersions(
       setVersions((prev) =>
         prev.map((v) => (v.id === payload.versionId ? { ...v, starred: payload.starred } : v))
       );
+    });
+
+    return unsubscribe;
+  }, [onCustomMessage]);
+
+  useEffect(() => {
+    if (!onCustomMessage) return;
+
+    const unsubscribe = onCustomMessage('restore', (payload: { versionId: string }) => {
+      setRestoredVersionId(payload.versionId);
     });
 
     return unsubscribe;
@@ -294,5 +345,5 @@ export function useVersions(
     return null;
   }, [documentId]);
 
-  return { versions, loading, pendingCount, fetchVersions, starVersion, unstarVersion, getVersionPreview };
+  return { versions, loading, pendingCount, restoredVersionId, setRestoredVersionId, fetchVersions, starVersion, unstarVersion, getVersionPreview };
 }

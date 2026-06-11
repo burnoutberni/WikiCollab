@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Plus, FileText, Trash2, Clock } from 'lucide-react';
+import { Plus, FileText, Trash2, Clock, ArrowDown } from 'lucide-react';
 import { useDocuments } from '@/hooks/useApi';
 
 export function Dashboard() {
-  const { documents, loading, createDocument, deleteDocument } = useDocuments();
+  const { documents, loading, pendingCount, loadPending, createDocument, deleteDocument } = useDocuments();
   const navigate = useNavigate();
 
   const handleCreate = useCallback(async () => {
@@ -60,6 +60,19 @@ export function Dashboard() {
             Create and collaborate on wikitext articles
           </p>
         </div>
+
+        <div className="relative">
+          {pendingCount > 0 && (
+            <div className="absolute -top-3 left-0 right-0 z-10 flex justify-center pointer-events-none">
+              <button
+                onClick={loadPending}
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary text-primary-foreground px-3.5 py-1.5 text-xs font-medium shadow-lg hover:bg-primary/90 transition-colors"
+              >
+                <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+                {pendingCount} new document{pendingCount !== 1 ? 's' : ''}
+              </button>
+            </div>
+          )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -128,6 +141,7 @@ export function Dashboard() {
             ))}
           </div>
         )}
+        </div>
       </main>
     </div>
   );
