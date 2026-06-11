@@ -278,14 +278,6 @@ export function DocumentEditor() {
                     onUserColorChange={setUserColor}
                   />
                 )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
-                  {connected ? (
-                    <Wifi className="h-3 w-3 text-green-500" />
-                  ) : (
-                    <WifiOff className="h-3 w-3 text-red-500" />
-                  )}
-                  <span>{connected ? 'Connected' : 'Disconnected'}</span>
-                </div>
               </div>
             </aside>
           )}
