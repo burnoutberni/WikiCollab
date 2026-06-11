@@ -23,12 +23,13 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPreview = useCallback(async () => {
+    const wikitext = ytext ? ytext.toString() : content;
     setLoading(true);
     try {
       const res = await fetch('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext: content, instance_id: instanceId || null }),
+        body: JSON.stringify({ wikitext, instance_id: instanceId || null }),
       });
 
       if (res.ok) {
@@ -43,7 +44,7 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
     } finally {
       setLoading(false);
     }
-  }, [content, instanceId]);
+  }, [ytext, instanceId]);
 
   const debouncedPreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -55,15 +56,19 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
   }, []);
 
   useEffect(() => {
-    debouncedPreview();
+    if (!ytext) return;
+
+    const observer = () => {
+      debouncedPreview();
+    };
+
+    ytext.observe(observer);
+
     return () => {
+      ytext.unobserve(observer);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [content, debouncedPreview]);
-
-  const handleRemoteChange = useCallback(() => {
-    debouncedPreview();
-  }, [debouncedPreview]);
+  }, [ytext, debouncedPreview]);
 
   return (
     <div className="flex h-full">
@@ -74,7 +79,6 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
           ytext={ytext}
           provider={provider}
           onCursorChange={onCursorChange}
-          onRemoteChange={handleRemoteChange}
         />
       </div>
       <div className="w-1/2 relative">
