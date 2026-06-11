@@ -321,7 +321,9 @@ setContentInitializor(async (ydoc: Y.Doc) => {
 
   if (existingDoc && existingDoc.content) {
     const ytext = ydoc.getText('wikitext');
-    ytext.insert(0, existingDoc.content);
+    if (ytext.length === 0) {
+      ytext.insert(0, existingDoc.content);
+    }
   }
 });
 

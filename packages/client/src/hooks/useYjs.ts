@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { IndexeddbPersistence } from 'y-indexeddb';
@@ -48,9 +48,14 @@ function generateColor(): string {
 type CustomMessageHandler = (data: any) => void;
 
 export function useYjs(docId: string | null) {
-  const [ydoc] = useState(() => new Y.Doc());
+  const ydocRef = useRef<Y.Doc | null>(null);
+  if (!ydocRef.current) {
+    ydocRef.current = new Y.Doc();
+  }
+  const ydoc = ydocRef.current;
+  const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
+  const ytext = ytextRef.current;
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
-  const [ytext, setYtext] = useState<Y.Text | null>(null);
   const [connected, setConnected] = useState(false);
   const [peers, setPeers] = useState<Presence[]>([]);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
@@ -124,9 +129,6 @@ export function useYjs(docId: string | null) {
     };
 
     awareness.on('change', updatePeers);
-
-    const text = ydoc.getText('wikitext');
-    setYtext(text);
 
     const messageCustom = 2;
     wsProvider.messageHandlers[messageCustom] = (

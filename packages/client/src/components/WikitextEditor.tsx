@@ -45,6 +45,9 @@ export function WikitextEditor({ content, onChange: _onChange, ytext, provider: 
       if (updatingRef.current) return;
 
       const text = ytext.toString();
+
+      if (textarea.value === text) return;
+
       const scrollTop = textarea.scrollTop;
       const scrollLeft = textarea.scrollLeft;
 
@@ -114,7 +117,6 @@ export function WikitextEditor({ content, onChange: _onChange, ytext, provider: 
         ref={textareaRef}
         className="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none bg-background text-foreground border rounded-md"
         spellCheck={false}
-        defaultValue={content}
       />
     </div>
   );

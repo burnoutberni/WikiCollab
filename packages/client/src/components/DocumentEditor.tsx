@@ -72,6 +72,10 @@ export function DocumentEditor() {
     }
   }, [doc, instances]);
 
+  const handleRemoteChange = useCallback((newContent: string) => {
+    setContentState(newContent);
+  }, []);
+
   const handleTitleChange = useCallback(async (newTitle: string) => {
     setTitle(newTitle);
     if (id) {
@@ -298,6 +302,7 @@ export function DocumentEditor() {
                 ytext={ytext}
                 provider={provider}
                 onCursorChange={updateCursor}
+                onRemoteChange={handleRemoteChange}
               />
             )}
             {viewMode === 'split' && (
