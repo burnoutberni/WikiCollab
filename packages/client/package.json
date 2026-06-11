@@ -28,18 +28,18 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.3",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.2.9",
     "y-indexeddb": "^9.0.12",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.27"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^6.0.2",
-    "autoprefixer": "^10.4.20",
     "postcss": "^8.5.1",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16"
   }
