@@ -253,7 +253,7 @@ export function DocumentEditor() {
                     <ChevronRight className="h-3 w-3" />
                   )}
                   <Users className="h-3.5 w-3.5" />
-                  <span>{peers.length + 1} collaborator{peers.length !== 1 ? 's' : ''}</span>
+                  <span>{peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}</span>
                 </button>
                 {collaboratorsExpanded && (
                   <CollaboratorList
@@ -311,7 +311,7 @@ export function DocumentEditor() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span>{peers.length + 1} collaborator{peers.length !== 1 ? 's' : ''}</span>
+            <span>{peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}</span>
             <span className="font-mono">{id}</span>
           </div>
         </footer>
