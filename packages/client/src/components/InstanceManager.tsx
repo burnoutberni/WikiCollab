@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,21 +64,20 @@ export function InstanceManager({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
-  const [nameSearch, setNameSearch] = useState('');
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
   const [selectedPreset, setSelectedPreset] = useState<{ name: string; api_url: string } | null>(null);
+  const justSelectedRef = useRef(false);
 
   const filteredPresets = WIKI_PRESETS.filter(
     (p) =>
-      p.name.toLowerCase().includes(nameSearch.toLowerCase()) ||
-      p.api_url.toLowerCase().includes(nameSearch.toLowerCase())
+      p.name.toLowerCase().includes(name.toLowerCase()) ||
+      p.api_url.toLowerCase().includes(name.toLowerCase())
   );
 
   const openAddDialog = () => {
     setName('');
     setApiUrl('');
-    setNameSearch('');
     setNameIndex(-1);
     setSelectedPreset(null);
     setNameOpen(true);
@@ -93,17 +92,15 @@ export function InstanceManager({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setNameIndex((i) => Math.max(i - 1, -1));
-    } else if (e.key === 'Enter') {
+    } else if (e.key === 'Enter' && nameIndex >= 0 && nameIndex < filteredPresets.length) {
       e.preventDefault();
-      if (nameIndex >= 0 && nameIndex < filteredPresets.length) {
-        const preset = filteredPresets[nameIndex];
-        setName(preset.name);
-        setApiUrl(preset.api_url);
-        setSelectedPreset(preset);
-        setNameOpen(false);
-        setNameSearch('');
-        setNameIndex(-1);
-      }
+      const preset = filteredPresets[nameIndex];
+      setName(preset.name);
+      setApiUrl(preset.api_url);
+      setSelectedPreset(preset);
+      justSelectedRef.current = true;
+      setNameOpen(false);
+      setNameIndex(-1);
     } else if (e.key === 'Escape') {
       setNameOpen(false);
     }
@@ -113,18 +110,25 @@ export function InstanceManager({
     setName(preset.name);
     setApiUrl(preset.api_url);
     setSelectedPreset(preset);
+    justSelectedRef.current = true;
     setNameOpen(false);
-    setNameSearch('');
     setNameIndex(-1);
   };
 
   const handleNameChange = (value: string) => {
     setName(value);
     setSelectedPreset(null);
-    setNameSearch(value);
     setNameIndex(-1);
     setNameOpen(true);
   };
+
+  const handleNameFocus = useCallback(() => {
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
+    setNameOpen(true);
+  }, []);
 
   const handleSave = async () => {
     if (!name || !apiUrl) return;
@@ -157,13 +161,15 @@ export function InstanceManager({
                 <Input
                   id="instance-name"
                   placeholder="Search presets or enter custom name..."
-                  value={nameOpen ? nameSearch : name}
+                  value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  onFocus={() => {
-                    setNameSearch(name);
-                    setNameOpen(true);
-                  }}
+                  onFocus={handleNameFocus}
                   onKeyDown={handleNameKeyDown}
+                  className="text-left"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                 />
               </PopoverTrigger>
               <PopoverContent className="p-0">
