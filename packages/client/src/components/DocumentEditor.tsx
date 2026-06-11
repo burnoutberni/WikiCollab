@@ -275,7 +275,7 @@ export function DocumentEditor() {
                 content={content}
                 onChange={handleContentChange}
                 documentId={id!}
-                instanceId={instances[0]?.id}
+                apiUrl={instances[0]?.api_url}
                 ytext={ytext}
                 provider={provider}
                 onCursorChange={updateCursor}

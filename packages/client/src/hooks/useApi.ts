@@ -19,6 +19,7 @@ export interface MediaWikiInstance {
   api_url: string;
   token: string | null;
   configured_at: string;
+  css: string | null;
 }
 
 export interface Version {
@@ -154,50 +155,52 @@ export function useInstances() {
   const [instances, setInstances] = useState<MediaWikiInstance[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchInstances = useCallback(async () => {
+  useEffect(() => {
     try {
-      const res = await fetch(`${API_BASE}/instances`);
-      const data = await res.json();
-      setInstances(data);
-    } catch (error) {
-      console.error('Failed to fetch instances:', error);
+      const stored = localStorage.getItem('wiki-colab-instances');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
+      }
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchInstances();
-  }, [fetchInstances]);
+  const persist = useCallback((next: MediaWikiInstance[]) => {
+    setInstances(next);
+    localStorage.setItem('wiki-colab-instances', JSON.stringify(next));
+  }, []);
 
   const createInstance = useCallback(async (name: string, apiUrl: string, token?: string) => {
-    const res = await fetch(`${API_BASE}/instances`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, api_url: apiUrl, token }),
-    });
-    const instance = await res.json();
-    setInstances((prev) => [...prev, instance]);
+    const id = crypto.randomUUID().slice(0, 7);
+    const instance: MediaWikiInstance = {
+      id,
+      name,
+      api_url: apiUrl,
+      token: token || null,
+      configured_at: new Date().toISOString(),
+      css: null,
+    };
+    persist([instance]);
     return instance;
-  }, []);
+  }, [persist]);
 
   const deleteInstance = useCallback(async (id: string) => {
-    await fetch(`${API_BASE}/instances/${id}`, { method: 'DELETE' });
-    setInstances((prev) => prev.filter((i) => i.id !== id));
-  }, []);
+    persist(instances.filter((i) => i.id !== id));
+  }, [instances, persist]);
 
   const updateInstance = useCallback(async (id: string, updates: { name?: string; api_url?: string; token?: string }) => {
-    const res = await fetch(`${API_BASE}/instances/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    const instance = await res.json();
-    setInstances((prev) => prev.map((i) => (i.id === id ? instance : i)));
-    return instance;
-  }, []);
+    const next = instances.map((i) =>
+      i.id === id ? { ...i, ...updates } : i
+    );
+    persist(next);
+    return next.find((i) => i.id === id)!;
+  }, [instances, persist]);
 
-  return { instances, loading, createInstance, deleteInstance, updateInstance, refetch: fetchInstances };
+  return { instances, loading, createInstance, deleteInstance, updateInstance };
 }
 
 export function useVersions(

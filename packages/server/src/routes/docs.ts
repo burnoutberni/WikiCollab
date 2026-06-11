@@ -204,26 +204,6 @@ docs.get('/:id/versions/:v/preview', (c) => {
   }
 });
 
-docs.get('/:id/templates', (c) => {
-  const id = c.req.param('id');
-  const doc = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
-
-  if (!doc) {
-    return c.json({ error: 'Document not found' }, 404);
-  }
-
-  if (!doc.mediawiki_instance_id) {
-    return c.json([]);
-  }
-
-  const templates = db.select()
-    .from(schema.templateCache)
-    .where(eq(schema.templateCache.instance_id, doc.mediawiki_instance_id))
-    .all();
-
-  return c.json(templates);
-});
-
 docs.post('/:id/push', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
@@ -234,21 +214,12 @@ docs.post('/:id/push', async (c) => {
     return c.json({ error: 'Document not found' }, 404);
   }
 
-  if (!doc.mediawiki_instance_id) {
-    return c.json({ error: 'No MediaWiki instance configured' }, 400);
+  if (!body.api_url) {
+    return c.json({ error: 'api_url is required' }, 400);
   }
 
-  const instance = db.select()
-    .from(schema.mediawikiInstances)
-    .where(eq(schema.mediawikiInstances.id, doc.mediawiki_instance_id))
-    .get();
-
-  if (!instance) {
-    return c.json({ error: 'MediaWiki instance not found' }, 404);
-  }
-
-  if (!instance.token) {
-    return c.json({ error: 'API token not configured for this instance' }, 400);
+  if (!body.token) {
+    return c.json({ error: 'token is required' }, 400);
   }
 
   try {
@@ -257,10 +228,10 @@ docs.post('/:id/push', async (c) => {
     formData.append('title', body.title || doc.title);
     formData.append('text', body.content || doc.content);
     formData.append('summary', body.summary || 'Updated via WikiCollab');
-    formData.append('token', instance.token);
+    formData.append('token', body.token);
     formData.append('format', 'json');
 
-    const response = await fetch(instance.api_url, {
+    const response = await fetch(body.api_url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

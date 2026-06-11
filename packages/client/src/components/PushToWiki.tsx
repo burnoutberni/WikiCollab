@@ -50,6 +50,8 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
           title: wikiTitle,
           content,
           summary: summary || `Updated via WikiCollab`,
+          api_url: instance.api_url,
+          token: instance.token,
         }),
       });
 

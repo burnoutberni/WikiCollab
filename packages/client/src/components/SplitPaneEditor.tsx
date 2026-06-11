@@ -10,13 +10,13 @@ interface SplitPaneEditorProps {
   content: string;
   onChange: (value: string) => void;
   documentId: string;
-  instanceId?: string | null;
+  apiUrl?: string | null;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
   onCursorChange?: (anchor: number, head: number) => void;
 }
 
-export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider, onCursorChange }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, onCursorChange }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
       const res = await fetch('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext, instance_id: instanceId || null }),
+        body: JSON.stringify({ wikitext, api_url: apiUrl || null }),
       });
 
       if (res.ok) {
@@ -44,7 +44,7 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
     } finally {
       setLoading(false);
     }
-  }, [ytext, instanceId]);
+  }, [ytext, apiUrl]);
 
   const debouncedPreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -57,7 +57,7 @@ export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider
 
   useEffect(() => {
     fetchPreview();
-  }, [instanceId]);
+  }, [apiUrl]);
 
   useEffect(() => {
     if (!ytext) return;
