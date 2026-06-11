@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+import { yCollab } from 'y-codemirror.next';
 import { EditorView, keymap, lineNumbers, highlightActiveLine } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -76,40 +78,40 @@ interface WikitextEditorProps {
   onChange: (value: string) => void;
   ytext?: Y.Text | null;
   ydoc?: Y.Doc | null;
+  provider?: WebsocketProvider | null;
+  onCursorChange?: (anchor: number, head: number) => void;
 }
 
-export function WikitextEditor({ content, onChange, ytext, ydoc }: WikitextEditorProps) {
+export function WikitextEditor({ content, onChange: _onChange, ytext, ydoc: _ydoc, provider, onCursorChange }: WikitextEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const updateListener = EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        const value = update.state.doc.toString();
-        onChange(value);
-      }
-    });
+    const baseExtensions: any[] = [
+      lineNumbers(),
+      highlightActiveLine(),
+      history(),
+      bracketMatching(),
+      foldGutter(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      wikitextLanguage,
+      syntaxHighlighting(wikitextHighlightStyle),
+      syntaxHighlighting(defaultHighlightStyle),
+      EditorView.theme({
+        '&': { height: '100%' },
+        '.cm-scroller': { overflow: 'auto' },
+      }),
+    ];
+
+    if (ytext && provider) {
+      baseExtensions.push(yCollab(ytext, provider.awareness));
+    }
 
     const state = EditorState.create({
       doc: content,
-      extensions: [
-        lineNumbers(),
-        highlightActiveLine(),
-        history(),
-        bracketMatching(),
-        foldGutter(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        wikitextLanguage,
-        syntaxHighlighting(wikitextHighlightStyle),
-        syntaxHighlighting(defaultHighlightStyle),
-        updateListener,
-        EditorView.theme({
-          '&': { height: '100%' },
-          '.cm-scroller': { overflow: 'auto' },
-        }),
-      ],
+      extensions: baseExtensions,
     });
 
     const view = new EditorView({
@@ -117,40 +119,28 @@ export function WikitextEditor({ content, onChange, ytext, ydoc }: WikitextEdito
       parent: containerRef.current,
     });
 
+    if (onCursorChange) {
+      const cursorListener = () => {
+        const sel = view.state.selection;
+        onCursorChange(sel.main.anchor, sel.main.head);
+      };
+      view.dom.addEventListener('click', cursorListener);
+      view.dom.addEventListener('keyup', cursorListener);
+
+      const origDestroy = view.destroy.bind(view);
+      view.destroy = () => {
+        view.dom.removeEventListener('click', cursorListener);
+        view.dom.removeEventListener('keyup', cursorListener);
+        origDestroy();
+      };
+    }
+
     viewRef.current = view;
 
     return () => {
       view.destroy();
     };
-  }, []);
-
-  useEffect(() => {
-    if (!ytext || !ydoc || !viewRef.current) return;
-
-    const observer = (_event: Y.YTextEvent) => {
-      const view = viewRef.current;
-      if (!view) return;
-
-      const currentContent = view.state.doc.toString();
-      const newContent = ytext.toString();
-
-      if (currentContent !== newContent) {
-        view.dispatch({
-          changes: {
-            from: 0,
-            to: currentContent.length,
-            insert: newContent,
-          },
-        });
-      }
-    };
-
-    ytext.observe(observer);
-
-    return () => {
-      ytext.unobserve(observer);
-    };
-  }, [ytext, ydoc]);
+  }, [ytext?.doc?.clientID, provider?.awareness]);
 
   useEffect(() => {
     if (!viewRef.current) return;

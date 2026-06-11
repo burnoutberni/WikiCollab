@@ -3,6 +3,7 @@ import { WikitextEditor } from './WikitextEditor';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
 
 interface SplitPaneEditorProps {
   content: string;
@@ -10,9 +11,11 @@ interface SplitPaneEditorProps {
   documentId: string;
   ytext?: Y.Text | null;
   ydoc?: Y.Doc | null;
+  provider?: WebsocketProvider | null;
+  onCursorChange?: (anchor: number, head: number) => void;
 }
 
-export function SplitPaneEditor({ content, onChange, ytext, ydoc }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, ytext, ydoc, provider, onCursorChange }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -46,6 +49,8 @@ export function SplitPaneEditor({ content, onChange, ytext, ydoc }: SplitPaneEdi
           onChange={onChange}
           ytext={ytext}
           ydoc={ydoc}
+          provider={provider}
+          onCursorChange={onCursorChange}
         />
       </div>
       <div className="w-1/2 flex flex-col">

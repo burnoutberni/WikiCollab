@@ -10,6 +10,17 @@ export interface Presence {
   cursor: { anchor: number; head: number } | null;
 }
 
+export interface AwarenessState {
+  user: {
+    name: string;
+    color: string;
+  };
+  cursor: {
+    anchor: number;
+    head: number;
+  } | null;
+}
+
 function generateUserId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
@@ -77,6 +88,7 @@ export function useYjs(docId: string | null) {
       name: userName,
       color: userColor,
     });
+    wsProvider.awareness.setLocalStateField('cursor', null);
 
     const awareness = wsProvider.awareness;
 
@@ -84,12 +96,15 @@ export function useYjs(docId: string | null) {
       const states = Array.from(awareness.getStates().entries());
       const presenceList: Presence[] = states
         .filter(([clientId]) => clientId !== ydoc.clientID)
-        .map(([, state]) => ({
-          userId: (state.user as string) || 'Unknown',
-          userName: (state.user as { name: string })?.name || 'Anonymous',
-          color: (state.user as { color: string })?.color || '#999',
-          cursor: null,
-        }));
+        .map(([, state]) => {
+          const s = state as AwarenessState;
+          return {
+            userId: s.user?.name || 'Unknown',
+            userName: s.user?.name || 'Anonymous',
+            color: s.user?.color || '#999',
+            cursor: s.cursor || null,
+          };
+        });
       setPeers(presenceList);
     };
 
@@ -105,6 +120,16 @@ export function useYjs(docId: string | null) {
       idbPersistence.destroy();
     };
   }, [docId, ydoc, userName, userColor]);
+
+  const updateCursor = useCallback((anchor: number, head: number) => {
+    if (!provider) return;
+    provider.awareness.setLocalStateField('cursor', { anchor, head });
+  }, [provider]);
+
+  const clearCursor = useCallback(() => {
+    if (!provider) return;
+    provider.awareness.setLocalStateField('cursor', null);
+  }, [provider]);
 
   const getContent = useCallback(() => {
     if (!ytext) return '';
@@ -128,6 +153,8 @@ export function useYjs(docId: string | null) {
     userId,
     userName,
     userColor,
+    updateCursor,
+    clearCursor,
     getContent,
     setContent,
   };

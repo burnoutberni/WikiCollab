@@ -21,6 +21,8 @@ import {
   Wifi,
   WifiOff,
   Save,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { useDocument, useInstances, useTemplates, type MediaWikiInstance } from '@/hooks/useApi';
 import { useYjs } from '@/hooks/useYjs';
@@ -30,6 +32,7 @@ import { WysiwygEditor } from './WysiwygEditor';
 import { InstanceManager } from './InstanceManager';
 import { PushToWiki } from './PushToWiki';
 import { VersionHistory } from './VersionHistory';
+import { CollaboratorList } from './CollaboratorList';
 
 type ViewMode = 'source' | 'split' | 'wysiwyg';
 
@@ -45,12 +48,15 @@ export function DocumentEditor() {
     peers,
     userName,
     userColor,
+    provider,
+    updateCursor,
   } = useYjs(id || null);
 
   const [title, setTitle] = useState('');
   const [content, setContentState] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('source');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(true);
   const [selectedInstance, setSelectedInstance] = useState<MediaWikiInstance | null>(null);
 
   useEffect(() => {
@@ -263,27 +269,33 @@ export function DocumentEditor() {
                 )}
               </div>
 
-              <div className="p-4 mt-auto">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="p-4 mt-auto border-t">
+                <button
+                  className="flex items-center gap-1.5 text-xs font-medium w-full text-left mb-2"
+                  onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
+                >
+                  {collaboratorsExpanded ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                  <Users className="h-3.5 w-3.5" />
+                  <span>{peers.length + 1} collaborator{peers.length !== 1 ? 's' : ''}</span>
+                </button>
+                {collaboratorsExpanded && (
+                  <CollaboratorList
+                    peers={peers}
+                    userName={userName}
+                    userColor={userColor}
+                  />
+                )}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
                   {connected ? (
                     <Wifi className="h-3 w-3 text-green-500" />
                   ) : (
                     <WifiOff className="h-3 w-3 text-red-500" />
                   )}
                   <span>{connected ? 'Connected' : 'Disconnected'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                  <Users className="h-3 w-3" />
-                  <span>{peers.length + 1} collaborator{peers.length !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <div
-                    className="h-6 w-6 rounded-full flex items-center justify-center text-xs text-white font-medium"
-                    style={{ backgroundColor: userColor }}
-                  >
-                    {userName.charAt(0)}
-                  </div>
-                  <span className="text-xs">{userName}</span>
                 </div>
               </div>
             </aside>
@@ -296,6 +308,8 @@ export function DocumentEditor() {
                 content={content}
                 onChange={handleContentChange}
                 ytext={ytext}
+                provider={provider}
+                onCursorChange={updateCursor}
               />
             )}
             {viewMode === 'split' && (
@@ -304,6 +318,8 @@ export function DocumentEditor() {
                 onChange={handleContentChange}
                 documentId={id!}
                 ytext={ytext}
+                provider={provider}
+                onCursorChange={updateCursor}
               />
             )}
             {viewMode === 'wysiwyg' && (
