@@ -15,6 +15,7 @@ export const mediawikiInstances = sqliteTable('mediawiki_instances', {
   name: text('name').notNull(),
   api_url: text('api_url').notNull(),
   token: text('token'),
+  css: text('css'),
   configured_at: text('configured_at').notNull().default(new Date().toISOString()),
 });
 

@@ -23,6 +23,7 @@ sqlite.exec(`
     name TEXT NOT NULL,
     api_url TEXT NOT NULL,
     token TEXT,
+    css TEXT,
     configured_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -41,6 +42,13 @@ sqlite.exec(`
     fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Migration: add css column to existing mediawiki_instances tables
+try {
+  sqlite.exec(`ALTER TABLE mediawiki_instances ADD COLUMN css TEXT`);
+} catch {
+  // Column already exists, ignore
+}
 
 export const db = drizzle(sqlite, { schema });
 export { schema };

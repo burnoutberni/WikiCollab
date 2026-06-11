@@ -298,6 +298,7 @@ export function DocumentEditor() {
                 content={content}
                 onChange={handleContentChange}
                 documentId={id!}
+                instanceId={selectedInstance?.id}
                 ytext={ytext}
                 provider={provider}
                 onCursorChange={updateCursor}

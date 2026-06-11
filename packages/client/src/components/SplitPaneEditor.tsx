@@ -4,18 +4,21 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
+import defaultCss from '@/styles/wikipedia.css?inline';
 
 interface SplitPaneEditorProps {
   content: string;
   onChange: (value: string) => void;
   documentId: string;
+  instanceId?: string | null;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
   onCursorChange?: (anchor: number, head: number) => void;
 }
 
-export function SplitPaneEditor({ content, onChange, ytext, provider, onCursorChange }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, instanceId, ytext, provider, onCursorChange }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
+  const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
 
   const fetchPreview = useCallback(async () => {
@@ -24,12 +27,13 @@ export function SplitPaneEditor({ content, onChange, ytext, provider, onCursorCh
       const res = await fetch('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext: content }),
+        body: JSON.stringify({ wikitext: content, instance_id: instanceId || null }),
       });
 
       if (res.ok) {
         const data = await res.json();
         setPreviewHtml(data.html || '<p>Preview not available</p>');
+        setPreviewCss(data.css || defaultCss);
       } else {
         setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
       }
@@ -38,7 +42,7 @@ export function SplitPaneEditor({ content, onChange, ytext, provider, onCursorCh
     } finally {
       setLoading(false);
     }
-  }, [content]);
+  }, [content, instanceId]);
 
   return (
     <div className="flex h-full">
@@ -58,10 +62,13 @@ export function SplitPaneEditor({ content, onChange, ytext, provider, onCursorCh
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
-        <div
-          className="flex-1 overflow-auto p-4 prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: previewHtml }}
-        />
+        <div className="flex-1 overflow-auto">
+          <style>{previewCss}</style>
+          <div
+            className="mw-preview-container p-4"
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
+        </div>
       </div>
     </div>
   );
