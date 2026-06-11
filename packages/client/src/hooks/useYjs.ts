@@ -100,7 +100,8 @@ export function useYjs(docId: string | null) {
   useEffect(() => {
     if (!docId) return;
 
-    const wsUrl = `ws://${window.location.host}/ws`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
     const wsProvider = new WebsocketProvider(wsUrl, docId, ydoc, {
       connect: true,
     });
