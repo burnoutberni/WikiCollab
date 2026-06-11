@@ -2,6 +2,8 @@ packages:
   - "packages/*"
   - "shared"
 
+minimumReleaseAge: 0
+
 allowBuilds:
   better-sqlite3: true
   esbuild: true
