@@ -5,10 +5,8 @@ A collaborative wikitext editor with real-time preview and MediaWiki integration
 ## Features
 
 - **Real-time collaboration** via Yjs WebSocket — multiple users edit simultaneously
-- **Wikitext editor** with syntax highlighting
-- **Live preview** rendered through the MediaWiki `action=parse` API (handles templates, Lua modules, parser functions)
+- **Live preview** rendered through the MediaWiki `action=parse` API (handles templates, Lua modules, parser functions), with local wikiparser-node fallback when no instance is configured
 - **Version history** with restore and star support
-- **Custom slugs** for shareable document URLs
 - **MediaWiki instance config** stored per-browser in localStorage
 - **Push to Wiki** (not yet implemented — authentication pending)
 
