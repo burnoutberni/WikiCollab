@@ -117,17 +117,19 @@ export function DocumentEditor() {
         method: 'POST',
       });
       const data = await res.json();
-      if (data.yjs_state) {
-        const state = Uint8Array.from(atob(data.yjs_state), (c) => c.charCodeAt(0));
-        if (ytext?.doc) {
-          const Y = await import('yjs');
-          Y.applyUpdate(ytext.doc, state);
-        }
+      if (data.content !== undefined && ytext) {
+        ytext.doc?.transact(() => {
+          ytext.delete(0, ytext.length);
+          ytext.insert(0, data.content);
+        });
+      }
+      if (sendCustomMessage) {
+        sendCustomMessage('restore', { versionId, documentId: id! });
       }
     } catch (error) {
       console.error('Failed to restore version:', error);
     }
-  }, [id, ytext]);
+  }, [id, ytext, sendCustomMessage]);
 
   if (loading) {
     return (

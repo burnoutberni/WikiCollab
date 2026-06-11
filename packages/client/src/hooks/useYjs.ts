@@ -6,6 +6,7 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 
 export interface Presence {
+  clientId: number;
   userId: string;
   userName: string;
   color: string;
@@ -116,9 +117,10 @@ export function useYjs(docId: string | null) {
       const states = Array.from(awareness.getStates().entries());
       const presenceList: Presence[] = states
         .filter(([clientId]) => clientId !== ydoc.clientID)
-        .map(([, state]) => {
+        .map(([clientId, state]) => {
           const s = state as AwarenessState;
           return {
+            clientId,
             userId: s.user?.name || 'Unknown',
             userName: s.user?.name || 'Anonymous',
             color: s.user?.color || '#999',

@@ -100,7 +100,25 @@ docs.post('/:id/versions/:v/restore', (c) => {
     return c.json({ error: 'Version not found' }, 404);
   }
 
-  return c.json({ success: true, yjs_state: version.yjs_state });
+  db.update(schema.documents)
+    .set({ restored_version_id: vId })
+    .where(eq(schema.documents.id, id))
+    .run();
+
+  if (!version.yjs_state) {
+    return c.json({ success: true, content: '' });
+  }
+
+  try {
+    const state = Buffer.from(version.yjs_state, 'base64');
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, state);
+    const content = doc.getText('wikitext').toString();
+    doc.destroy();
+    return c.json({ success: true, content });
+  } catch {
+    return c.json({ success: true, content: '' });
+  }
 });
 
 docs.post('/:id/versions/:v/star', (c) => {

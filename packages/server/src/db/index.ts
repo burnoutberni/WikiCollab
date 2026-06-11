@@ -58,5 +58,12 @@ try {
   // Column already exists, ignore
 }
 
+// Migration: add restored_version_id column to existing documents tables
+try {
+  sqlite.exec(`ALTER TABLE documents ADD COLUMN restored_version_id TEXT`);
+} catch {
+  // Column already exists, ignore
+}
+
 export const db = drizzle(sqlite, { schema });
 export { schema };

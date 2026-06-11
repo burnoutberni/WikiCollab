@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { History, RotateCcw, Star, Eye, X, ArrowDown } from 'lucide-react';
+import { History, RotateCcw, Star, Eye, X } from 'lucide-react';
 import { useVersions } from '@/hooks/useApi';
 
 interface VersionHistoryProps {
@@ -20,7 +20,7 @@ interface VersionHistoryProps {
 }
 
 export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCustomMessage }: VersionHistoryProps) {
-  const { versions, loading, pendingCount, fetchVersions, starVersion, unstarVersion, getVersionPreview } = useVersions(
+  const { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview } = useVersions(
     documentId,
     sendCustomMessage,
     onCustomMessage
@@ -29,6 +29,12 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
   const [previewingVersion, setPreviewingVersion] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      fetchVersions();
+    }
+  }, [open, fetchVersions]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
@@ -61,8 +67,6 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
     setPreviewLoading(false);
   }, [previewingVersion, getVersionPreview]);
 
-  const isLatestVersion = (index: number) => index === 0 && pendingCount === 0;
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -80,17 +84,6 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
         </DialogHeader>
 
         <ScrollArea className="h-[500px] relative">
-          {pendingCount > 0 && (
-            <div className="absolute top-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
-              <button
-                onClick={fetchVersions}
-                className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary text-primary-foreground px-3.5 py-1.5 text-xs font-medium shadow-lg hover:bg-primary/90 transition-colors"
-              >
-                <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
-                {pendingCount} new version{pendingCount !== 1 ? 's' : ''}
-              </button>
-            </div>
-          )}
           {loading ? (
             <div className="flex items-center justify-center p-8 text-muted-foreground">
               Loading versions...
@@ -107,13 +100,13 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                 <div key={version.id}>
                   <div
                     className={`flex items-center justify-between rounded-md border p-3 ${
-                      isLatestVersion(index) ? 'border-primary bg-primary/5' : ''
+                      index === 0 ? 'border-primary bg-primary/5' : ''
                     }`}
                   >
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{formatDate(version.created_at)}</p>
-                        {isLatestVersion(index) && (
+                        {index === 0 && (
                           <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
                             Current
                           </span>
@@ -145,7 +138,7 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                           <Eye className="h-4 w-4" />
                         )}
                       </Button>
-                      {!isLatestVersion(index) && (
+                      {index !== 0 && (
                         <Button
                           variant="ghost"
                           size="sm"

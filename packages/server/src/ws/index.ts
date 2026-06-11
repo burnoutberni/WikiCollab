@@ -201,6 +201,35 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, conn: WebSocket
       broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
       break;
     }
+    case 'restore': {
+      let versionId = '';
+      let documentId = '';
+      while (decoder.pos < data.length) {
+        const key = decoding.readVarString(decoder);
+        const valueType = decoding.readVarUint(decoder);
+        if (key === 'versionId' && valueType === 0) {
+          versionId = decoding.readVarString(decoder);
+        } else if (key === 'documentId' && valueType === 0) {
+          documentId = decoding.readVarString(decoder);
+        } else {
+          if (valueType === 0) decoding.readVarString(decoder);
+          else decoding.readVarUint(decoder);
+        }
+      }
+
+      db.update(schema.documents)
+        .set({ restored_version_id: versionId })
+        .where(eq(schema.documents.id, documentId))
+        .run();
+
+      const responseEncoder = encoding.createEncoder();
+      encoding.writeVarString(responseEncoder, 'restore');
+      encoding.writeVarString(responseEncoder, 'versionId');
+      encoding.writeVarUint(responseEncoder, 0);
+      encoding.writeVarString(responseEncoder, versionId);
+      broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
+      break;
+    }
   }
 }
 
@@ -276,6 +305,13 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
   const ytext = doc.getText('wikitext');
   const content = ytext.toString();
 
+  const existing = db.select()
+    .from(schema.documents)
+    .where(eq(schema.documents.id, docName))
+    .get();
+
+  const contentChanged = !existing || existing.content !== content;
+
   db.update(schema.documents)
     .set({
       content,
@@ -284,22 +320,24 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
     .where(eq(schema.documents.id, docName))
     .run();
 
-  const revisionId = nanoid(7);
-  const state = Y.encodeStateAsUpdate(doc);
+  if (contentChanged) {
+    const revisionId = nanoid(7);
+    const state = Y.encodeStateAsUpdate(doc);
 
-  db.insert(schema.documentRevisions).values({
-    id: revisionId,
-    document_id: docName,
-    yjs_state: Buffer.from(state).toString('base64'),
-    created_at: new Date().toISOString(),
-  }).run();
+    db.insert(schema.documentRevisions).values({
+      id: revisionId,
+      document_id: docName,
+      yjs_state: Buffer.from(state).toString('base64'),
+      created_at: new Date().toISOString(),
+    }).run();
 
-  const responseEncoder = encoding.createEncoder();
-  encoding.writeVarString(responseEncoder, 'new_version');
-  encoding.writeVarString(responseEncoder, 'documentId');
-  encoding.writeVarUint(responseEncoder, 0);
-  encoding.writeVarString(responseEncoder, docName);
-  broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
+    const responseEncoder = encoding.createEncoder();
+    encoding.writeVarString(responseEncoder, 'new_version');
+    encoding.writeVarString(responseEncoder, 'documentId');
+    encoding.writeVarUint(responseEncoder, 0);
+    encoding.writeVarString(responseEncoder, docName);
+    broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
+  }
 }
 
 function saveDocDebounced(docName: string, doc: WSSharedDoc) {

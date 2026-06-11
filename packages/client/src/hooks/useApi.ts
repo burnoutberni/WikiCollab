@@ -230,13 +230,10 @@ export function useTemplates(documentId: string | null) {
 export function useVersions(
   documentId: string | null,
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void,
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void,
-  initialRestoredVersionId?: string | null
+  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void
 ) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [restoredVersionId, setRestoredVersionId] = useState<string | null>(initialRestoredVersionId ?? null);
 
   const fetchVersions = useCallback(async () => {
     if (!documentId) return;
@@ -246,7 +243,6 @@ export function useVersions(
       const res = await fetch(`${API_BASE}/docs/${documentId}/versions`);
       const data = await res.json();
       setVersions(data);
-      setPendingCount(0);
     } catch (error) {
       console.error('Failed to fetch versions:', error);
     } finally {
@@ -263,12 +259,12 @@ export function useVersions(
 
     const unsubscribe = onCustomMessage('new_version', (payload: { documentId: string }) => {
       if (payload.documentId === documentId) {
-        setPendingCount((prev) => prev + 1);
+        fetchVersions();
       }
     });
 
     return unsubscribe;
-  }, [onCustomMessage, documentId]);
+  }, [onCustomMessage, documentId, fetchVersions]);
 
   useEffect(() => {
     if (!onCustomMessage) return;
@@ -277,16 +273,6 @@ export function useVersions(
       setVersions((prev) =>
         prev.map((v) => (v.id === payload.versionId ? { ...v, starred: payload.starred } : v))
       );
-    });
-
-    return unsubscribe;
-  }, [onCustomMessage]);
-
-  useEffect(() => {
-    if (!onCustomMessage) return;
-
-    const unsubscribe = onCustomMessage('restore', (payload: { versionId: string }) => {
-      setRestoredVersionId(payload.versionId);
     });
 
     return unsubscribe;
@@ -345,5 +331,5 @@ export function useVersions(
     return null;
   }, [documentId]);
 
-  return { versions, loading, pendingCount, restoredVersionId, setRestoredVersionId, fetchVersions, starVersion, unstarVersion, getVersionPreview };
+  return { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview };
 }

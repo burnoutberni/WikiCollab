@@ -8,6 +8,7 @@ export const documents = sqliteTable('documents', {
   updated_at: text('updated_at').notNull().default(new Date().toISOString()),
   expiry: text('expiry'),
   mediawiki_instance_id: text('mediawiki_instance_id'),
+  restored_version_id: text('restored_version_id'),
 });
 
 export const mediawikiInstances = sqliteTable('mediawiki_instances', {
