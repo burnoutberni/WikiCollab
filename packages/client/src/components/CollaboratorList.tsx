@@ -192,11 +192,7 @@ export function CollaboratorList({ peers, userName, userColor, onUserNameChange,
       </div>
 
       {/* Remote peers */}
-      {peers
-        .filter((peer, index, self) =>
-          index === self.findIndex((p) => p.clientId === peer.clientId)
-        )
-        .map((peer) => (
+      {peers.map((peer) => (
         <div key={peer.clientId} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50">
           <div
             className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0"

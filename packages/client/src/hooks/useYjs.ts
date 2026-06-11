@@ -115,18 +115,22 @@ export function useYjs(docId: string | null) {
 
     const updatePeers = () => {
       const states = Array.from(awareness.getStates().entries());
-      const presenceList: Presence[] = states
-        .filter(([clientId]) => clientId !== ydoc.clientID)
-        .map(([clientId, state]) => {
-          const s = state as AwarenessState;
-          return {
-            clientId,
-            userId: s.user?.name || 'Unknown',
-            userName: s.user?.name || 'Anonymous',
-            color: s.user?.color || '#999',
-            cursor: s.cursor || null,
-          };
+      const seen = new Set<string>();
+      const presenceList: Presence[] = [];
+      for (const [clientId, state] of states) {
+        if (clientId === ydoc.clientID) continue;
+        const s = state as AwarenessState;
+        const uid = s.user?.name || 'Anonymous';
+        if (seen.has(uid)) continue;
+        seen.add(uid);
+        presenceList.push({
+          clientId,
+          userId: uid,
+          userName: uid,
+          color: s.user?.color || '#999',
+          cursor: s.cursor || null,
         });
+      }
       setPeers(presenceList);
     };
 
