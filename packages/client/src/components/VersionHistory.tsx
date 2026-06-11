@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { History, RotateCcw, Star, Eye, X } from 'lucide-react';
+import { History, RotateCcw, Star, Eye, X, ArrowDown } from 'lucide-react';
 import { useVersions } from '@/hooks/useApi';
 
 interface VersionHistoryProps {
@@ -20,7 +20,7 @@ interface VersionHistoryProps {
 }
 
 export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCustomMessage }: VersionHistoryProps) {
-  const { versions, loading, starVersion, unstarVersion, getVersionPreview } = useVersions(
+  const { versions, loading, pendingCount, fetchVersions, starVersion, unstarVersion, getVersionPreview } = useVersions(
     documentId,
     sendCustomMessage,
     onCustomMessage
@@ -61,7 +61,7 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
     setPreviewLoading(false);
   }, [previewingVersion, getVersionPreview]);
 
-  const isLatestVersion = (index: number) => index === 0;
+  const isLatestVersion = (index: number) => index === 0 && pendingCount === 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -78,6 +78,18 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
             Browse and restore previous versions of this document.
           </DialogDescription>
         </DialogHeader>
+
+        {pendingCount > 0 && (
+          <div className="px-1">
+            <button
+              onClick={fetchVersions}
+              className="w-full flex items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 bg-primary/5 p-3 text-sm text-primary hover:bg-primary/10 transition-colors"
+            >
+              <ArrowDown className="h-4 w-4 animate-bounce" />
+              {pendingCount} new version{pendingCount !== 1 ? 's' : ''} — click to load
+            </button>
+          </div>
+        )}
 
         <ScrollArea className="h-[500px]">
           {loading ? (

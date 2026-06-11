@@ -293,6 +293,13 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
     yjs_state: Buffer.from(state).toString('base64'),
     created_at: new Date().toISOString(),
   }).run();
+
+  const responseEncoder = encoding.createEncoder();
+  encoding.writeVarString(responseEncoder, 'new_version');
+  encoding.writeVarString(responseEncoder, 'documentId');
+  encoding.writeVarUint(responseEncoder, 0);
+  encoding.writeVarString(responseEncoder, docName);
+  broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
 }
 
 function saveDocDebounced(docName: string, doc: WSSharedDoc) {

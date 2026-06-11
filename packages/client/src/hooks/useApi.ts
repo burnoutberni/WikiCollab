@@ -195,6 +195,7 @@ export function useVersions(
 ) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const fetchVersions = useCallback(async () => {
     if (!documentId) return;
@@ -204,6 +205,7 @@ export function useVersions(
       const res = await fetch(`${API_BASE}/docs/${documentId}/versions`);
       const data = await res.json();
       setVersions(data);
+      setPendingCount(0);
     } catch (error) {
       console.error('Failed to fetch versions:', error);
     } finally {
@@ -214,6 +216,18 @@ export function useVersions(
   useEffect(() => {
     fetchVersions();
   }, [fetchVersions]);
+
+  useEffect(() => {
+    if (!onCustomMessage || !documentId) return;
+
+    const unsubscribe = onCustomMessage('new_version', (payload: { documentId: string }) => {
+      if (payload.documentId === documentId) {
+        setPendingCount((prev) => prev + 1);
+      }
+    });
+
+    return unsubscribe;
+  }, [onCustomMessage, documentId]);
 
   useEffect(() => {
     if (!onCustomMessage) return;
@@ -280,5 +294,5 @@ export function useVersions(
     return null;
   }, [documentId]);
 
-  return { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview };
+  return { versions, loading, pendingCount, fetchVersions, starVersion, unstarVersion, getVersionPreview };
 }
