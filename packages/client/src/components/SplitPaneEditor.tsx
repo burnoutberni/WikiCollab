@@ -24,6 +24,11 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, on
 
   const fetchPreview = useCallback(async () => {
     const wikitext = ytext ? ytext.toString() : content;
+    if (!wikitext.trim()) {
+      setPreviewHtml('');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch('/api/instances/preview', {
@@ -34,7 +39,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, on
 
       if (res.ok) {
         const data = await res.json();
-        setPreviewHtml(data.html || '<p>Preview not available</p>');
+        setPreviewHtml(data.html || '');
         setPreviewCss(data.css || defaultCss);
       } else {
         setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
