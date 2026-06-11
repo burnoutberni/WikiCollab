@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,36 +9,41 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Globe, Pencil, Search } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Server, Trash2, Edit, Plus, ExternalLink } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
-interface WikiPreset {
-  name: string;
-  apiUrl: string;
-}
-
-const WIKI_PRESETS: WikiPreset[] = [
-  { name: 'Wikipedia (English)', apiUrl: 'https://en.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (Deutsch)', apiUrl: 'https://de.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (Français)', apiUrl: 'https://fr.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (Español)', apiUrl: 'https://es.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (日本語)', apiUrl: 'https://ja.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (中文)', apiUrl: 'https://zh.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (Русский)', apiUrl: 'https://ru.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (Português)', apiUrl: 'https://pt.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (Italiano)', apiUrl: 'https://it.wikipedia.org/w/api.php' },
-  { name: 'Wikipedia (Polski)', apiUrl: 'https://pl.wikipedia.org/w/api.php' },
-  { name: 'Wikimedia Commons', apiUrl: 'https://commons.wikimedia.org/w/api.php' },
-  { name: 'Wikidata', apiUrl: 'https://www.wikidata.org/w/api.php' },
-  { name: 'Wiktionary (English)', apiUrl: 'https://en.wiktionary.org/w/api.php' },
-  { name: 'Wikiquote (English)', apiUrl: 'https://en.wikiquote.org/w/api.php' },
-  { name: 'Wikibooks (English)', apiUrl: 'https://en.wikibooks.org/w/api.php' },
-  { name: 'Wikisource (English)', apiUrl: 'https://en.wikisource.org/w/api.php' },
-  { name: 'Wikiversity (English)', apiUrl: 'https://en.wikiversity.org/w/api.php' },
-  { name: 'MediaWiki.org', apiUrl: 'https://www.mediawiki.org/w/api.php' },
-  { name: 'Meta-Wiki', apiUrl: 'https://meta.wikimedia.org/w/api.php' },
+const WIKI_PRESETS: { name: string; api_url: string }[] = [
+  { name: 'English Wikipedia', api_url: 'https://en.wikipedia.org/w/api.php' },
+  { name: 'German Wikipedia', api_url: 'https://de.wikipedia.org/w/api.php' },
+  { name: 'French Wikipedia', api_url: 'https://fr.wikipedia.org/w/api.php' },
+  { name: 'Japanese Wikipedia', api_url: 'https://ja.wikipedia.org/w/api.php' },
+  { name: 'Spanish Wikipedia', api_url: 'https://es.wikipedia.org/w/api.php' },
+  { name: 'Italian Wikipedia', api_url: 'https://it.wikipedia.org/w/api.php' },
+  { name: 'Russian Wikipedia', api_url: 'https://ru.wikipedia.org/w/api.php' },
+  { name: 'Chinese Wikipedia', api_url: 'https://zh.wikipedia.org/w/api.php' },
+  { name: 'Wiktionary', api_url: 'https://en.wiktionary.org/w/api.php' },
+  { name: 'Wikibooks', api_url: 'https://en.wikibooks.org/w/api.php' },
+  { name: 'Wikiquote', api_url: 'https://en.wikiquote.org/w/api.php' },
+  { name: 'Wikisource', api_url: 'https://en.wikisource.org/w/api.php' },
+  { name: 'Wikinews', api_url: 'https://en.wikinews.org/w/api.php' },
+  { name: 'Wikiversity', api_url: 'https://en.wikiversity.org/w/api.php' },
+  { name: 'Wikidata', api_url: 'https://www.wikidata.org/w/api.php' },
+  { name: 'Wikispecies', api_url: 'https://species.wikimedia.org/w/api.php' },
+  { name: 'Wikivoyage', api_url: 'https://en.wikivoyage.org/w/api.php' },
+  { name: 'Meta-Wiki', api_url: 'https://meta.wikimedia.org/w/api.php' },
+  { name: 'Commons', api_url: 'https://commons.wikimedia.org/w/api.php' },
 ];
 
 interface InstanceManagerProps {
@@ -47,243 +52,358 @@ interface InstanceManagerProps {
   createInstance: (name: string, apiUrl: string, token?: string) => Promise<MediaWikiInstance>;
   deleteInstance: (id: string) => Promise<void>;
   updateInstance: (id: string, updates: { name?: string; api_url?: string; token?: string }) => Promise<MediaWikiInstance>;
-  onSelect?: (instance: MediaWikiInstance | null) => void;
-  selectedId?: string | null;
 }
 
-export function InstanceManager({ instances, loading, createInstance, deleteInstance, updateInstance, onSelect, selectedId }: InstanceManagerProps) {
-  const [open, setOpen] = useState(false);
+export function InstanceManager({
+  instances,
+  loading,
+  createInstance,
+  deleteInstance,
+  updateInstance,
+}: InstanceManagerProps) {
+  const instance = instances.length > 0 ? instances[0] : null;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingInstance, setEditingInstance] = useState<MediaWikiInstance | null>(null);
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
-  const [token, setToken] = useState('');
-  const [showPresets, setShowPresets] = useState(false);
-  const nameRef = useRef<HTMLInputElement>(null);
-  const presetsRef = useRef<HTMLDivElement>(null);
+  const [presetSearch, setPresetSearch] = useState('');
+  const [presetOpen, setPresetOpen] = useState(false);
+  const [presetIndex, setPresetIndex] = useState(-1);
 
-  const filteredPresets = useMemo(() => {
-    if (!name) return WIKI_PRESETS;
-    const q = name.toLowerCase();
-    return WIKI_PRESETS.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.apiUrl.toLowerCase().includes(q)
-    );
-  }, [name]);
+  const filteredPresets = WIKI_PRESETS.filter(
+    (p) =>
+      p.name.toLowerCase().includes(presetSearch.toLowerCase()) ||
+      p.api_url.toLowerCase().includes(presetSearch.toLowerCase())
+  );
 
-  useEffect(() => {
-    if (!showPresets) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        presetsRef.current && !presetsRef.current.contains(e.target as Node) &&
-        nameRef.current && !nameRef.current.contains(e.target as Node)
-      ) {
-        setShowPresets(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showPresets]);
-
-  const resetForm = useCallback(() => {
+  const openAddDialog = () => {
+    setEditingInstance(null);
     setName('');
     setApiUrl('');
-    setToken('');
-    setShowPresets(false);
-    setEditingInstance(null);
-  }, []);
+    setPresetSearch('');
+    setPresetIndex(-1);
+    setDialogOpen(true);
+  };
 
-  const handleCreate = useCallback(async () => {
-    if (!name || !apiUrl) return;
-    await createInstance(name, apiUrl, token || undefined);
-    resetForm();
-    setOpen(false);
-  }, [name, apiUrl, token, createInstance, resetForm]);
-
-  const handleEdit = useCallback(async () => {
-    if (!editingInstance || !name || !apiUrl) return;
-    await updateInstance(editingInstance.id, {
-      name,
-      api_url: apiUrl,
-      token: token || undefined,
-    });
-    resetForm();
-    setOpen(false);
-  }, [editingInstance, name, apiUrl, token, updateInstance, resetForm]);
-
-  const handleDelete = useCallback(async (id: string) => {
-    await deleteInstance(id);
-    if (selectedId === id) {
-      onSelect?.(null);
-    }
-  }, [deleteInstance, selectedId, onSelect]);
-
-  const openCreateDialog = useCallback(() => {
-    resetForm();
-    setOpen(true);
-  }, [resetForm]);
-
-  const openEditDialog = useCallback((instance: MediaWikiInstance) => {
+  const openEditDialog = () => {
+    if (!instance) return;
     setEditingInstance(instance);
     setName(instance.name);
     setApiUrl(instance.api_url);
-    setToken('');
-    setShowPresets(false);
-    setOpen(true);
-  }, []);
+    setPresetSearch('');
+    setPresetIndex(-1);
+    setDialogOpen(true);
+  };
 
-  const selectPreset = useCallback((preset: WikiPreset) => {
+  const handlePresetKeyDown = (e: React.KeyboardEvent) => {
+    if (!presetOpen) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setPresetIndex((i) => Math.min(i + 1, filteredPresets.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setPresetIndex((i) => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (presetIndex >= 0 && presetIndex < filteredPresets.length) {
+        const preset = filteredPresets[presetIndex];
+        setName(preset.name);
+        setApiUrl(preset.api_url);
+        setPresetOpen(false);
+        setPresetSearch('');
+        setPresetIndex(-1);
+      }
+    } else if (e.key === 'Escape') {
+      setPresetOpen(false);
+    }
+  };
+
+  const handlePresetSelect = (preset: { name: string; api_url: string }) => {
     setName(preset.name);
-    setApiUrl(preset.apiUrl);
-    setShowPresets(false);
-  }, []);
+    setApiUrl(preset.api_url);
+    setPresetOpen(false);
+    setPresetSearch('');
+    setPresetIndex(-1);
+  };
 
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">MediaWiki Instance</Label>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={openCreateDialog}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
+  const handleSave = async () => {
+    if (!name || !apiUrl) return;
+    if (editingInstance) {
+      await updateInstance(editingInstance.id, { name, api_url: apiUrl });
+    } else {
+      await createInstance(name, apiUrl);
+    }
+    setDialogOpen(false);
+  };
+
+  const handleDelete = async () => {
+    if (!instance) return;
+    await deleteInstance(instance.id);
+    setDeleteConfirmOpen(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="text-sm text-muted-foreground py-2">
+        Loading instances...
+      </div>
+    );
+  }
+
+  if (!instance) {
+    return (
+      <>
+        <div className="flex items-center gap-2 mb-3">
+          <Server className="h-4 w-4" />
+          <h3 className="text-sm font-medium">MediaWiki Instance</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Configure a MediaWiki instance for preview rendering and publishing.
+        </p>
+        <Button variant="outline" size="sm" onClick={openAddDialog} className="w-full">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Instance
+        </Button>
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>{editingInstance ? 'Edit MediaWiki Instance' : 'Add MediaWiki Instance'}</DialogTitle>
+              <DialogTitle>
+                {editingInstance ? 'Edit Instance' : 'Add MediaWiki Instance'}
+              </DialogTitle>
               <DialogDescription>
                 {editingInstance
-                  ? 'Update the configuration for this MediaWiki instance.'
-                  : 'Search for a wiki or enter a custom name and API URL.'}
+                  ? 'Update the MediaWiki instance configuration.'
+                  : 'Configure a MediaWiki instance for preview and publishing.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="instance-name">Name</Label>
-                <div className="relative">
-                  {!editingInstance && (
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  )}
-                  <Input
-                    ref={nameRef}
-                    id="instance-name"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      if (!editingInstance) setShowPresets(true);
-                    }}
-                    onFocus={() => { if (!editingInstance) setShowPresets(true); }}
-                    placeholder={editingInstance ? 'Instance name' : 'Search Wikipedia, Commons...'}
-                    className={!editingInstance ? 'pl-9' : undefined}
-                  />
-                  {!editingInstance && showPresets && (
-                    <div
-                      ref={presetsRef}
-                      className="absolute z-50 top-full mt-1 w-full max-h-48 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
-                    >
+                <Label>Preset</Label>
+                <Popover open={presetOpen} onOpenChange={setPresetOpen}>
+                  <PopoverTrigger asChild>
+                    <Input
+                      placeholder="Search presets or enter custom..."
+                      value={presetSearch}
+                      onChange={(e) => {
+                        setPresetSearch(e.target.value);
+                        setPresetIndex(-1);
+                        setPresetOpen(e.target.value.length > 0);
+                      }}
+                      onFocus={() => {
+                        if (presetSearch.length > 0) setPresetOpen(true);
+                      }}
+                      onKeyDown={handlePresetKeyDown}
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <div className="max-h-48 overflow-y-auto">
                       {filteredPresets.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">
-                          Custom instance — enter the API URL below
+                        <div className="p-2 text-sm text-muted-foreground">
+                          No matching presets
                         </div>
                       ) : (
-                        filteredPresets.map((preset) => (
+                        filteredPresets.map((preset, i) => (
                           <button
-                            key={preset.apiUrl}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex flex-col"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              selectPreset(preset);
-                            }}
+                            key={preset.api_url}
+                            className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                              i === presetIndex ? 'bg-accent' : 'hover:bg-accent'
+                            }`}
+                            onClick={() => handlePresetSelect(preset)}
                           >
                             <span className="font-medium">{preset.name}</span>
-                            <span className="text-xs text-muted-foreground truncate">{preset.apiUrl}</span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {preset.api_url}
+                            </span>
                           </button>
                         ))
                       )}
                     </div>
-                  )}
-                </div>
+                  </PopoverContent>
+                </Popover>
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="instance-url">API URL</Label>
+                <Label htmlFor="instance-name">Name</Label>
                 <Input
-                  id="instance-url"
-                  value={apiUrl}
-                  onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="https://en.wikipedia.org/w/api.php"
+                  id="instance-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My Wiki"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="instance-token">
-                  API Token {editingInstance ? '(leave blank to keep current)' : '(optional)'}
-                </Label>
+                <Label htmlFor="instance-api-url">API URL</Label>
                 <Input
-                  id="instance-token"
-                  type="password"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Bot password or API token"
+                  id="instance-api-url"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  placeholder="https://wiki.example.com/w/api.php"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={editingInstance ? handleEdit : handleCreate}
-                disabled={!name || !apiUrl}
-              >
-                {editingInstance ? 'Save Changes' : 'Add Instance'}
+              <Button onClick={handleSave} disabled={!name || !apiUrl}>
+                {editingInstance ? 'Update' : 'Add'}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-2 mb-2">
+        <Server className="h-4 w-4" />
+        <h3 className="text-sm font-medium">MediaWiki Instance</h3>
       </div>
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading instances...</p>
-      ) : instances.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No instances configured</p>
-      ) : (
-        <div className="space-y-1">
-          {instances.map((instance) => (
-            <div
-              key={instance.id}
-              className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm ${
-                selectedId === instance.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
-            >
-              <button
-                className="flex items-center gap-2 flex-1 text-left"
-                onClick={() => onSelect?.(instance)}
+      <div className="rounded-md border p-3">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{instance.name}</span>
+              <a
+                href={instance.api_url.replace('/w/api.php', '')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground"
               >
-                <Globe className="h-4 w-4" />
-                <span className="truncate">{instance.name}</span>
-              </button>
-              <div className="flex items-center gap-0.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => openEditDialog(instance)}
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => handleDelete(instance.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
-          ))}
+            <div className="text-xs text-muted-foreground truncate mt-0.5">
+              {instance.api_url}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 ml-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openEditDialog}
+              className="h-7 w-7 p-0"
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingInstance ? 'Edit Instance' : 'Add MediaWiki Instance'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingInstance
+                ? 'Update the MediaWiki instance configuration.'
+                : 'Configure a MediaWiki instance for preview and publishing.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Preset</Label>
+              <Popover open={presetOpen} onOpenChange={setPresetOpen}>
+                <PopoverTrigger asChild>
+                  <Input
+                    placeholder="Search presets or enter custom..."
+                    value={presetSearch}
+                    onChange={(e) => {
+                      setPresetSearch(e.target.value);
+                      setPresetIndex(-1);
+                      setPresetOpen(e.target.value.length > 0);
+                    }}
+                    onFocus={() => {
+                      if (presetSearch.length > 0) setPresetOpen(true);
+                    }}
+                    onKeyDown={handlePresetKeyDown}
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredPresets.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">
+                        No matching presets
+                      </div>
+                    ) : (
+                      filteredPresets.map((preset, i) => (
+                        <button
+                          key={preset.api_url}
+                          className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                            i === presetIndex ? 'bg-accent' : 'hover:bg-accent'
+                          }`}
+                          onClick={() => handlePresetSelect(preset)}
+                        >
+                          <span className="font-medium">{preset.name}</span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {preset.api_url}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instance-name">Name</Label>
+              <Input
+                id="instance-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="My Wiki"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instance-api-url">API URL</Label>
+              <Input
+                id="instance-api-url"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="https://wiki.example.com/w/api.php"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={!name || !apiUrl}>
+              {editingInstance ? 'Update' : 'Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove instance?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disconnect the MediaWiki instance. You can always add it
+              back later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

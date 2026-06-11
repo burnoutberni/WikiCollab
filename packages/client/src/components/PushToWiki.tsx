@@ -1,46 +1,43 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Send, FileText } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
 interface PushToWikiProps {
   documentId: string;
   title: string;
   content: string;
-  instances: MediaWikiInstance[];
+  instance: MediaWikiInstance | null;
 }
 
-export function PushToWiki({ documentId, title, content, instances }: PushToWikiProps) {
+export function PushToWiki({ documentId, title, content, instance }: PushToWikiProps) {
   const [open, setOpen] = useState(false);
-  const [selectedInstance, setSelectedInstance] = useState<MediaWikiInstance | null>(null);
   const [wikiTitle, setWikiTitle] = useState(title);
   const [summary, setSummary] = useState('');
   const [pushing, setPushing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  useEffect(() => {
-    setWikiTitle(title);
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setWikiTitle(title);
+      setSummary('');
+      setResult(null);
+    }
   }, [title]);
 
-  useEffect(() => {
-    if (selectedInstance && !instances.find((i) => i.id === selectedInstance.id)) {
-      setSelectedInstance(null);
-    }
-  }, [instances, selectedInstance]);
-
   const handlePush = useCallback(async () => {
-    if (!selectedInstance || !wikiTitle) return;
+    if (!instance || !wikiTitle) return;
 
     setPushing(true);
     setResult(null);
@@ -68,9 +65,9 @@ export function PushToWiki({ documentId, title, content, instances }: PushToWiki
     } finally {
       setPushing(false);
     }
-  }, [selectedInstance, wikiTitle, content, summary, documentId]);
+  }, [instance, wikiTitle, content, summary, documentId]);
 
-  const noInstances = instances.length === 0;
+  const disabled = !instance;
 
   return (
     <>
@@ -81,16 +78,16 @@ export function PushToWiki({ documentId, title, content, instances }: PushToWiki
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setOpen(true)}
-                disabled={noInstances}
-                className={noInstances ? 'opacity-50 cursor-not-allowed' : ''}
+                onClick={() => handleOpenChange(true)}
+                disabled={disabled}
+                className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
               >
                 <Send className="h-4 w-4 mr-2" />
                 Push to Wiki
               </Button>
             </span>
           </TooltipTrigger>
-          {noInstances && (
+          {disabled && (
             <TooltipContent>
               Configure a MediaWiki instance first
             </TooltipContent>
@@ -98,43 +95,16 @@ export function PushToWiki({ documentId, title, content, instances }: PushToWiki
         </Tooltip>
       </TooltipProvider>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Push to MediaWiki</DialogTitle>
-            <DialogDescription>
-              Push this article to a configured MediaWiki instance.
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Instance</Label>
-              {instances.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No MediaWiki instances configured. Add one in settings.
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  {instances.map((instance) => (
-                    <button
-                      key={instance.id}
-                      className={`w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
-                        selectedInstance?.id === instance.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-muted text-left'
-                      }`}
-                      onClick={() => setSelectedInstance(instance)}
-                    >
-                      <FileText className="h-4 w-4" />
-                      <div>
-                        <div className="font-medium">{instance.name}</div>
-                        <div className="text-xs opacity-70">{instance.api_url}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="rounded-md bg-muted px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Target:</span>{' '}
+              <span className="font-medium">{instance?.name}</span>
             </div>
 
             <div className="space-y-2">
@@ -176,7 +146,7 @@ export function PushToWiki({ documentId, title, content, instances }: PushToWiki
             </Button>
             <Button
               onClick={handlePush}
-              disabled={!selectedInstance || !wikiTitle || pushing}
+              disabled={!wikiTitle || pushing}
             >
               {pushing ? 'Pushing...' : 'Push to Wiki'}
             </Button>

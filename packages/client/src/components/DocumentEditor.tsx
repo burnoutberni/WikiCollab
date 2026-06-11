@@ -22,7 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import { useDocument, useInstances, type MediaWikiInstance } from '@/hooks/useApi';
+import { useDocument, useInstances } from '@/hooks/useApi';
 import { useYjs } from '@/hooks/useYjs';
 import { WikitextEditor } from './WikitextEditor';
 import { SplitPaneEditor } from './SplitPaneEditor';
@@ -57,18 +57,13 @@ export function DocumentEditor() {
   const [viewMode, setViewMode] = useState<ViewMode>('source');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(true);
-  const [selectedInstance, setSelectedInstance] = useState<MediaWikiInstance | null>(null);
 
   useEffect(() => {
     if (doc) {
       setTitle(doc.title);
       setContentState(doc.content);
-      if (doc.mediawiki_instance_id) {
-        const inst = instances.find((i) => i.id === doc.mediawiki_instance_id);
-        setSelectedInstance(inst || null);
-      }
     }
-  }, [doc, instances]);
+  }, [doc]);
 
   const handleRemoteChange = useCallback((newContent: string) => {
     setContentState(newContent);
@@ -97,17 +92,6 @@ export function DocumentEditor() {
       }
     }
   }, [ytext]);
-
-  const handleInstanceSelect = useCallback(async (instance: MediaWikiInstance | null) => {
-    setSelectedInstance(instance);
-    if (id) {
-      await fetch(`/api/docs/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediawiki_instance_id: instance?.id || null }),
-      });
-    }
-  }, [id]);
 
   const handleRestoreVersion = useCallback(async (versionId: string) => {
     try {
@@ -222,7 +206,7 @@ export function DocumentEditor() {
             documentId={id!}
             title={title}
             content={content}
-            instances={instances}
+            instance={instances[0] || null}
           />
 
           <Button
@@ -246,8 +230,6 @@ export function DocumentEditor() {
                   createInstance={createInstance}
                   deleteInstance={deleteInstance}
                   updateInstance={updateInstance}
-                  onSelect={handleInstanceSelect}
-                  selectedId={selectedInstance?.id}
                 />
               </div>
 
@@ -294,7 +276,7 @@ export function DocumentEditor() {
                 content={content}
                 onChange={handleContentChange}
                 documentId={id!}
-                instanceId={selectedInstance?.id}
+                instanceId={instances[0]?.id}
                 ytext={ytext}
                 provider={provider}
                 onCursorChange={updateCursor}
