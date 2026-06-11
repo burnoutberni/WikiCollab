@@ -67,22 +67,24 @@ export function InstanceManager({
   const [editingInstance, setEditingInstance] = useState<MediaWikiInstance | null>(null);
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
-  const [presetSearch, setPresetSearch] = useState('');
-  const [presetOpen, setPresetOpen] = useState(false);
-  const [presetIndex, setPresetIndex] = useState(-1);
+  const [nameSearch, setNameSearch] = useState('');
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameIndex, setNameIndex] = useState(-1);
+  const [selectedPreset, setSelectedPreset] = useState<{ name: string; api_url: string } | null>(null);
 
   const filteredPresets = WIKI_PRESETS.filter(
     (p) =>
-      p.name.toLowerCase().includes(presetSearch.toLowerCase()) ||
-      p.api_url.toLowerCase().includes(presetSearch.toLowerCase())
+      p.name.toLowerCase().includes(nameSearch.toLowerCase()) ||
+      p.api_url.toLowerCase().includes(nameSearch.toLowerCase())
   );
 
   const openAddDialog = () => {
     setEditingInstance(null);
     setName('');
     setApiUrl('');
-    setPresetSearch('');
-    setPresetIndex(-1);
+    setNameSearch('');
+    setNameIndex(-1);
+    setSelectedPreset(null);
     setDialogOpen(true);
   };
 
@@ -91,40 +93,52 @@ export function InstanceManager({
     setEditingInstance(instance);
     setName(instance.name);
     setApiUrl(instance.api_url);
-    setPresetSearch('');
-    setPresetIndex(-1);
+    const match = WIKI_PRESETS.find((p) => p.api_url === instance.api_url);
+    setSelectedPreset(match || null);
+    setNameSearch('');
+    setNameIndex(-1);
     setDialogOpen(true);
   };
 
-  const handlePresetKeyDown = (e: React.KeyboardEvent) => {
-    if (!presetOpen) return;
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (!nameOpen) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setPresetIndex((i) => Math.min(i + 1, filteredPresets.length - 1));
+      setNameIndex((i) => Math.min(i + 1, filteredPresets.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setPresetIndex((i) => Math.max(i - 1, -1));
+      setNameIndex((i) => Math.max(i - 1, -1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (presetIndex >= 0 && presetIndex < filteredPresets.length) {
-        const preset = filteredPresets[presetIndex];
+      if (nameIndex >= 0 && nameIndex < filteredPresets.length) {
+        const preset = filteredPresets[nameIndex];
         setName(preset.name);
         setApiUrl(preset.api_url);
-        setPresetOpen(false);
-        setPresetSearch('');
-        setPresetIndex(-1);
+        setSelectedPreset(preset);
+        setNameOpen(false);
+        setNameSearch('');
+        setNameIndex(-1);
       }
     } else if (e.key === 'Escape') {
-      setPresetOpen(false);
+      setNameOpen(false);
     }
   };
 
   const handlePresetSelect = (preset: { name: string; api_url: string }) => {
     setName(preset.name);
     setApiUrl(preset.api_url);
-    setPresetOpen(false);
-    setPresetSearch('');
-    setPresetIndex(-1);
+    setSelectedPreset(preset);
+    setNameOpen(false);
+    setNameSearch('');
+    setNameIndex(-1);
+  };
+
+  const handleNameChange = (value: string) => {
+    setName(value);
+    setSelectedPreset(null);
+    setNameSearch(value);
+    setNameIndex(-1);
+    setNameOpen(value.length > 0);
   };
 
   const handleSave = async () => {
@@ -142,6 +156,92 @@ export function InstanceManager({
     await deleteInstance(instance.id);
     setDeleteConfirmOpen(false);
   };
+
+  const isPresetLocked = selectedPreset !== null;
+
+  const dialogContent = (
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {editingInstance ? 'Edit Instance' : 'Add MediaWiki Instance'}
+          </DialogTitle>
+          <DialogDescription>
+            {editingInstance
+              ? 'Update the MediaWiki instance configuration.'
+              : 'Configure a MediaWiki instance for preview and publishing.'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="instance-name">Name</Label>
+            <Popover open={nameOpen && filteredPresets.length > 0} onOpenChange={setNameOpen}>
+              <PopoverTrigger asChild>
+                <Input
+                  id="instance-name"
+                  placeholder="Search presets or enter custom name..."
+                  value={nameOpen ? nameSearch : name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  onFocus={() => {
+                    if (name.length > 0) {
+                      setNameSearch(name);
+                      setNameOpen(true);
+                    }
+                  }}
+                  onKeyDown={handleNameKeyDown}
+                />
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <div className="max-h-48 overflow-y-auto">
+                  {filteredPresets.map((preset, i) => (
+                    <button
+                      key={preset.api_url}
+                      className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                        i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
+                      }`}
+                      onClick={() => handlePresetSelect(preset)}
+                    >
+                      <span className="font-medium">{preset.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {preset.api_url}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="instance-api-url">API URL</Label>
+            <Input
+              id="instance-api-url"
+              value={apiUrl}
+              onChange={(e) => {
+                setApiUrl(e.target.value);
+                setSelectedPreset(null);
+              }}
+              placeholder="https://wiki.example.com/w/api.php"
+              disabled={isPresetLocked}
+              readOnly={isPresetLocked}
+            />
+            {isPresetLocked && (
+              <p className="text-xs text-muted-foreground">
+                Preset selected — URL is locked.
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!name || !apiUrl}>
+            {editingInstance ? 'Update' : 'Add'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   if (loading) {
     return (
@@ -165,93 +265,7 @@ export function InstanceManager({
           <Plus className="h-4 w-4 mr-2" />
           Add Instance
         </Button>
-
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingInstance ? 'Edit Instance' : 'Add MediaWiki Instance'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingInstance
-                  ? 'Update the MediaWiki instance configuration.'
-                  : 'Configure a MediaWiki instance for preview and publishing.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Preset</Label>
-                <Popover open={presetOpen} onOpenChange={setPresetOpen}>
-                  <PopoverTrigger asChild>
-                    <Input
-                      placeholder="Search presets or enter custom..."
-                      value={presetSearch}
-                      onChange={(e) => {
-                        setPresetSearch(e.target.value);
-                        setPresetIndex(-1);
-                        setPresetOpen(e.target.value.length > 0);
-                      }}
-                      onFocus={() => {
-                        if (presetSearch.length > 0) setPresetOpen(true);
-                      }}
-                      onKeyDown={handlePresetKeyDown}
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <div className="max-h-48 overflow-y-auto">
-                      {filteredPresets.length === 0 ? (
-                        <div className="p-2 text-sm text-muted-foreground">
-                          No matching presets
-                        </div>
-                      ) : (
-                        filteredPresets.map((preset, i) => (
-                          <button
-                            key={preset.api_url}
-                            className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
-                              i === presetIndex ? 'bg-accent' : 'hover:bg-accent'
-                            }`}
-                            onClick={() => handlePresetSelect(preset)}
-                          >
-                            <span className="font-medium">{preset.name}</span>
-                            <span className="text-xs text-muted-foreground truncate">
-                              {preset.api_url}
-                            </span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="instance-name">Name</Label>
-                <Input
-                  id="instance-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="My Wiki"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="instance-api-url">API URL</Label>
-                <Input
-                  id="instance-api-url"
-                  value={apiUrl}
-                  onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="https://wiki.example.com/w/api.php"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={!name || !apiUrl}>
-                {editingInstance ? 'Update' : 'Add'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {dialogContent}
       </>
     );
   }
@@ -302,92 +316,7 @@ export function InstanceManager({
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingInstance ? 'Edit Instance' : 'Add MediaWiki Instance'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingInstance
-                ? 'Update the MediaWiki instance configuration.'
-                : 'Configure a MediaWiki instance for preview and publishing.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Preset</Label>
-              <Popover open={presetOpen} onOpenChange={setPresetOpen}>
-                <PopoverTrigger asChild>
-                  <Input
-                    placeholder="Search presets or enter custom..."
-                    value={presetSearch}
-                    onChange={(e) => {
-                      setPresetSearch(e.target.value);
-                      setPresetIndex(-1);
-                      setPresetOpen(e.target.value.length > 0);
-                    }}
-                    onFocus={() => {
-                      if (presetSearch.length > 0) setPresetOpen(true);
-                    }}
-                    onKeyDown={handlePresetKeyDown}
-                  />
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <div className="max-h-48 overflow-y-auto">
-                    {filteredPresets.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        No matching presets
-                      </div>
-                    ) : (
-                      filteredPresets.map((preset, i) => (
-                        <button
-                          key={preset.api_url}
-                          className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
-                            i === presetIndex ? 'bg-accent' : 'hover:bg-accent'
-                          }`}
-                          onClick={() => handlePresetSelect(preset)}
-                        >
-                          <span className="font-medium">{preset.name}</span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {preset.api_url}
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="instance-name">Name</Label>
-              <Input
-                id="instance-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My Wiki"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="instance-api-url">API URL</Label>
-              <Input
-                id="instance-api-url"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="https://wiki.example.com/w/api.php"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={!name || !apiUrl}>
-              {editingInstance ? 'Update' : 'Add'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {dialogContent}
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
