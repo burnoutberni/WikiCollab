@@ -157,7 +157,7 @@ export function useInstances() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('wiki-colab-instances');
+      const stored = localStorage.getItem('wikicollab-instances');
       if (stored) {
         const parsed = JSON.parse(stored);
         setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
@@ -171,7 +171,7 @@ export function useInstances() {
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key !== 'wiki-colab-instances') return;
+      if (e.key !== 'wikicollab-instances') return;
       try {
         const parsed = e.newValue ? JSON.parse(e.newValue) : [];
         setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
@@ -185,7 +185,7 @@ export function useInstances() {
 
   const persist = useCallback((next: MediaWikiInstance[]) => {
     setInstances(next);
-    localStorage.setItem('wiki-colab-instances', JSON.stringify(next));
+    localStorage.setItem('wikicollab-instances', JSON.stringify(next));
   }, []);
 
   const createInstance = useCallback(async (name: string, apiUrl: string, token?: string) => {

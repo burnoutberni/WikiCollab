@@ -61,17 +61,17 @@ export function useYjs(docId: string | null) {
   const [peers, setPeers] = useState<Presence[]>([]);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
   const [userId] = useState(() => {
-    const stored = localStorage.getItem('wiki-colab-user-id');
+    const stored = localStorage.getItem('wikicollab-user-id');
     if (stored) return stored;
     const id = generateUserId();
-    localStorage.setItem('wiki-colab-user-id', id);
+    localStorage.setItem('wikicollab-user-id', id);
     return id;
   });
   const [userName, setUserNameState] = useState(() => {
-    const stored = localStorage.getItem('wiki-colab-user-name');
+    const stored = localStorage.getItem('wikicollab-user-name');
     if (stored) return stored;
     const name = generateUserName();
-    localStorage.setItem('wiki-colab-user-name', name);
+    localStorage.setItem('wikicollab-user-name', name);
     return name;
   });
   const userNameRef = useRef(userName);
@@ -81,20 +81,20 @@ export function useYjs(docId: string | null) {
     const trimmed = name.trim();
     if (!trimmed) return;
     setUserNameState(trimmed);
-    localStorage.setItem('wiki-colab-user-name', trimmed);
+    localStorage.setItem('wikicollab-user-name', trimmed);
   }, []);
 
   const [userColor, setUserColorState] = useState(() => {
-    const stored = localStorage.getItem('wiki-colab-user-color');
+    const stored = localStorage.getItem('wikicollab-user-color');
     if (stored) return stored;
     const color = generateColor();
-    localStorage.setItem('wiki-colab-user-color', color);
+    localStorage.setItem('wikicollab-user-color', color);
     return color;
   });
 
   const setUserColor = useCallback((color: string) => {
     setUserColorState(color);
-    localStorage.setItem('wiki-colab-user-color', color);
+    localStorage.setItem('wikicollab-user-color', color);
   }, []);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export function useYjs(docId: string | null) {
       connect: true,
     });
 
-    const idbPersistence = new IndexeddbPersistence(`wiki-colab-${docId}`, ydoc);
+    const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, ydoc);
 
     wsProvider.on('status', ({ status }: { status: string }) => {
       setConnected(status === 'connected');

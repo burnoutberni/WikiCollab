@@ -4,12 +4,12 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - wiki-colab-data:/app/data
+      - wikicollab-data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_PATH=/app/data/wiki-colab.db
+      - DATABASE_PATH=/app/data/wikicollab.db
     restart: unless-stopped
 
 volumes:
-  wiki-colab-data:
+  wikicollab-data:

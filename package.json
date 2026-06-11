@@ -1,5 +1,5 @@
 {
-  "name": "wiki-colab",
+  "name": "wikicollab",
   "private": true,
   "scripts": {
     "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\"",

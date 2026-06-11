@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const TAB_ID_KEY = 'wiki-colab-tab-id';
+const TAB_ID_KEY = 'wikicollab-tab-id';
 
 function getTabId(): string {
   let id = sessionStorage.getItem(TAB_ID_KEY);
@@ -18,7 +18,7 @@ interface Lock {
 }
 
 function lockKey(documentId: string) {
-  return `wiki-colab-editor-lock-${documentId}`;
+  return `wikicollab-editor-lock-${documentId}`;
 }
 
 const STALE_MS = 30_000;

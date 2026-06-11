@@ -22,7 +22,7 @@ function formatCursor(cursor: { anchor: number; head: number } | null): string |
   return `selection ${from}–${to}`;
 }
 
-const STORAGE_KEY = 'wiki-colab-user-custom-colors';
+const STORAGE_KEY = 'wikicollab-user-custom-colors';
 
 function textColor(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
