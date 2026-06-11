@@ -28,7 +28,8 @@ instances.post('/preview', async (c) => {
       if (data.parse?.text?.['*']) {
         return c.json({ html: data.parse.text['*'] });
       }
-    } catch {
+    } catch (err) {
+      console.error('MediaWiki preview request failed:', err);
       // Fall through to local parsing
     }
   }
@@ -76,13 +77,15 @@ instances.post('/css', async (c) => {
             cssParts.push(`/* ${page} */\n${content}`);
           }
         }
-      } catch {
+      } catch (err) {
+        console.error(`Failed to fetch CSS page ${page}:`, err);
         // Skip pages that fail to fetch
       }
     }
 
     return c.json({ css: cssParts.join('\n\n') });
-  } catch {
+  } catch (err) {
+    console.error('Failed to fetch CSS from MediaWiki:', err);
     return c.json({ error: 'Failed to fetch CSS from MediaWiki' }, 500);
   }
 });

@@ -130,7 +130,8 @@ docs.post('/:id/versions/:v/restore', (c) => {
     const content = doc.getText('wikitext').toString();
     doc.destroy();
     return c.json({ success: true, content });
-  } catch {
+  } catch (err) {
+    console.error('Failed to decode version for restore:', err);
     return c.json({ success: true, content: '' });
   }
 });

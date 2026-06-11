@@ -39,7 +39,8 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, on
       } else {
         setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch preview:', err);
       setPreviewHtml('<p class="text-red-500">Preview requires a configured MediaWiki instance</p>');
     } finally {
       setLoading(false);

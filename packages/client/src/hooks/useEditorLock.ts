@@ -49,7 +49,8 @@ export function useEditorLock(documentId: string | null) {
         if (lock.tabId === tabIdRef.current) {
           localStorage.removeItem(lockKey(documentId));
         }
-      } catch {
+      } catch (err) {
+        console.error('Failed to parse editor lock:', err);
         localStorage.removeItem(lockKey(documentId));
       }
     }
@@ -77,7 +78,8 @@ export function useEditorLock(documentId: string | null) {
         } else {
           setLockedByOther(lock);
         }
-      } catch {
+      } catch (err) {
+        console.error('Failed to parse editor lock:', err);
         claim();
       }
     } else {
@@ -94,8 +96,8 @@ export function useEditorLock(documentId: string | null) {
           } else if (isStale(lock)) {
             claim();
           }
-        } catch {
-          // ignore
+        } catch (err) {
+          console.error('Failed to parse editor lock in interval:', err);
         }
       }
     }, 10_000);
@@ -126,8 +128,8 @@ export function useEditorLock(documentId: string | null) {
           if (lock.tabId !== tabIdRef.current) {
             setLockedByOther(lock);
           }
-        } catch {
-          // ignore
+        } catch (err) {
+          console.error('Failed to parse editor lock from storage event:', err);
         }
       } else {
         // Lock was removed

@@ -8,6 +8,15 @@ import { setupWebSocket } from './ws/index.js';
 
 const app = new Hono();
 
+app.onError((err, c) => {
+  console.error(`[ERROR] ${c.req.method} ${c.req.path}:`, err);
+  return c.json({ error: 'Internal server error' }, 500);
+});
+
+app.notFound((c) => {
+  return c.json({ error: 'Not found' }, 404);
+});
+
 app.use('*', cors({
   origin: ['http://localhost:5173', 'http://localhost:3001'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -21,7 +30,7 @@ app.get('/api/health', (c) => {
   return c.json({ status: 'ok' });
 });
 
-const port = parseInt(process.env.PORT || '3000');
+const port = parseInt(process.env.PORT || '3000', 10);
 
 const server = serve({
   fetch: app.fetch,

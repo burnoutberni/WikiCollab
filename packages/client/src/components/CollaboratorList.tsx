@@ -36,7 +36,8 @@ function loadCustomColors(): string[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
-  } catch {
+  } catch (err) {
+    console.error('Failed to load custom colors from localStorage:', err);
     return [];
   }
 }

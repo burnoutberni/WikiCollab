@@ -161,7 +161,9 @@ export function useYjs(docId: string | null) {
               case 1: payload[key] = decoding.readVarUint(customDecoder) === 1; break;
             }
           }
-        } catch {}
+        } catch (err) {
+          console.error('Failed to decode custom message:', err);
+        }
         handlers.forEach((handler) => handler(payload));
       }
     };

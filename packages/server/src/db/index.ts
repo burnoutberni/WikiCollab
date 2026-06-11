@@ -47,22 +47,22 @@ sqlite.exec(`
 // Migration: add css column to existing mediawiki_instances tables
 try {
   sqlite.exec(`ALTER TABLE mediawiki_instances ADD COLUMN css TEXT`);
-} catch {
-  // Column already exists, ignore
+} catch (_err) {
+  // Column already exists - expected on subsequent startups
 }
 
 // Migration: add starred column to existing document_revisions tables
 try {
   sqlite.exec(`ALTER TABLE document_revisions ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`);
-} catch {
-  // Column already exists, ignore
+} catch (_err) {
+  // Column already exists - expected on subsequent startups
 }
 
 // Migration: add restored_version_id column to existing documents tables
 try {
   sqlite.exec(`ALTER TABLE documents ADD COLUMN restored_version_id TEXT`);
-} catch {
-  // Column already exists, ignore
+} catch (_err) {
+  // Column already exists - expected on subsequent startups
 }
 
 export const db = drizzle(sqlite, { schema });

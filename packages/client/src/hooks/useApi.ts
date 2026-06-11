@@ -70,8 +70,8 @@ export function useDocuments() {
           }
           return current;
         });
-      } catch {
-        // silently ignore poll failures
+      } catch (err) {
+        console.error('Failed to poll documents:', err);
       }
     };
 
@@ -162,8 +162,8 @@ export function useInstances() {
         const parsed = JSON.parse(stored);
         setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Failed to load instances from localStorage:', err);
     } finally {
       setLoading(false);
     }
@@ -175,7 +175,8 @@ export function useInstances() {
       try {
         const parsed = e.newValue ? JSON.parse(e.newValue) : [];
         setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
-      } catch {
+      } catch (err) {
+        console.error('Failed to parse instances from storage event:', err);
         setInstances([]);
       }
     };

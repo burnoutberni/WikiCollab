@@ -1,23 +1,27 @@
 FROM node:22-alpine AS base
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/server/package.json ./packages/server/
 COPY packages/client/package.json ./packages/client/
 COPY shared/package.json ./shared/
 
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN npm run build
+RUN pnpm run build
 
 FROM node:22-alpine AS production
 
 WORKDIR /app
 
 COPY --from=base /app/package.json ./
+COPY --from=base /app/pnpm-lock.yaml ./
+COPY --from=base /app/pnpm-workspace.yaml ./
 COPY --from=base /app/packages/server/package.json ./packages/server/
 COPY --from=base /app/packages/client/package.json ./packages/client/
 COPY --from=base /app/shared/package.json ./shared/

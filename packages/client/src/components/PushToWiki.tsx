@@ -60,7 +60,8 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
       } else {
         setResult({ success: false, message: data.error || 'Failed to push' });
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to push to wiki:', err);
       setResult({ success: false, message: 'Network error' });
     }
   }, [instance, wikiTitle, content, summary, documentId]);
