@@ -352,15 +352,23 @@ function saveDocDebounced(docName: string, doc: WSSharedDoc) {
 
 setContentInitializor(async (ydoc: Y.Doc) => {
   const docName = (ydoc as any).name;
-  const existingDoc = db.select()
-    .from(schema.documents)
-    .where(eq(schema.documents.id, docName))
-    .get();
 
-  if (existingDoc && existingDoc.content) {
-    const ytext = ydoc.getText('wikitext');
-    if (ytext.length === 0) {
-      ytext.insert(0, existingDoc.content);
+  const latestRevision = db.select()
+    .from(schema.documentRevisions)
+    .where(eq(schema.documentRevisions.document_id, docName))
+    .all()
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+  if (latestRevision?.yjs_state) {
+    const state = Buffer.from(latestRevision.yjs_state, 'base64');
+    Y.applyUpdate(ydoc, state);
+  } else {
+    const existingDoc = db.select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, docName))
+      .get();
+    if (existingDoc?.content) {
+      ydoc.getText('wikitext').insert(0, existingDoc.content);
     }
   }
 });
