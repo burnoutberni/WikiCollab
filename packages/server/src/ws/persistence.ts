@@ -52,7 +52,9 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
     .where(eq(schema.documents.id, docName))
     .get();
 
-  const contentChanged = !existing || existing.content !== content;
+  if (!existing) return;
+
+  const contentChanged = existing.content !== content;
 
   db.update(schema.documents)
     .set({
