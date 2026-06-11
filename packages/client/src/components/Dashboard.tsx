@@ -208,11 +208,6 @@ export function Dashboard() {
                     <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
                       {doc.id}
                     </span>
-                    {doc.mediawiki_instance_id && (
-                      <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
-                        Wiki linked
-                      </span>
-                    )}
                   </div>
                 </CardContent>
               </Card>
