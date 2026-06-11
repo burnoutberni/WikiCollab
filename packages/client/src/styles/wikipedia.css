@@ -90,6 +90,22 @@
   padding: 0;
 }
 
+.mw-preview-container ul {
+  list-style-type: disc;
+}
+
+.mw-preview-container ol {
+  list-style-type: decimal;
+}
+
+.mw-preview-container ul ul {
+  list-style-type: circle;
+}
+
+.mw-preview-container ul ul ul {
+  list-style-type: square;
+}
+
 .mw-preview-container li {
   margin-bottom: 0.1em;
 }
