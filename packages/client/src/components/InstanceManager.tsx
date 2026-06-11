@@ -85,24 +85,35 @@ export function InstanceManager({
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent) => {
-    if (!nameOpen) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      setNameOpen(true);
       setNameIndex((i) => Math.min(i + 1, filteredPresets.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setNameIndex((i) => Math.max(i - 1, -1));
-    } else if (e.key === 'Enter' && nameIndex >= 0 && nameIndex < filteredPresets.length) {
-      e.preventDefault();
-      const preset = filteredPresets[nameIndex];
-      setName(preset.name);
-      setApiUrl(preset.api_url);
-      setSelectedPreset(preset);
-      justSelectedRef.current = true;
-      setNameOpen(false);
-      setNameIndex(-1);
+    } else if (e.key === 'Enter') {
+      if (nameOpen && nameIndex >= 0 && nameIndex < filteredPresets.length) {
+        e.preventDefault();
+        const preset = filteredPresets[nameIndex];
+        setName(preset.name);
+        setApiUrl(preset.api_url);
+        setSelectedPreset(preset);
+        justSelectedRef.current = true;
+        setNameOpen(false);
+        setNameIndex(-1);
+      } else if (nameOpen) {
+        e.preventDefault();
+        justSelectedRef.current = true;
+        setNameOpen(false);
+        setNameIndex(-1);
+      }
     } else if (e.key === 'Escape') {
       setNameOpen(false);
+      setNameIndex(-1);
+    } else if (e.key === 'Tab') {
+      setNameOpen(false);
+      setNameIndex(-1);
     }
   };
 
@@ -156,7 +167,7 @@ export function InstanceManager({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="instance-name">Name</Label>
-            <Popover open={nameOpen && filteredPresets.length > 0} onOpenChange={setNameOpen}>
+            <Popover open={nameOpen} onOpenChange={setNameOpen}>
               <PopoverTrigger asChild>
                 <Input
                   id="instance-name"
@@ -174,20 +185,26 @@ export function InstanceManager({
               </PopoverTrigger>
               <PopoverContent className="p-0">
                 <div className="max-h-48 overflow-y-auto">
-                  {filteredPresets.map((preset, i) => (
-                    <button
-                      key={preset.api_url}
-                      className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
-                        i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
-                      }`}
-                      onClick={() => handlePresetSelect(preset)}
-                    >
-                      <span className="font-medium">{preset.name}</span>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {preset.api_url}
-                      </span>
-                    </button>
-                  ))}
+                  {filteredPresets.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      No matching presets — type a custom name and API URL below
+                    </div>
+                  ) : (
+                    filteredPresets.map((preset, i) => (
+                      <button
+                        key={preset.api_url}
+                        className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                          i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
+                        }`}
+                        onClick={() => handlePresetSelect(preset)}
+                      >
+                        <span className="font-medium">{preset.name}</span>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {preset.api_url}
+                        </span>
+                      </button>
+                    ))
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
