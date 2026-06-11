@@ -9,6 +9,7 @@ dist-ssr
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 
 # environment files
 .env
