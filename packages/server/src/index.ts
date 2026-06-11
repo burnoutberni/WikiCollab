@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { createServer } from 'http';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
@@ -29,6 +30,9 @@ app.route('/api/instances', instancesRoutes);
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok' });
 });
+
+app.use('/*', serveStatic({ root: './packages/client/dist' }));
+app.get('/*', serveStatic({ path: './packages/client/dist/index.html' }));
 
 const port = parseInt(process.env.PORT || '3000', 10);
 
