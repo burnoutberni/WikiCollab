@@ -149,6 +149,36 @@ instances.post('/', async (c) => {
   return c.json(instance, 201);
 });
 
+instances.patch('/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json();
+
+  const updates: Record<string, unknown> = {};
+  if (body.name !== undefined) updates.name = body.name;
+  if (body.api_url !== undefined) updates.api_url = body.api_url;
+  if (body.token !== undefined) updates.token = body.token || null;
+
+  if (Object.keys(updates).length === 0) {
+    return c.json({ error: 'No fields to update' }, 400);
+  }
+
+  const result = db.update(schema.mediawikiInstances)
+    .set(updates)
+    .where(eq(schema.mediawikiInstances.id, id))
+    .run();
+
+  if (result.changes === 0) {
+    return c.json({ error: 'Instance not found' }, 404);
+  }
+
+  const instance = db.select()
+    .from(schema.mediawikiInstances)
+    .where(eq(schema.mediawikiInstances.id, id))
+    .get();
+
+  return c.json(instance);
+});
+
 instances.delete('/:id', (c) => {
   const id = c.req.param('id');
   const result = db.delete(schema.mediawikiInstances)

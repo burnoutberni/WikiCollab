@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Globe } from 'lucide-react';
+import { Plus, Trash2, Globe, Pencil } from 'lucide-react';
 import { useInstances, type MediaWikiInstance } from '@/hooks/useApi';
 
 interface InstanceManagerProps {
@@ -20,20 +20,37 @@ interface InstanceManagerProps {
 }
 
 export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) {
-  const { instances, loading, createInstance, deleteInstance } = useInstances();
+  const { instances, loading, createInstance, deleteInstance, updateInstance } = useInstances();
   const [open, setOpen] = useState(false);
+  const [editingInstance, setEditingInstance] = useState<MediaWikiInstance | null>(null);
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [token, setToken] = useState('');
 
-  const handleCreate = useCallback(async () => {
-    if (!name || !apiUrl) return;
-    await createInstance(name, apiUrl, token || undefined);
+  const resetForm = useCallback(() => {
     setName('');
     setApiUrl('');
     setToken('');
+    setEditingInstance(null);
+  }, []);
+
+  const handleCreate = useCallback(async () => {
+    if (!name || !apiUrl) return;
+    await createInstance(name, apiUrl, token || undefined);
+    resetForm();
     setOpen(false);
-  }, [name, apiUrl, token, createInstance]);
+  }, [name, apiUrl, token, createInstance, resetForm]);
+
+  const handleEdit = useCallback(async () => {
+    if (!editingInstance || !name || !apiUrl) return;
+    await updateInstance(editingInstance.id, {
+      name,
+      api_url: apiUrl,
+      token: token || undefined,
+    });
+    resetForm();
+    setOpen(false);
+  }, [editingInstance, name, apiUrl, token, updateInstance, resetForm]);
 
   const handleDelete = useCallback(async (id: string) => {
     await deleteInstance(id);
@@ -42,21 +59,36 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
     }
   }, [deleteInstance, selectedId, onSelect]);
 
+  const openCreateDialog = useCallback(() => {
+    resetForm();
+    setOpen(true);
+  }, [resetForm]);
+
+  const openEditDialog = useCallback((instance: MediaWikiInstance) => {
+    setEditingInstance(instance);
+    setName(instance.name);
+    setApiUrl(instance.api_url);
+    setToken('');
+    setOpen(true);
+  }, []);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">MediaWiki Instance</Label>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={openCreateDialog}>
               <Plus className="h-4 w-4" />
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add MediaWiki Instance</DialogTitle>
+              <DialogTitle>{editingInstance ? 'Edit MediaWiki Instance' : 'Add MediaWiki Instance'}</DialogTitle>
               <DialogDescription>
-                Configure a MediaWiki API endpoint to push articles and fetch templates.
+                {editingInstance
+                  ? 'Update the configuration for this MediaWiki instance.'
+                  : 'Configure a MediaWiki API endpoint to push articles and render templates.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -79,7 +111,9 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="instance-token">API Token (optional)</Label>
+                <Label htmlFor="instance-token">
+                  API Token {editingInstance ? '(leave blank to keep current)' : '(optional)'}
+                </Label>
                 <Input
                   id="instance-token"
                   type="password"
@@ -93,8 +127,11 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreate} disabled={!name || !apiUrl}>
-                Add Instance
+              <Button
+                onClick={editingInstance ? handleEdit : handleCreate}
+                disabled={!name || !apiUrl}
+              >
+                {editingInstance ? 'Save Changes' : 'Add Instance'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -123,14 +160,24 @@ export function InstanceManager({ onSelect, selectedId }: InstanceManagerProps) 
                 <Globe className="h-4 w-4" />
                 <span className="truncate">{instance.name}</span>
               </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => handleDelete(instance.id)}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <div className="flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => openEditDialog(instance)}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => handleDelete(instance.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

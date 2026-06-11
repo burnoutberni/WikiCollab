@@ -186,7 +186,18 @@ export function useInstances() {
     setInstances((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  return { instances, loading, createInstance, deleteInstance, refetch: fetchInstances };
+  const updateInstance = useCallback(async (id: string, updates: { name?: string; api_url?: string; token?: string }) => {
+    const res = await fetch(`${API_BASE}/instances/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    const instance = await res.json();
+    setInstances((prev) => prev.map((i) => (i.id === id ? instance : i)));
+    return instance;
+  }, []);
+
+  return { instances, loading, createInstance, deleteInstance, updateInstance, refetch: fetchInstances };
 }
 
 export function useVersions(
