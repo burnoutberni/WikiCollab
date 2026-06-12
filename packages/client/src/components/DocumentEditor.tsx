@@ -39,6 +39,7 @@ import { InstanceManager } from './InstanceManager';
 import { PushToWiki } from './PushToWiki';
 import { VersionHistory } from './VersionHistory';
 import { CollaboratorList } from './CollaboratorList';
+import { ShareButton } from './ShareButton';
 
 type ViewMode = 'source' | 'split';
 
@@ -218,6 +219,8 @@ export function DocumentEditor() {
             content={content}
             instance={instances[0] || null}
           />
+
+          <ShareButton documentId={id!} showLabel />
 
           <Button
             variant="ghost"

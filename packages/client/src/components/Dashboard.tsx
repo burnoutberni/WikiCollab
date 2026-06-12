@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Plus, FileText, Trash2, Clock, ArrowDown, Search, ArrowUpDown } from 'lucide-react';
+import { Plus, FileText, Clock, ArrowDown, Search, ArrowUpDown } from 'lucide-react';
 import { useDocuments } from '@/hooks/useApi';
+import { ShareButton } from './ShareButton';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 type SortKey = 'newest' | 'oldest' | 'alpha' | 'alpha-rev';
 
@@ -19,7 +21,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 const SORT_OPTIONS: SortKey[] = ['newest', 'oldest', 'alpha', 'alpha-rev'];
 
 export function Dashboard() {
-  const { documents, loading, pendingCount, loadPending, createDocument, deleteDocument } = useDocuments();
+  const { documents, loading, pendingCount, loadPending, createDocument } = useDocuments();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('newest');
@@ -65,13 +67,6 @@ export function Dashboard() {
     navigate(`/doc/${id}`);
   }, [navigate]);
 
-  const handleDelete = useCallback(async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (confirm('Are you sure you want to delete this document?')) {
-      await deleteDocument(id);
-    }
-  }, [deleteDocument]);
-
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short',
@@ -83,6 +78,7 @@ export function Dashboard() {
   };
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -175,7 +171,7 @@ export function Dashboard() {
             {filtered.map((doc) => (
               <Card
                 key={doc.id}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                className="cursor-pointer hover:bg-muted/50 transition-colors group"
                 onClick={() => handleOpen(doc.id)}
               >
                 <CardHeader className="pb-3">
@@ -189,14 +185,7 @@ export function Dashboard() {
                         {formatDate(doc.updated_at)}
                       </CardDescription>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => handleDelete(e, doc.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ShareButton documentId={doc.id} />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -217,5 +206,6 @@ export function Dashboard() {
         </div>
       </main>
     </div>
+    </TooltipProvider>
   );
 }
