@@ -355,26 +355,31 @@ export function DocumentEditor() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="hover:underline cursor-pointer">
-                  {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent side="top" align="end" className="w-64 p-2">
-                <CollaboratorList
-                  peers={peers}
-                  userName={userName}
-                  userColor={userColor}
-                  content={content}
-                  localCursor={localCursor}
-                  onUserNameChange={setUserName}
-                  onUserColorChange={setUserColor}
-                  onJumpToCursor={jumpToCursor}
-                  onScrollToCursor={scrollToCursor}
-                />
-              </PopoverContent>
-            </Popover>
+            <Tooltip>
+              <Popover>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <button className="hover:underline cursor-pointer">
+                      {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
+                    </button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>View collaborators</TooltipContent>
+                <PopoverContent side="top" align="end" className="w-64 p-2">
+                  <CollaboratorList
+                    peers={peers}
+                    userName={userName}
+                    userColor={userColor}
+                    content={content}
+                    localCursor={localCursor}
+                    onUserNameChange={setUserName}
+                    onUserColorChange={setUserColor}
+                    onJumpToCursor={jumpToCursor}
+                    onScrollToCursor={scrollToCursor}
+                  />
+                </PopoverContent>
+              </Popover>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
