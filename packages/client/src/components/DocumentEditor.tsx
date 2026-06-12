@@ -290,6 +290,7 @@ export function DocumentEditor() {
                     peers={peers}
                     userName={userName}
                     userColor={userColor}
+                    content={content}
                     localCursor={localCursor}
                     onUserNameChange={setUserName}
                     onUserColorChange={setUserColor}

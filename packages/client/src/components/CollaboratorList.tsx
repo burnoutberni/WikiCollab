@@ -8,20 +8,30 @@ interface CollaboratorListProps {
   peers: Presence[];
   userName: string;
   userColor: string;
+  content: string;
   localCursor: { anchor: number; head: number } | null;
   onUserNameChange: (name: string) => void;
   onUserColorChange: (color: string) => void;
   onJumpToCursor: (pos: number) => void;
 }
 
-function formatCursor(cursor: { anchor: number; head: number } | null): string | null {
+function posToLineCol(content: string, pos: number): { line: number; col: number } {
+  const text = content.slice(0, pos);
+  const lines = text.split('\n');
+  return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+}
+
+function formatCursor(content: string, cursor: { anchor: number; head: number } | null): string | null {
   if (!cursor) return null;
   if (cursor.anchor === cursor.head) {
-    return `pos ${cursor.anchor}`;
+    const { line, col } = posToLineCol(content, cursor.anchor);
+    return `L${line}:${col}`;
   }
   const from = Math.min(cursor.anchor, cursor.head);
   const to = Math.max(cursor.anchor, cursor.head);
-  return `selection ${from}–${to}`;
+  const a = posToLineCol(content, from);
+  const b = posToLineCol(content, to);
+  return `L${a.line}:${a.col}–L${b.line}:${b.col}`;
 }
 
 const STORAGE_KEY = 'wikicollab-user-custom-colors';
@@ -44,7 +54,7 @@ function loadCustomColors(): string[] {
   }
 }
 
-export function CollaboratorList({ peers, userName, userColor, localCursor, onUserNameChange, onUserColorChange, onJumpToCursor }: CollaboratorListProps) {
+export function CollaboratorList({ peers, userName, userColor, content, localCursor, onUserNameChange, onUserColorChange, onJumpToCursor }: CollaboratorListProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(userName);
   const [showColors, setShowColors] = useState(false);
@@ -240,7 +250,7 @@ export function CollaboratorList({ peers, userName, userColor, localCursor, onUs
             {peer.cursor && (
               <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <MousePointer2 className="h-2.5 w-2.5" />
-                {formatCursor(peer.cursor)}
+                {formatCursor(content, peer.cursor)}
               </div>
             )}
           </div>
