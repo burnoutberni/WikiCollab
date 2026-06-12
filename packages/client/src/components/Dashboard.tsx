@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +24,9 @@ export function Dashboard() {
   const { documents, loading, pendingCount, loadPending, createDocument } = useDocuments();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortKey>('newest');
+  const [sort, setSort] = useState<SortKey>(() => (localStorage.getItem('wikicollab-sort') as SortKey) || 'newest');
+
+  useEffect(() => { localStorage.setItem('wikicollab-sort', sort); }, [sort]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();

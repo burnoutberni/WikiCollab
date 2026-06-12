@@ -65,9 +65,9 @@ export function DocumentEditor() {
   const [title, setTitle] = useState('');
   const [wikiTitle, setWikiTitle] = useState('');
   const [content, setContentState] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split');
+  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('wikicollab-sidebarOpen') !== 'false');
+  const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(() => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false');
 
   useEffect(() => {
     if (doc) {
@@ -76,6 +76,10 @@ export function DocumentEditor() {
       setContentState(doc.content);
     }
   }, [doc]);
+
+  useEffect(() => { localStorage.setItem('wikicollab-viewMode', viewMode); }, [viewMode]);
+  useEffect(() => { localStorage.setItem('wikicollab-sidebarOpen', String(sidebarOpen)); }, [sidebarOpen]);
+  useEffect(() => { localStorage.setItem('wikicollab-collaboratorsExpanded', String(collaboratorsExpanded)); }, [collaboratorsExpanded]);
 
   const handleRemoteChange = useCallback((newContent: string) => {
     setContentState(newContent);
