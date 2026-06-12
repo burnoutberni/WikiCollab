@@ -81,10 +81,37 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
       setPickerPos(null);
     } else if (colorTriggerRef.current) {
       const rect = colorTriggerRef.current.getBoundingClientRect();
-      setPickerPos({ top: rect.bottom + 4, left: rect.left });
+      const PICKER_W = 144;
+      const GAP = 4;
+      let left = rect.left;
+      let top = rect.bottom + GAP;
+      if (left + PICKER_W > window.innerWidth - 8) {
+        left = window.innerWidth - 8 - PICKER_W;
+      }
+      setPickerPos({ top: Math.max(8, top), left: Math.max(8, left) });
       setShowColors(true);
     }
   }, [showColors]);
+
+  useEffect(() => {
+    if (!showColors || !pickerRef.current || !pickerPos) return;
+
+    const picker = pickerRef.current;
+    const rect = picker.getBoundingClientRect();
+    const MARGIN = 8;
+    let { top, left } = pickerPos;
+
+    if (rect.bottom > window.innerHeight - MARGIN) {
+      top = pickerPos.top - (rect.height + 8);
+    }
+    if (rect.right > window.innerWidth - MARGIN) {
+      left = window.innerWidth - MARGIN - rect.width;
+    }
+
+    if (top !== pickerPos.top || left !== pickerPos.left) {
+      setPickerPos({ top: Math.max(MARGIN, top), left: Math.max(MARGIN, left) });
+    }
+  }, [showColors, pickerPos]);
 
   useEffect(() => {
     if (!showColors) return;
