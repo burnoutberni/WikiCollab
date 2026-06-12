@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { MousePointer2 } from 'lucide-react';
+import { MousePointer2, Pencil } from 'lucide-react';
 import { COLORS } from '@/hooks/useYjs';
 import type { Presence } from '@/hooks/useYjs';
 
@@ -8,8 +8,10 @@ interface CollaboratorListProps {
   peers: Presence[];
   userName: string;
   userColor: string;
+  localCursor: { anchor: number; head: number } | null;
   onUserNameChange: (name: string) => void;
   onUserColorChange: (color: string) => void;
+  onJumpToCursor: (pos: number) => void;
 }
 
 function formatCursor(cursor: { anchor: number; head: number } | null): string | null {
@@ -42,14 +44,14 @@ function loadCustomColors(): string[] {
   }
 }
 
-export function CollaboratorList({ peers, userName, userColor, onUserNameChange, onUserColorChange }: CollaboratorListProps) {
+export function CollaboratorList({ peers, userName, userColor, localCursor, onUserNameChange, onUserColorChange, onJumpToCursor }: CollaboratorListProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(userName);
   const [showColors, setShowColors] = useState(false);
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
   const [customColors, setCustomColors] = useState<string[]>(loadCustomColors);
   const inputRef = useRef<HTMLInputElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const colorTriggerRef = useRef<HTMLButtonElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const commit = () => {
@@ -66,8 +68,8 @@ export function CollaboratorList({ peers, userName, userColor, onUserNameChange,
     if (showColors) {
       setShowColors(false);
       setPickerPos(null);
-    } else if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
+    } else if (colorTriggerRef.current) {
+      const rect = colorTriggerRef.current.getBoundingClientRect();
       setPickerPos({ top: rect.bottom + 4, left: rect.left });
       setShowColors(true);
     }
@@ -79,7 +81,7 @@ export function CollaboratorList({ peers, userName, userColor, onUserNameChange,
     const handleClickOutside = (e: MouseEvent) => {
       if (
         pickerRef.current && !pickerRef.current.contains(e.target as Node) &&
-        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+        colorTriggerRef.current && !colorTriggerRef.current.contains(e.target as Node)
       ) {
         setShowColors(false);
         setPickerPos(null);
@@ -93,13 +95,26 @@ export function CollaboratorList({ peers, userName, userColor, onUserNameChange,
   return (
     <div className="space-y-1">
       {/* Current user */}
-      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 relative">
+      <button
+        className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 relative group w-full text-left cursor-pointer"
+        onClick={() => {
+          if (!editing && localCursor) {
+            onJumpToCursor(localCursor.anchor);
+          }
+        }}
+        disabled={editing}
+      >
         <button
-          ref={triggerRef}
+          ref={colorTriggerRef}
           className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
           style={{ backgroundColor: userColor, color: textColor(userColor) }}
-          onClick={toggleColors}
-          title="Pick color"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (editing) {
+              toggleColors();
+            }
+          }}
+          title={editing ? 'Pick color' : undefined}
         >
           {userName.charAt(0)}
         </button>
@@ -176,25 +191,44 @@ export function CollaboratorList({ peers, userName, userColor, onUserNameChange,
                 }
               }}
               autoFocus
+              onClick={(e) => e.stopPropagation()}
               className="text-xs font-medium bg-transparent border-b border-foreground/30 outline-none w-full"
             />
           ) : (
-            <div
-              className="text-xs font-medium truncate cursor-pointer hover:underline"
-              onClick={() => {
-                setDraft(userName);
-                setEditing(true);
-              }}
-            >
+            <div className="text-xs font-medium truncate">
               {userName} (you)
             </div>
           )}
         </div>
-      </div>
+        <button
+          className="h-5 w-5 flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDraft(userName);
+            setEditing(!editing);
+            if (editing) {
+              setShowColors(false);
+              setPickerPos(null);
+            }
+          }}
+          title={editing ? 'Done editing' : 'Edit name'}
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      </button>
 
       {/* Remote peers */}
       {peers.map((peer) => (
-        <div key={peer.clientId} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50">
+        <button
+          key={peer.clientId}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 w-full text-left cursor-pointer"
+          onClick={() => {
+            if (peer.cursor) {
+              onJumpToCursor(peer.cursor.anchor);
+            }
+          }}
+          disabled={!peer.cursor}
+        >
           <div
             className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0"
             style={{ backgroundColor: peer.color, color: textColor(peer.color) }}
@@ -210,7 +244,7 @@ export function CollaboratorList({ peers, userName, userColor, onUserNameChange,
               </div>
             )}
           </div>
-        </div>
+        </button>
       ))}
 
       {peers.length === 0 && (

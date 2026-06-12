@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate, WidgetType, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
-import { EditorState, RangeSet, Range } from '@codemirror/state';
+import { EditorState, RangeSet, Range, EditorSelection } from '@codemirror/state';
 import { history, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
@@ -115,15 +115,32 @@ interface WikitextEditorProps {
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
   onRemoteChange?: (value: string) => void;
+  onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
   userName?: string;
   userColor?: string;
 }
 
-export function WikitextEditor({ content: _content, onChange: _onChange, ytext, provider, onRemoteChange, userName, userColor }: WikitextEditorProps) {
+export interface WikitextEditorHandle {
+  jumpToPosition: (pos: number) => void;
+}
+
+export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(function WikitextEditor({ content: _content, onChange: _onChange, ytext, provider, onRemoteChange, onCursorChange, userName, userColor }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<EditorView | null>(null);
   const [undoRedo, setUndoRedo] = useState({ canUndo: false, canRedo: false });
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    jumpToPosition(pos: number) {
+      if (view) {
+        view.dispatch({
+          selection: EditorSelection.cursor(pos),
+          effects: EditorView.scrollIntoView(pos),
+        });
+        view.focus();
+      }
+    },
+  }), [view]);
 
   useEffect(() => {
     if (!containerRef.current || !ytext || !provider) return;
@@ -178,6 +195,10 @@ export function WikitextEditor({ content: _content, onChange: _onChange, ytext, 
             const newValue = update.state.doc.toString();
             onRemoteChange?.(newValue);
           }
+          if (update.selectionSet) {
+            const sel = update.state.selection.main;
+            onCursorChange?.({ anchor: sel.anchor, head: sel.head });
+          }
           queueMicrotask(checkUndoRedo);
         }),
       ],
@@ -221,7 +242,7 @@ export function WikitextEditor({ content: _content, onChange: _onChange, ytext, 
       />
     </div>
   );
-}
+});
 
 interface TooltipState {
   text: string;

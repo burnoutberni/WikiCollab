@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { WikitextEditor } from './WikitextEditor';
+import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +22,8 @@ interface SplitPaneEditorProps {
   provider?: WebsocketProvider | null;
   userName?: string;
   userColor?: string;
+  editorRef?: React.RefObject<WikitextEditorHandle | null>;
+  onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
 }
 
 function getWikiBaseUrl(apiUrl: string): string {
@@ -58,7 +60,7 @@ function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): 
   return doc.body.innerHTML;
 }
 
-export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provider, userName, userColor }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provider, userName, userColor, editorRef, onCursorChange }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
@@ -143,12 +145,14 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
     <div className="flex h-full">
       <div className="w-1/2 border-r">
         <WikitextEditor
+          ref={editorRef}
           content={content}
           onChange={onChange}
           ytext={ytext}
           provider={provider}
           userName={userName}
           userColor={userColor}
+          onCursorChange={onCursorChange}
         />
       </div>
       <div className="w-1/2 relative">

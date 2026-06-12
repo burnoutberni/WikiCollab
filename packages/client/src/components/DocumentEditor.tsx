@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,7 @@ import {
 import { useDocument, useInstances } from '@/hooks/useApi';
 import { useYjs } from '@/hooks/useYjs';
 import { useEditorLock } from '@/hooks/useEditorLock';
-import { WikitextEditor } from './WikitextEditor';
+import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 import { SplitPaneEditor } from './SplitPaneEditor';
 import { InstanceManager } from './InstanceManager';
 import { PushToWiki } from './PushToWiki';
@@ -68,6 +68,8 @@ export function DocumentEditor() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split');
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('wikicollab-sidebarOpen') !== 'false');
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(() => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false');
+  const editorRef = useRef<WikitextEditorHandle | null>(null);
+  const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
 
   useEffect(() => {
     if (doc) {
@@ -76,6 +78,14 @@ export function DocumentEditor() {
       setContentState(doc.content);
     }
   }, [doc]);
+
+  const handleCursorChange = useCallback((cursor: { anchor: number; head: number } | null) => {
+    setLocalCursor(cursor);
+  }, []);
+
+  const jumpToCursor = useCallback((pos: number) => {
+    editorRef.current?.jumpToPosition(pos);
+  }, []);
 
   useEffect(() => { localStorage.setItem('wikicollab-viewMode', viewMode); }, [viewMode]);
   useEffect(() => { localStorage.setItem('wikicollab-sidebarOpen', String(sidebarOpen)); }, [sidebarOpen]);
@@ -280,8 +290,10 @@ export function DocumentEditor() {
                     peers={peers}
                     userName={userName}
                     userColor={userColor}
+                    localCursor={localCursor}
                     onUserNameChange={setUserName}
                     onUserColorChange={setUserColor}
+                    onJumpToCursor={jumpToCursor}
                   />
                 )}
               </div>
@@ -312,6 +324,8 @@ export function DocumentEditor() {
                 provider={provider}
                 userName={userName}
                 userColor={userColor}
+                editorRef={editorRef}
+                onCursorChange={handleCursorChange}
               />
             )}
           </main>
