@@ -97,7 +97,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
           />
         </div>
         <div className="absolute bottom-3 right-3">
-          <Button variant="secondary" size="sm" onClick={fetchPreview} disabled={loading}>
+          <Button variant="secondary" size="sm" onClick={fetchPreview} disabled={loading} title="Refresh preview">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
