@@ -58,7 +58,6 @@ export function DocumentEditor() {
     setUserName,
     setUserColor,
     provider,
-    updateCursor,
     sendCustomMessage,
     onCustomMessage,
   } = useYjs(id || null);
@@ -279,8 +278,9 @@ export function DocumentEditor() {
                 onChange={handleContentChange}
                 ytext={ytext}
                 provider={provider}
-                onCursorChange={updateCursor}
                 onRemoteChange={handleRemoteChange}
+                userName={userName}
+                userColor={userColor}
               />
             )}
             {viewMode === 'split' && (
@@ -291,7 +291,8 @@ export function DocumentEditor() {
                 apiUrl={instances[0]?.api_url}
                 ytext={ytext}
                 provider={provider}
-                onCursorChange={updateCursor}
+                userName={userName}
+                userColor={userColor}
               />
             )}
           </main>

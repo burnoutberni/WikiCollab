@@ -13,10 +13,11 @@ interface SplitPaneEditorProps {
   apiUrl?: string | null;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
-  onCursorChange?: (anchor: number, head: number) => void;
+  userName?: string;
+  userColor?: string;
 }
 
-export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, onCursorChange }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, userName, userColor }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
@@ -67,13 +68,8 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, on
 
   useEffect(() => {
     if (!ytext) return;
-
-    const observer = () => {
-      debouncedPreview();
-    };
-
+    const observer = () => debouncedPreview();
     ytext.observe(observer);
-
     return () => {
       ytext.unobserve(observer);
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -88,7 +84,8 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, on
           onChange={onChange}
           ytext={ytext}
           provider={provider}
-          onCursorChange={onCursorChange}
+          userName={userName}
+          userColor={userColor}
         />
       </div>
       <div className="w-1/2 relative">

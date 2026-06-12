@@ -1,9 +1,39 @@
 import { Hono } from 'hono';
 
+interface SourceMapEntry {
+  sourceLine: number;
+  blockIndex: number;
+}
+
 const instances = new Hono();
+
+function generateSourceMap(root: ReturnType<Awaited<typeof import('wikiparser-node')>['default']['parse']>): SourceMapEntry[] {
+  const sourceMap: SourceMapEntry[] = [];
+  let blockIndex = 0;
+
+  for (const child of root.childNodes) {
+    if (child.type === 'text') {
+      const text = child.toString().trim();
+      if (!text) continue;
+    }
+    const rect = child.getBoundingClientRect();
+    if (rect.height === 0) continue;
+    sourceMap.push({
+      sourceLine: rect.top,
+      blockIndex,
+    });
+    blockIndex++;
+  }
+
+  return sourceMap;
+}
 
 instances.post('/preview', async (c) => {
   const { wikitext, api_url } = await c.req.json();
+
+  const Parser = (await import('wikiparser-node')).default;
+  const root = Parser.parse(wikitext || '');
+  const sourceMap = generateSourceMap(root);
 
   if (api_url) {
     try {
@@ -26,19 +56,15 @@ instances.post('/preview', async (c) => {
       };
 
       if (data.parse?.text?.['*']) {
-        return c.json({ html: data.parse.text['*'] });
+        return c.json({ html: data.parse.text['*'], sourceMap });
       }
     } catch (err) {
       console.error('MediaWiki preview request failed:', err);
-      // Fall through to local parsing
     }
   }
 
-  const Parser = (await import('wikiparser-node')).default;
-  const root = Parser.parse(wikitext || '');
   const html = root.toHtml();
-
-  return c.json({ html });
+  return c.json({ html, sourceMap });
 });
 
 instances.post('/css', async (c) => {
@@ -79,7 +105,6 @@ instances.post('/css', async (c) => {
         }
       } catch (err) {
         console.error(`Failed to fetch CSS page ${page}:`, err);
-        // Skip pages that fail to fetch
       }
     }
 

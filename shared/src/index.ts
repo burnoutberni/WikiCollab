@@ -63,3 +63,13 @@ export interface CursorPresence {
   color: string;
   cursor: { anchor: number; head: number } | null;
 }
+
+export interface SourceMapEntry {
+  sourceLine: number;
+  blockIndex: number;
+}
+
+export interface PreviewResponse {
+  html: string;
+  sourceMap: SourceMapEntry[];
+}

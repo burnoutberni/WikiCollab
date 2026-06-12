@@ -19,8 +19,8 @@ export interface AwarenessState {
     color: string;
   };
   cursor: {
-    anchor: number;
-    head: number;
+    anchor: Y.RelativePosition | number;
+    head: Y.RelativePosition | number;
   } | null;
 }
 
@@ -120,6 +120,7 @@ export function useYjs(docId: string | null) {
       const states = Array.from(awareness.getStates().entries());
       const seen = new Set<string>();
       const presenceList: Presence[] = [];
+      const ytext = ydoc.getText('wikitext');
       for (const [clientId, state] of states) {
         if (clientId === ydoc.clientID) continue;
         const s = state as AwarenessState;
@@ -127,12 +128,30 @@ export function useYjs(docId: string | null) {
         if (uid === userNameRef.current) continue;
         if (seen.has(uid)) continue;
         seen.add(uid);
+        let cursor: { anchor: number; head: number } | null = null;
+        if (s.cursor?.anchor != null && s.cursor?.head != null) {
+          try {
+            const anchorRaw = s.cursor.anchor;
+            const headRaw = s.cursor.head;
+            if (typeof anchorRaw === 'object' && typeof headRaw === 'object') {
+              const anchor = Y.createAbsolutePositionFromRelativePosition(anchorRaw, ydoc);
+              const head = Y.createAbsolutePositionFromRelativePosition(headRaw, ydoc);
+              if (anchor && head && anchor.type === ytext && head.type === ytext) {
+                cursor = { anchor: anchor.index, head: head.index };
+              }
+            } else if (typeof anchorRaw === 'number' && typeof headRaw === 'number') {
+              cursor = { anchor: anchorRaw, head: headRaw };
+            }
+          } catch {
+            cursor = null;
+          }
+        }
         presenceList.push({
           clientId,
           userId: uid,
           userName: uid,
           color: s.user?.color || '#999',
-          cursor: s.cursor || null,
+          cursor,
         });
       }
       setPeers(presenceList);
@@ -186,15 +205,7 @@ export function useYjs(docId: string | null) {
     });
   }, [provider, userName, userColor]);
 
-  const updateCursor = useCallback((anchor: number, head: number) => {
-    if (!provider) return;
-    provider.awareness.setLocalStateField('cursor', { anchor, head });
-  }, [provider]);
 
-  const clearCursor = useCallback(() => {
-    if (!provider) return;
-    provider.awareness.setLocalStateField('cursor', null);
-  }, [provider]);
 
   const getContent = useCallback(() => {
     if (!ytext) return '';
@@ -255,8 +266,6 @@ export function useYjs(docId: string | null) {
     userColor,
     setUserName,
     setUserColor,
-    updateCursor,
-    clearCursor,
     getContent,
     setContent,
     sendCustomMessage,
