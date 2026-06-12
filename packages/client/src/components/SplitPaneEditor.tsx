@@ -33,15 +33,19 @@ function getWikiBaseUrl(apiUrl: string): string {
   }
 }
 
-function rewriteRelativeUrls(html: string, baseUrl: string): string {
+function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
   for (const el of doc.querySelectorAll('a[href], img[src]')) {
     if (el instanceof HTMLAnchorElement) {
       const href = el.getAttribute('href');
-      if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('#') && !href.startsWith('javascript:')) {
-        el.setAttribute('href', baseUrl + (href.startsWith('/') ? href : '/' + href));
+      if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('javascript:')) {
+        if (href.startsWith('#')) {
+          el.setAttribute('href', baseUrl + '/wiki/' + encodeURIComponent(pageTitle) + href);
+        } else {
+          el.setAttribute('href', baseUrl + (href.startsWith('/') ? href : '/' + href));
+        }
       }
     } else if (el instanceof HTMLImageElement) {
       const src = el.getAttribute('src');
@@ -81,7 +85,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
         const data = await res.json();
         let html = data.html || '';
         if (apiUrl) {
-          html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl));
+          html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl), title || 'Untitled');
         }
         setPreviewHtml(html);
         setPreviewCss(data.css || defaultCss);
@@ -129,7 +133,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
     if (anchor) {
       e.preventDefault();
       const href = anchor.getAttribute('href');
-      if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+      if (href && !href.startsWith('javascript:')) {
         setLinkModalUrl(href);
       }
     }
