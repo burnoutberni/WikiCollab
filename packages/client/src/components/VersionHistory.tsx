@@ -70,7 +70,7 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" title="Version history">
           <History className="h-4 w-4 mr-2" />
           History
         </Button>

@@ -74,13 +74,14 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleOpenChange(true)}
-                disabled={disabled}
-                className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
-              >
+<Button
+  variant="outline"
+  size="sm"
+  onClick={() => handleOpenChange(true)}
+  disabled={disabled}
+  title="Push to wiki"
+  className={disabled ? 'opacity-50 cursor-not-allowed' : ''}
+>
                 <Send className="h-4 w-4 mr-2" />
                 Push to Wiki
               </Button>
