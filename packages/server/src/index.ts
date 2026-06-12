@@ -31,8 +31,10 @@ app.get('/api/health', (c) => {
   return c.json({ status: 'ok' });
 });
 
-app.use('/*', serveStatic({ root: './packages/client/dist' }));
-app.get('/*', serveStatic({ path: './packages/client/dist/index.html' }));
+if (process.env.NODE_ENV === 'production') {
+  app.use('/*', serveStatic({ root: './packages/client/dist' }));
+  app.get('/*', serveStatic({ path: './packages/client/dist/index.html' }));
+}
 
 const port = parseInt(process.env.PORT || '3000', 10);
 
