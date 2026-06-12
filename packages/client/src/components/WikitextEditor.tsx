@@ -121,7 +121,8 @@ interface WikitextEditorProps {
 }
 
 export interface WikitextEditorHandle {
-  jumpToPosition: (pos: number) => void;
+  jumpToPosition: (anchor: number, head?: number) => void;
+  scrollToPosition: (pos: number) => void;
 }
 
 export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(function WikitextEditor({ content: _content, onChange: _onChange, ytext, provider, onRemoteChange, onCursorChange, userName, userColor }, ref) {
@@ -131,13 +132,24 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
 
   useImperativeHandle(ref, () => ({
-    jumpToPosition(pos: number) {
+    jumpToPosition(anchor: number, head?: number) {
       if (view) {
+        const h = head ?? anchor;
+        const sel = anchor === h
+          ? EditorSelection.cursor(anchor)
+          : EditorSelection.range(anchor, h);
         view.dispatch({
-          selection: EditorSelection.cursor(pos),
-          effects: EditorView.scrollIntoView(pos),
+          selection: sel,
+          effects: EditorView.scrollIntoView(anchor),
         });
         view.focus();
+      }
+    },
+    scrollToPosition(pos: number) {
+      if (view) {
+        view.dispatch({
+          effects: EditorView.scrollIntoView(pos),
+        });
       }
     },
   }), [view]);
@@ -225,7 +237,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
       v.destroy();
       setView(null);
     };
-  }, [ytext, provider]);
+  }, [ytext, provider, userName, userColor]);
 
   return (
     <div className="h-full w-full flex flex-col relative">

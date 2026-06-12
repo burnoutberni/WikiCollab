@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { MousePointer2, Pencil } from 'lucide-react';
+import { MousePointer2 } from 'lucide-react';
 import { COLORS } from '@/hooks/useYjs';
 import type { Presence } from '@/hooks/useYjs';
 
@@ -12,7 +12,8 @@ interface CollaboratorListProps {
   localCursor: { anchor: number; head: number } | null;
   onUserNameChange: (name: string) => void;
   onUserColorChange: (color: string) => void;
-  onJumpToCursor: (pos: number) => void;
+  onJumpToCursor: (anchor: number, head?: number) => void;
+  onScrollToCursor: (pos: number) => void;
 }
 
 function posToLineCol(content: string, pos: number): { line: number; col: number } {
@@ -54,7 +55,7 @@ function loadCustomColors(): string[] {
   }
 }
 
-export function CollaboratorList({ peers, userName, userColor, content, localCursor, onUserNameChange, onUserColorChange, onJumpToCursor }: CollaboratorListProps) {
+export function CollaboratorList({ peers, userName, userColor, content, localCursor, onUserNameChange, onUserColorChange, onJumpToCursor, onScrollToCursor }: CollaboratorListProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(userName);
   const [showColors, setShowColors] = useState(false);
@@ -105,26 +106,16 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
   return (
     <div className="space-y-1">
       {/* Current user */}
-      <button
-        className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 relative group w-full text-left cursor-pointer"
-        onClick={() => {
-          if (!editing && localCursor) {
-            onJumpToCursor(localCursor.anchor);
-          }
-        }}
-        disabled={editing}
-      >
+      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md relative group">
         <button
           ref={colorTriggerRef}
           className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
           style={{ backgroundColor: userColor, color: textColor(userColor) }}
           onClick={(e) => {
             e.stopPropagation();
-            if (editing) {
-              toggleColors();
-            }
+            toggleColors();
           }}
-          title={editing ? 'Pick color' : undefined}
+          title="Pick color"
         >
           {userName.charAt(0)}
         </button>
@@ -201,44 +192,34 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
                 }
               }}
               autoFocus
-              onClick={(e) => e.stopPropagation()}
               className="text-xs font-medium bg-transparent border-b border-foreground/30 outline-none w-full"
             />
           ) : (
-            <div className="text-xs font-medium truncate">
+            <div
+              className="text-xs font-medium truncate cursor-pointer hover:underline"
+              onClick={() => {
+                setDraft(userName);
+                setEditing(true);
+              }}
+            >
               {userName} (you)
             </div>
           )}
         </div>
-        <button
-          className="h-5 w-5 flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-          onClick={(e) => {
-            e.stopPropagation();
-            setDraft(userName);
-            setEditing(!editing);
-            if (editing) {
-              setShowColors(false);
-              setPickerPos(null);
-            }
-          }}
-          title={editing ? 'Done editing' : 'Edit name'}
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
-      </button>
+        {localCursor && (
+          <button
+            className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1"
+            onClick={() => onJumpToCursor(localCursor.anchor, localCursor.head)}
+          >
+            <MousePointer2 className="h-2.5 w-2.5" />
+            {formatCursor(content, localCursor)}
+          </button>
+        )}
+      </div>
 
       {/* Remote peers */}
       {peers.map((peer) => (
-        <button
-          key={peer.clientId}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 w-full text-left cursor-pointer"
-          onClick={() => {
-            if (peer.cursor) {
-              onJumpToCursor(peer.cursor.anchor);
-            }
-          }}
-          disabled={!peer.cursor}
-        >
+        <div key={peer.clientId} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50">
           <div
             className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0"
             style={{ backgroundColor: peer.color, color: textColor(peer.color) }}
@@ -247,14 +228,17 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium truncate">{peer.userName}</div>
-            {peer.cursor && (
-              <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <MousePointer2 className="h-2.5 w-2.5" />
-                {formatCursor(content, peer.cursor)}
-              </div>
-            )}
           </div>
-        </button>
+          {peer.cursor && (
+            <button
+              className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1"
+              onClick={() => onScrollToCursor(peer.cursor!.anchor)}
+            >
+              <MousePointer2 className="h-2.5 w-2.5" />
+              {formatCursor(content, peer.cursor)}
+            </button>
+          )}
+        </div>
       ))}
 
       {peers.length === 0 && (

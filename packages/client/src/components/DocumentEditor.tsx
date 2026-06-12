@@ -40,6 +40,7 @@ import { PushToWiki } from './PushToWiki';
 import { VersionHistory } from './VersionHistory';
 import { CollaboratorList } from './CollaboratorList';
 import { ShareButton } from './ShareButton';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 type ViewMode = 'source' | 'split';
 
@@ -83,8 +84,12 @@ export function DocumentEditor() {
     setLocalCursor(cursor);
   }, []);
 
-  const jumpToCursor = useCallback((pos: number) => {
-    editorRef.current?.jumpToPosition(pos);
+  const jumpToCursor = useCallback((anchor: number, head?: number) => {
+    editorRef.current?.jumpToPosition(anchor, head);
+  }, []);
+
+  const scrollToCursor = useCallback((pos: number) => {
+    editorRef.current?.scrollToPosition(pos);
   }, []);
 
   useEffect(() => { localStorage.setItem('wikicollab-viewMode', viewMode); }, [viewMode]);
@@ -295,6 +300,7 @@ export function DocumentEditor() {
                     onUserNameChange={setUserName}
                     onUserColorChange={setUserColor}
                     onJumpToCursor={jumpToCursor}
+                    onScrollToCursor={scrollToCursor}
                   />
                 )}
               </div>
@@ -349,7 +355,26 @@ export function DocumentEditor() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span>{peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="hover:underline cursor-pointer">
+                  {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="end" className="w-64 p-2">
+                <CollaboratorList
+                  peers={peers}
+                  userName={userName}
+                  userColor={userColor}
+                  content={content}
+                  localCursor={localCursor}
+                  onUserNameChange={setUserName}
+                  onUserColorChange={setUserColor}
+                  onJumpToCursor={jumpToCursor}
+                  onScrollToCursor={scrollToCursor}
+                />
+              </PopoverContent>
+            </Popover>
             <span className="font-mono">{id}</span>
           </div>
         </footer>
