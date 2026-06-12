@@ -29,10 +29,10 @@ function generateSourceMap(root: ReturnType<Awaited<typeof import('wikiparser-no
 }
 
 instances.post('/preview', async (c) => {
-  const { wikitext, api_url } = await c.req.json();
+  const { wikitext, api_url, page } = await c.req.json();
 
   const Parser = (await import('wikiparser-node')).default;
-  const root = Parser.parse(wikitext || '');
+  const root = Parser.parse(wikitext || '', page || 'API');
   const sourceMap = generateSourceMap(root);
 
   if (api_url) {
@@ -43,6 +43,9 @@ instances.post('/preview', async (c) => {
       formData.append('prop', 'text');
       formData.append('contentmodel', 'wikitext');
       formData.append('format', 'json');
+      if (page) {
+        formData.append('title', page);
+      }
 
       const res = await fetch(api_url, {
         method: 'POST',
@@ -63,7 +66,7 @@ instances.post('/preview', async (c) => {
     }
   }
 
-  const html = root.toHtml();
+  const html = Parser.toHtml(wikitext || '', false, undefined, page || undefined);
   return c.json({ html, sourceMap });
 });
 

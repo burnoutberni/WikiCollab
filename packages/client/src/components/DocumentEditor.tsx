@@ -63,6 +63,7 @@ export function DocumentEditor() {
   } = useYjs(id || null);
 
   const [title, setTitle] = useState('');
+  const [wikiTitle, setWikiTitle] = useState('');
   const [content, setContentState] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -71,6 +72,7 @@ export function DocumentEditor() {
   useEffect(() => {
     if (doc) {
       setTitle(doc.title);
+      setWikiTitle(doc.title);
       setContentState(doc.content);
     }
   }, [doc]);
@@ -220,6 +222,8 @@ export function DocumentEditor() {
           <PushToWiki
             documentId={id!}
             title={title}
+            wikiTitle={wikiTitle}
+            onWikiTitleChange={setWikiTitle}
             content={content}
             instance={instances[0] || null}
           />
@@ -298,6 +302,7 @@ export function DocumentEditor() {
                 content={content}
                 onChange={handleContentChange}
                 documentId={id!}
+                title={wikiTitle}
                 apiUrl={instances[0]?.api_url}
                 ytext={ytext}
                 provider={provider}

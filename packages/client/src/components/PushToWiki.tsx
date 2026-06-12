@@ -16,24 +16,25 @@ import { type MediaWikiInstance } from '@/hooks/useApi';
 interface PushToWikiProps {
   documentId: string;
   title: string;
+  wikiTitle: string;
+  onWikiTitleChange: (value: string) => void;
   content: string;
   instance: MediaWikiInstance | null;
 }
 
-export function PushToWiki({ documentId, title, content, instance }: PushToWikiProps) {
+export function PushToWiki({ documentId, title, wikiTitle, onWikiTitleChange, content, instance }: PushToWikiProps) {
   const [open, setOpen] = useState(false);
-  const [wikiTitle, setWikiTitle] = useState(title);
   const [summary, setSummary] = useState('');
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     setOpen(nextOpen);
     if (nextOpen) {
-      setWikiTitle(title);
+      onWikiTitleChange(title);
       setSummary('');
       setResult(null);
     }
-  }, [title]);
+  }, [title, onWikiTitleChange]);
 
   const handlePush = useCallback(async () => {
     if (!instance || !wikiTitle) return;
@@ -114,7 +115,7 @@ export function PushToWiki({ documentId, title, content, instance }: PushToWikiP
               <Input
                 id="wiki-title"
                 value={wikiTitle}
-                onChange={(e) => setWikiTitle(e.target.value)}
+                onChange={(e) => onWikiTitleChange(e.target.value)}
                 placeholder="Article title"
               />
             </div>

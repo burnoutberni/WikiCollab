@@ -16,6 +16,7 @@ interface SplitPaneEditorProps {
   content: string;
   onChange: (value: string) => void;
   documentId: string;
+  title?: string;
   apiUrl?: string | null;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
@@ -53,7 +54,7 @@ function rewriteRelativeUrls(html: string, baseUrl: string): string {
   return doc.body.innerHTML;
 }
 
-export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, userName, userColor }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provider, userName, userColor }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
@@ -73,7 +74,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
       const res = await fetch('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext, api_url: apiUrl || null }),
+        body: JSON.stringify({ wikitext, api_url: apiUrl || null, page: title || null }),
       });
 
       if (res.ok) {
@@ -93,7 +94,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
     } finally {
       setLoading(false);
     }
-  }, [ytext, apiUrl]);
+  }, [ytext, apiUrl, title]);
 
   const debouncedPreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -107,6 +108,10 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
   useEffect(() => {
     fetchPreview();
   }, [apiUrl]);
+
+  useEffect(() => {
+    fetchPreview();
+  }, [title]);
 
   useEffect(() => {
     if (!ytext) return;
