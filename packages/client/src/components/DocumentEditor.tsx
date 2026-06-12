@@ -29,6 +29,8 @@ import {
   Save,
   ChevronDown,
   ChevronRight,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { useDocument, useInstances } from '@/hooks/useApi';
 import { useYjs } from '@/hooks/useYjs';
@@ -39,7 +41,6 @@ import { InstanceManager } from './InstanceManager';
 import { PushToWiki } from './PushToWiki';
 import { VersionHistory } from './VersionHistory';
 import { CollaboratorList } from './CollaboratorList';
-import { ShareButton } from './ShareButton';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 type ViewMode = 'source' | 'split';
@@ -71,6 +72,7 @@ export function DocumentEditor() {
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(() => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false');
   const editorRef = useRef<WikitextEditorHandle | null>(null);
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (doc) {
@@ -247,8 +249,6 @@ export function DocumentEditor() {
             instance={instances[0] || null}
           />
 
-          <ShareButton documentId={id!} showLabel />
-
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -375,7 +375,22 @@ export function DocumentEditor() {
                 />
               </PopoverContent>
             </Popover>
-            <span className="font-mono">{id}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="flex items-center gap-1.5 font-mono hover:underline cursor-pointer text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  }}
+                >
+                  {linkCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
+                  {linkCopied ? 'Copied!' : id}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{linkCopied ? 'Link copied!' : 'Copy link to clipboard'}</TooltipContent>
+            </Tooltip>
           </div>
         </footer>
       </div>
