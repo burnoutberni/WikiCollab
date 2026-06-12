@@ -35,7 +35,7 @@ class LocalCursorWidget extends WidgetType {
   constructor(readonly color: string, readonly name: string) { super(); }
   toDOM() {
     const span = document.createElement('span');
-    span.className = 'cm-ySelectionCaret';
+    span.className = 'cm-ySelectionCaret cm-yLocalCaret';
     span.style.cssText = `background-color: ${this.color}; border-color: ${this.color}`;
     span.textContent = '\u2060';
     const dot = document.createElement('div');
@@ -233,7 +233,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursor .cm-selectionBackground { background-color: var(--cm-y-selection) !important; }
 .cm-yLocalCursor .cm-content ::selection { background-color: var(--cm-y-selection) !important; }
 .cm-ySelectionInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
-.cm-yLocalCursor:not(.cm-focused) .cm-ySelectionCaret { display: none !important; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { display: none !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }`}</style>
       <Toolbar view={view} undoManager={undoManagerRef.current} canUndo={undoRedo.canUndo} canRedo={undoRedo.canRedo} />
       <div
