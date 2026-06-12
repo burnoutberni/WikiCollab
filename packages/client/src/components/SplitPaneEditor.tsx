@@ -1,6 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { WikitextEditor } from './WikitextEditor';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { RefreshCw } from 'lucide-react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
@@ -97,9 +102,14 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
           />
         </div>
         <div className="absolute bottom-3 right-3">
-          <Button variant="secondary" size="sm" onClick={fetchPreview} disabled={loading} title="Refresh preview">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="secondary" size="sm" onClick={fetchPreview} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh preview</TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>

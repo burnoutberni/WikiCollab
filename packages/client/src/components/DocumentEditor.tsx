@@ -152,14 +152,18 @@ export function DocumentEditor() {
       <div className="h-screen flex flex-col">
         {/* Header */}
         <header className="border-b px-4 py-2 flex items-center gap-4">
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={() => navigate('/')}
-  title="Back to dashboard"
->
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/')}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Back to dashboard</TooltipContent>
+          </Tooltip>
 
           <Separator orientation="vertical" className="h-6" />
 
@@ -222,14 +226,18 @@ export function DocumentEditor() {
 
           <ShareButton documentId={id!} showLabel />
 
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={() => setSidebarOpen(!sidebarOpen)}
-  title="Toggle settings"
->
-            <Settings className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Toggle settings</TooltipContent>
+          </Tooltip>
         </header>
 
         {/* Main Content */}

@@ -20,6 +20,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Server, Trash2, Plus, ExternalLink } from 'lucide-react';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
@@ -266,10 +271,15 @@ export function InstanceManager({
         <p className="text-xs text-muted-foreground mb-3">
           Configure a MediaWiki instance for preview rendering and publishing.
         </p>
-        <Button variant="outline" size="sm" onClick={openAddDialog} className="w-full" title="Add instance">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Instance
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="sm" onClick={openAddDialog} className="w-full">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Instance
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add instance</TooltipContent>
+        </Tooltip>
         {dialogContent}
       </>
     );
@@ -301,15 +311,19 @@ export function InstanceManager({
             </div>
           </div>
           <div className="flex items-center gap-1 ml-2">
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={() => setDeleteConfirmOpen(true)}
-  title="Remove instance"
-  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
->
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Remove instance</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>

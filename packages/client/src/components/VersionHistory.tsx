@@ -9,6 +9,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { History, RotateCcw, Star, Eye, X } from 'lucide-react';
 import { useVersions } from '@/hooks/useApi';
 
@@ -70,10 +75,15 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" title="Version history">
-          <History className="h-4 w-4 mr-2" />
-          History
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <History className="h-4 w-4 mr-2" />
+              History
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Version history</TooltipContent>
+        </Tooltip>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
