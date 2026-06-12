@@ -207,7 +207,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
             const newValue = update.state.doc.toString();
             onRemoteChange?.(newValue);
           }
-          if (update.selectionSet) {
+          if (update.selectionSet || update.docChanged) {
             const sel = update.state.selection.main;
             onCursorChange?.({ anchor: sel.anchor, head: sel.head });
           }
