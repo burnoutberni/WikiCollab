@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { WikitextEditor } from './WikitextEditor';
+import { PreviewLinkModal } from './PreviewLinkModal';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -22,11 +23,43 @@ interface SplitPaneEditorProps {
   userColor?: string;
 }
 
+function getWikiBaseUrl(apiUrl: string): string {
+  try {
+    const url = new URL(apiUrl);
+    return url.origin;
+  } catch {
+    return apiUrl.replace(/\/api\.php$/, '');
+  }
+}
+
+function rewriteRelativeUrls(html: string, baseUrl: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  for (const el of doc.querySelectorAll('a[href], img[src]')) {
+    if (el instanceof HTMLAnchorElement) {
+      const href = el.getAttribute('href');
+      if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('#') && !href.startsWith('javascript:')) {
+        el.setAttribute('href', baseUrl + (href.startsWith('/') ? href : '/' + href));
+      }
+    } else if (el instanceof HTMLImageElement) {
+      const src = el.getAttribute('src');
+      if (src && !src.startsWith('http') && !src.startsWith('//') && !src.startsWith('data:')) {
+        el.setAttribute('src', baseUrl + (src.startsWith('/') ? src : '/' + src));
+      }
+    }
+  }
+
+  return doc.body.innerHTML;
+}
+
 export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, userName, userColor }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
+  const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const fetchPreview = useCallback(async () => {
     const wikitext = ytext ? ytext.toString() : content;
@@ -45,7 +78,11 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
 
       if (res.ok) {
         const data = await res.json();
-        setPreviewHtml(data.html || '');
+        let html = data.html || '';
+        if (apiUrl) {
+          html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl));
+        }
+        setPreviewHtml(html);
         setPreviewCss(data.css || defaultCss);
       } else {
         setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
@@ -81,6 +118,18 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
     };
   }, [ytext, debouncedPreview]);
 
+  const handlePreviewClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const anchor = target.closest('a');
+    if (anchor) {
+      e.preventDefault();
+      const href = anchor.getAttribute('href');
+      if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+        setLinkModalUrl(href);
+      }
+    }
+  }, []);
+
   return (
     <div className="flex h-full">
       <div className="w-1/2 border-r">
@@ -97,8 +146,10 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
         <div className="h-full overflow-auto">
           <style>{previewCss}</style>
           <div
+            ref={previewRef}
             className="mw-preview-container p-4"
             dangerouslySetInnerHTML={{ __html: previewHtml }}
+            onClick={handlePreviewClick}
           />
         </div>
         <div className="absolute bottom-3 right-3">
@@ -112,6 +163,11 @@ export function SplitPaneEditor({ content, onChange, apiUrl, ytext, provider, us
           </Tooltip>
         </div>
       </div>
+      <PreviewLinkModal
+        url={linkModalUrl || ''}
+        open={linkModalUrl !== null}
+        onOpenChange={(open) => { if (!open) setLinkModalUrl(null); }}
+      />
     </div>
   );
 }
