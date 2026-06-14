@@ -27,10 +27,10 @@ const DEFAULT_CSP = [
 const DEFAULT_PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()';
 
 export function securityHeaders(options: SecurityHeadersOptions = {}): MiddlewareHandler {
+  const isProduction = process.env.NODE_ENV === 'production';
+
   return async (c, next) => {
     await next();
-
-    const isProduction = process.env.NODE_ENV === 'production';
 
     c.header('X-Content-Type-Options', options.xContentTypeOptions ?? 'nosniff');
     c.header('X-Frame-Options', options.xFrameOptions ?? 'DENY');
