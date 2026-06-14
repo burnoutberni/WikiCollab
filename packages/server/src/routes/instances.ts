@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { serverFetch } from 'server-fetch';
 
 interface SourceMapEntry {
   sourceLine: number;
@@ -47,7 +48,7 @@ instances.post('/preview', async (c) => {
         formData.append('title', page);
       }
 
-      const res = await fetch(api_url, {
+      const res = await serverFetch(api_url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
@@ -79,7 +80,7 @@ instances.post('/css', async (c) => {
 
   try {
     const siteInfoUrl = `${api_url}?action=query&meta=siteinfo&siprop=skins&format=json`;
-    const siteInfoRes = await fetch(siteInfoUrl);
+    const siteInfoRes = await serverFetch(siteInfoUrl);
     const siteInfoData = await siteInfoRes.json() as {
       query?: { skins?: Array<{ code: string; name: string; default?: boolean }> };
     };
@@ -93,7 +94,7 @@ instances.post('/css', async (c) => {
     for (const page of pages) {
       try {
         const url = `${api_url}?action=query&prop=revisions&rvprop=content&titles=${encodeURIComponent(page)}&format=json`;
-        const res = await fetch(url);
+        const res = await serverFetch(url);
         const data = await res.json() as {
           query?: { pages?: Record<string, { revisions?: Array<{ '*': string }> }> };
         };

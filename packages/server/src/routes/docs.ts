@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
 import * as Y from 'yjs';
+import { serverFetch } from 'server-fetch';
 
 const docs = new Hono();
 
@@ -232,7 +233,7 @@ docs.post('/:id/push', async (c) => {
     formData.append('token', body.token);
     formData.append('format', 'json');
 
-    const response = await fetch(body.api_url, {
+    const response = await serverFetch(body.api_url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

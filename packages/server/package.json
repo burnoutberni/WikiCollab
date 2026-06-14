@@ -17,6 +17,7 @@
     "hono": "^4.7.4",
     "lib0": "^0.2.99",
     "nanoid": "^5.0.9",
+    "server-fetch": "^1.0.10",
     "wikiparser-node": "^1.44.0",
     "ws": "^8.18.0",
     "y-protocols": "^1.0.7",
