@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { serverFetch, SsrfError } from 'server-fetch';
 
 interface SourceMapEntry {
   sourceLine: number;
@@ -47,7 +48,7 @@ instances.post('/preview', async (c) => {
         formData.append('title', page);
       }
 
-      const res = await fetch(api_url, {
+      const res = await serverFetch(api_url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
@@ -62,7 +63,11 @@ instances.post('/preview', async (c) => {
         return c.json({ html: data.parse.text['*'], sourceMap });
       }
     } catch (err) {
-      console.error('MediaWiki preview request failed:', err);
+      if (err instanceof SsrfError) {
+        console.error(`SSRF blocked: ${err.url}`);
+      } else {
+        console.error('MediaWiki preview request failed:', err);
+      }
     }
   }
 
@@ -79,7 +84,7 @@ instances.post('/css', async (c) => {
 
   try {
     const siteInfoUrl = `${api_url}?action=query&meta=siteinfo&siprop=skins&format=json`;
-    const siteInfoRes = await fetch(siteInfoUrl);
+    const siteInfoRes = await serverFetch(siteInfoUrl);
     const siteInfoData = await siteInfoRes.json() as {
       query?: { skins?: Array<{ code: string; name: string; default?: boolean }> };
     };
@@ -93,7 +98,7 @@ instances.post('/css', async (c) => {
     for (const page of pages) {
       try {
         const url = `${api_url}?action=query&prop=revisions&rvprop=content&titles=${encodeURIComponent(page)}&format=json`;
-        const res = await fetch(url);
+        const res = await serverFetch(url);
         const data = await res.json() as {
           query?: { pages?: Record<string, { revisions?: Array<{ '*': string }> }> };
         };
@@ -107,14 +112,23 @@ instances.post('/css', async (c) => {
           }
         }
       } catch (err) {
-        console.error(`Failed to fetch CSS page ${page}:`, err);
+        if (err instanceof SsrfError) {
+          console.error(`SSRF blocked for CSS page ${page}`);
+          throw err;
+        } else {
+          console.error(`Failed to fetch CSS page ${page}:`, err);
+        }
       }
     }
 
     return c.json({ css: cssParts.join('\n\n') });
   } catch (err) {
-    console.error('Failed to fetch CSS from MediaWiki:', err);
-    return c.json({ error: 'Failed to fetch CSS from MediaWiki' }, 500);
+    if (err instanceof SsrfError) {
+      console.error(`SSRF blocked: ${err.url}`);
+    } else {
+      console.error('Failed to fetch CSS from MediaWiki:', err);
+    }
+    return c.json({ error: 'Failed to fetch from MediaWiki' }, 500);
   }
 });
 
