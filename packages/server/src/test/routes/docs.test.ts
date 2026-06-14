@@ -1,53 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { createTestDb } from '../setup.js';
 import * as schema from '../../db/schema.js';
 import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
 import * as Y from 'yjs';
+import type { drizzle } from 'drizzle-orm/better-sqlite3';
 
-function createTestDb() {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('foreign_keys = ON');
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS documents (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL DEFAULT 'Untitled',
-      content TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      expiry TEXT,
-      mediawiki_instance_id TEXT,
-      restored_version_id TEXT
-    );
-    CREATE TABLE IF NOT EXISTS mediawiki_instances (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      api_url TEXT NOT NULL,
-      token TEXT,
-      css TEXT,
-      configured_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS document_revisions (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      yjs_state TEXT,
-      starred INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS template_cache (
-      id TEXT PRIMARY KEY,
-      instance_id TEXT NOT NULL REFERENCES mediawiki_instances(id) ON DELETE CASCADE,
-      template_name TEXT NOT NULL,
-      template_data TEXT NOT NULL,
-      fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-  return drizzle(sqlite, { schema });
-}
+type TestDb = ReturnType<typeof drizzle>;
 
-function createDocsRoutes(db: ReturnType<typeof createTestDb>) {
+function createDocsRoutes(db: TestDb) {
   const docs = new Hono();
 
   docs.get('/', (c) => {
@@ -194,7 +156,7 @@ function createDocsRoutes(db: ReturnType<typeof createTestDb>) {
 
 describe('Docs routes', () => {
   let app: Hono;
-  let db: ReturnType<typeof createTestDb>;
+  let db: TestDb;
 
   beforeEach(() => {
     db = createTestDb();
@@ -372,7 +334,6 @@ describe('Docs routes', () => {
     });
     const created = await createRes.json();
 
-    // Insert a revision
     db.insert(schema.documentRevisions).values({
       id: 'rev-star-1',
       document_id: created.id,
@@ -423,7 +384,6 @@ describe('Docs routes', () => {
     });
     const created = await createRes.json();
 
-    // Create a Yjs doc with content and encode state
     const doc = new Y.Doc();
     doc.getText('wikitext').insert(0, 'Hello from Yjs');
     const state = Y.encodeStateAsUpdate(doc);
