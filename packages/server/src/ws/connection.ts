@@ -12,6 +12,7 @@ import type { Server } from 'http';
 import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
 import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
+import type { StarPayload, RestorePayload } from 'shared';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -123,8 +124,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
 
   switch (type) {
     case 'star': {
-      const versionId = typeof payload.versionId === 'string' ? payload.versionId : '';
-      const starred = typeof payload.starred === 'boolean' ? payload.starred : false;
+      const { versionId, starred } = payload as unknown as StarPayload;
       if (!versionId) break;
 
       const version = getVersionById(versionId);
@@ -140,8 +140,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       break;
     }
     case 'restore': {
-      const versionId = typeof payload.versionId === 'string' ? payload.versionId : '';
-      const documentId = typeof payload.documentId === 'string' ? payload.documentId : '';
+      const { versionId, documentId } = payload as unknown as RestorePayload;
       if (!versionId || !documentId) break;
       if (documentId !== doc.name) break;
 
