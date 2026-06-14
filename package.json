@@ -2,10 +2,11 @@
   "name": "wikicollab",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\"",
+    "dev": "pnpm --filter shared build && concurrently \"pnpm run dev:shared\" \"pnpm run dev:server\" \"pnpm run dev:client\"",
+    "dev:shared": "pnpm --filter shared exec tsc --watch",
     "dev:server": "pnpm --filter server dev",
     "dev:client": "pnpm --filter client dev",
-    "build": "pnpm --filter server build && pnpm --filter client build",
+    "build": "pnpm --filter shared build && pnpm --filter server build && pnpm --filter client build",
     "start": "pnpm --filter server start",
     "lint": "pnpm --filter client lint && pnpm --filter server lint",
     "test": "pnpm -r run test",
