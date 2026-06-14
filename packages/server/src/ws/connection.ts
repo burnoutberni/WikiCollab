@@ -125,11 +125,20 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
   switch (type) {
     case 'star': {
       const { versionId, starred } = payload as unknown as StarPayload;
-      if (!versionId) break;
+      if (!versionId) {
+        console.warn('[ws] star: missing versionId');
+        break;
+      }
 
       const version = getVersionById(versionId);
-      if (!version) break;
-      if (version.document_id !== doc.name) break;
+      if (!version) {
+        console.warn(`[ws] star: version ${versionId} not found`);
+        break;
+      }
+      if (version.document_id !== doc.name) {
+        console.warn(`[ws] star: version ${versionId} belongs to doc ${version.document_id}, not ${doc.name}`);
+        break;
+      }
 
       db.update(schema.documentRevisions)
         .set({ starred })
@@ -141,12 +150,24 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
     }
     case 'restore': {
       const { versionId, documentId } = payload as unknown as RestorePayload;
-      if (!versionId || !documentId) break;
-      if (documentId !== doc.name) break;
+      if (!versionId || !documentId) {
+        console.warn(`[ws] restore: missing versionId (${versionId}) or documentId (${documentId})`);
+        break;
+      }
+      if (documentId !== doc.name) {
+        console.warn(`[ws] restore: documentId ${documentId} does not match doc name ${doc.name}`);
+        break;
+      }
 
       const version = getVersionById(versionId);
-      if (!version) break;
-      if (version.document_id !== doc.name) break;
+      if (!version) {
+        console.warn(`[ws] restore: version ${versionId} not found`);
+        break;
+      }
+      if (version.document_id !== doc.name) {
+        console.warn(`[ws] restore: version ${versionId} belongs to doc ${version.document_id}, not ${doc.name}`);
+        break;
+      }
 
       db.update(schema.documents)
         .set({ restored_version_id: versionId })
