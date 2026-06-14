@@ -239,6 +239,16 @@ describe('Docs routes', () => {
     expect(data.result).toBe('Success');
     expect(mockServerFetch).toHaveBeenCalledOnce();
     expect(mockServerFetch.mock.calls[0][0]).toBe('https://en.wikipedia.org/w/api.php');
+
+    const [, options] = mockServerFetch.mock.calls[0];
+    expect(options.method).toBe('POST');
+    expect(options.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+
+    const payload = new URLSearchParams(options.body);
+    expect(payload.get('action')).toBe('edit');
+    expect(payload.get('title')).toBe('Push Success');
+    expect(payload.get('token')).toBe('test-token');
+    expect(payload.get('format')).toBe('json');
   });
 
   it('POST /:id/push handles wiki API error response', async () => {
@@ -428,5 +438,32 @@ describe('Docs routes', () => {
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.content).toBe('Restored content');
+  });
+
+  it('POST /:id/versions/:v/restore returns empty content on corrupt yjs state', async () => {
+    const db = mockDbModule.db;
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Corrupt Restore' }),
+    });
+    const created = await createRes.json();
+
+    db.insert(schema.documentRevisions).values({
+      id: 'rev-corrupt-restore-1',
+      document_id: created.id,
+      yjs_state: '!!!not-valid-base64-or-yjs-data!!!',
+      starred: false,
+      created_at: new Date().toISOString(),
+    }).run();
+
+    const res = await app.request(`/api/docs/${created.id}/versions/rev-corrupt-restore-1/restore`, {
+      method: 'POST',
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.content).toBe('');
   });
 });
