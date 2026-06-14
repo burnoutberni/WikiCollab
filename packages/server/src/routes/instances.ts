@@ -19,7 +19,7 @@ function sanitize(html: string): string {
       'a', 'img',
       'b', 'i', 'u', 'strong', 'em', 'small', 'big', 'sub', 'sup', 's', 'del', 'ins', 'mark', 'span', 'abbr', 'cite', 'code', 'kbd', 'var', 'samp',
       'div',
-      'ref', 'gallery', 'math', 'score', 'nowiki', 'syntaxhighlight', 'code',
+      'ref', 'gallery', 'math', 'score', 'nowiki', 'syntaxhighlight',
       'choose', 'when', 'otherwise',
     ],
     allowedAttributes: {
