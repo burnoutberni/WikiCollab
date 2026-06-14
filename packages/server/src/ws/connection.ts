@@ -5,6 +5,7 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { db, schema } from '../db/index.js';
+import { getVersionById } from '../db/helpers.js';
 import { eq } from 'drizzle-orm';
 import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
