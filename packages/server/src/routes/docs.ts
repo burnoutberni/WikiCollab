@@ -5,6 +5,8 @@ import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { eq, desc } from 'drizzle-orm';
 import * as Y from 'yjs';
 import { serverFetch, SsrfError } from 'server-fetch';
+import { CreateDocumentSchema, UpdateDocumentSchema, PushToWikiSchema } from 'shared';
+import { parseAndValidate } from '../middleware/validate.js';
 
 const docs = new Hono();
 
@@ -14,22 +16,20 @@ docs.get('/', (c) => {
 });
 
 docs.post('/', async (c) => {
-  const body = await c.req.json();
+  const result = await parseAndValidate(c, CreateDocumentSchema);
+  if (!result.success) return result.response;
+  const body = result.data;
+
   const slug = body.slug?.trim();
 
-  if (slug && !/^[a-zA-Z0-9_-]+$/.test(slug)) {
-    return c.json({ error: 'Slug can only contain letters, numbers, hyphens, and underscores' }, 400);
-  }
-
-  const id = slug || nanoid(7);
-
   if (slug) {
-    const existing = getDocumentById(id);
+    const existing = getDocumentById(slug);
     if (existing) {
       return c.json({ error: 'A document with this slug already exists' }, 409);
     }
   }
 
+  const id = slug || nanoid(7);
   const now = new Date().toISOString();
 
   const doc = {
@@ -70,21 +70,23 @@ docs.delete('/:id', (c) => {
 
 docs.patch('/:id', async (c) => {
   const id = c.req.param('id');
-  const body = await c.req.json();
-  const now = new Date().toISOString();
+  const result = await parseAndValidate(c, UpdateDocumentSchema);
+  if (!result.success) return result.response;
+  const body = result.data;
 
+  const now = new Date().toISOString();
   const updates: Record<string, unknown> = { updated_at: now };
 
   if (body.title !== undefined) updates.title = body.title;
   if (body.mediawiki_instance_id !== undefined) updates.mediawiki_instance_id = body.mediawiki_instance_id;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
 
-  const result = db.update(schema.documents)
+  const updateResult = db.update(schema.documents)
     .set(updates)
     .where(eq(schema.documents.id, id))
     .run();
 
-  if (result.changes === 0) {
+  if (updateResult.changes === 0) {
     return c.json({ error: 'Document not found' }, 404);
   }
 
@@ -198,20 +200,14 @@ docs.get('/:id/versions/:v/preview', (c) => {
 
 docs.post('/:id/push', async (c) => {
   const id = c.req.param('id');
-  const body = await c.req.json();
+  const result = await parseAndValidate(c, PushToWikiSchema);
+  if (!result.success) return result.response;
+  const body = result.data;
 
   const doc = getDocumentById(id);
 
   if (!doc) {
     return c.json({ error: 'Document not found' }, 404);
-  }
-
-  if (!body.api_url) {
-    return c.json({ error: 'api_url is required' }, 400);
-  }
-
-  if (!body.token) {
-    return c.json({ error: 'token is required' }, 400);
   }
 
   try {

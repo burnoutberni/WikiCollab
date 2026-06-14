@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { serverFetch, SsrfError } from 'server-fetch';
 import sanitizeHtml from 'sanitize-html';
+import { PreviewSchema, CssSchema } from 'shared';
+import { parseAndValidate } from '../middleware/validate.js';
 
 interface SourceMapEntry {
   sourceLine: number;
@@ -85,7 +87,9 @@ function generateSourceMap(root: ReturnType<Awaited<typeof import('wikiparser-no
 }
 
 instances.post('/preview', async (c) => {
-  const { wikitext, api_url, page } = await c.req.json();
+  const result = await parseAndValidate(c, PreviewSchema);
+  if (!result.success) return result.response;
+  const { wikitext, api_url, page } = result.data;
 
   const Parser = (await import('wikiparser-node')).default;
   const root = Parser.parse(wikitext || '', page || 'API');
@@ -131,11 +135,9 @@ instances.post('/preview', async (c) => {
 });
 
 instances.post('/css', async (c) => {
-  const { api_url } = await c.req.json();
-
-  if (!api_url) {
-    return c.json({ error: 'api_url is required' }, 400);
-  }
+  const result = await parseAndValidate(c, CssSchema);
+  if (!result.success) return result.response;
+  const { api_url } = result.data;
 
   try {
     const siteInfoUrl = `${api_url}?action=query&meta=siteinfo&siprop=skins&format=json`;
