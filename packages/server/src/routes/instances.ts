@@ -114,6 +114,7 @@ instances.post('/css', async (c) => {
       } catch (err) {
         if (err instanceof SsrfError) {
           console.error(`SSRF blocked for CSS page ${page}`);
+          throw err;
         } else {
           console.error(`Failed to fetch CSS page ${page}:`, err);
         }
