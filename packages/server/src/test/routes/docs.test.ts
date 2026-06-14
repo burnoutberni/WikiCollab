@@ -406,6 +406,30 @@ describe('Docs routes', () => {
     expect(data.content).toBe('Hello from Yjs');
   });
 
+  it('GET /:id/versions/:v/preview returns empty content on corrupt yjs state', async () => {
+    const db = mockDbModule.db;
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Corrupt Preview' }),
+    });
+    const created = await createRes.json();
+
+    db.insert(schema.documentRevisions).values({
+      id: 'rev-corrupt-1',
+      document_id: created.id,
+      yjs_state: '!!!not-valid-base64-or-yjs-data!!!',
+      starred: false,
+      created_at: new Date().toISOString(),
+    }).run();
+
+    const res = await app.request(`/api/docs/${created.id}/versions/rev-corrupt-1/preview`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.content).toBe('');
+  });
+
   it('POST /:id/versions/:v/restore restores content from yjs state', async () => {
     const db = mockDbModule.db;
 

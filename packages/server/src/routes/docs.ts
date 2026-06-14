@@ -202,7 +202,8 @@ docs.get('/:id/versions/:v/preview', (c) => {
     doc.destroy();
     return c.json({ content });
   } catch (error) {
-    return c.json({ error: 'Failed to decode version' }, 500);
+    console.error('Failed to decode version for preview:', error);
+    return c.json({ content: '' });
   }
 });
 
