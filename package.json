@@ -9,6 +9,7 @@
     "start": "pnpm --filter server start",
     "lint": "pnpm --filter client lint && pnpm --filter server lint",
     "test": "pnpm -r run test",
+    "test:watch": "pnpm -r run test:watch",
     "test:coverage": "pnpm -r run test:coverage"
   },
   "devDependencies": {
