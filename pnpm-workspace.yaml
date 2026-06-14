@@ -7,3 +7,6 @@ minimumReleaseAge: 0
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+
+overrides:
+  esbuild: ">=0.28.1"
