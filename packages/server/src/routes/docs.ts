@@ -251,7 +251,6 @@ docs.post('/:id/push', async (c) => {
   } catch (error) {
     if (error instanceof SsrfError) {
       console.error(`SSRF blocked: ${error.url}`);
-      return c.json({ error: 'Request blocked by security policy' }, 400);
     }
     return c.json({ error: 'Failed to push to wiki' }, 500);
   }
