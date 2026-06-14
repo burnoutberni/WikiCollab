@@ -35,6 +35,9 @@ function sanitize(html: string): string {
       'li': ['value'],
     },
     allowedSchemes: ['http', 'https', 'mailto'],
+    allowedSchemesByTag: {
+      img: ['http', 'https', 'data'],
+    },
     disallowedTagsMode: 'discard',
   });
 }
