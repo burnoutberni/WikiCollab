@@ -9,6 +9,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - DATABASE_PATH=/app/data/wikicollab.db
+      - CORS_ORIGINS=https://your-domain.com
     restart: unless-stopped
 
 volumes:

@@ -5,6 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { createServer } from 'http';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
+import { securityHeaders } from './middleware/security-headers.js';
 import { setupWebSocket } from './ws/index.js';
 
 const app = new Hono();
