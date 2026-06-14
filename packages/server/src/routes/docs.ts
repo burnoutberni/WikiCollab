@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { db, schema } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import * as Y from 'yjs';
 import { serverFetch, SsrfError } from 'server-fetch';
 
@@ -96,8 +96,8 @@ docs.get('/:id/versions', (c) => {
   const versions = db.select()
     .from(schema.documentRevisions)
     .where(eq(schema.documentRevisions.document_id, id))
-    .all()
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
+    .all();
 
   return c.json(versions);
 });
@@ -202,7 +202,8 @@ docs.get('/:id/versions/:v/preview', (c) => {
     doc.destroy();
     return c.json({ content });
   } catch (error) {
-    return c.json({ error: 'Failed to decode version' }, 500);
+    console.error('Failed to decode version for preview:', error);
+    return c.json({ content: '' });
   }
 });
 
