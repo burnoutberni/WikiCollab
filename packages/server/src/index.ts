@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { createServer } from 'http';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
 import { setupWebSocket } from './ws/index.js';
