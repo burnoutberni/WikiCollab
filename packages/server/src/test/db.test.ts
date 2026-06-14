@@ -73,7 +73,7 @@ describe('Database schema', () => {
     expect(result!.starred).toBe(false);
   });
 
-  it('enforces foreign key constraints', () => {
+  it('enforces document_revisions foreign key constraint', () => {
     const { db, close } = createTestDb();
     cleanup = close;
 
@@ -83,6 +83,21 @@ describe('Database schema', () => {
         document_id: 'nonexistent',
         starred: false,
         created_at: '2025-01-01T00:00:00Z',
+      }).run();
+    }).toThrow();
+  });
+
+  it('enforces template_cache foreign key constraint', () => {
+    const { db, close } = createTestDb();
+    cleanup = close;
+
+    expect(() => {
+      db.insert(schema.templateCache).values({
+        id: 'tc1',
+        instance_id: 'nonexistent',
+        template_name: 'Infobox',
+        template_data: '{}',
+        fetched_at: '2025-01-01T00:00:00Z',
       }).run();
     }).toThrow();
   });
