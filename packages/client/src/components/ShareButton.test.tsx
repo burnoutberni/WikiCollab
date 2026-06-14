@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ShareButton } from './ShareButton';
 
@@ -13,6 +14,7 @@ describe('ShareButton', () => {
     Object.defineProperty(window, 'location', {
       value: { origin: 'http://localhost:5173' },
       writable: true,
+      configurable: true,
     });
   });
 
@@ -23,11 +25,13 @@ describe('ShareButton', () => {
     expect(link).toHaveAttribute('href', '/doc/abc123');
   });
 
-  it('copies URL to clipboard on click', () => {
+  it('copies URL to clipboard on click', async () => {
+    const user = userEvent.setup();
     renderWithProviders(<ShareButton documentId="abc123" />);
     const link = screen.getByRole('link');
-    fireEvent.click(link);
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost:5173/doc/abc123');
+    const writeTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
+    await user.click(link);
+    expect(writeTextSpy).toHaveBeenCalledWith('http://localhost:5173/doc/abc123');
   });
 
   it('shows label when showLabel is true', () => {

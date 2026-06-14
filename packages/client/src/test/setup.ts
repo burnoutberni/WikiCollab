@@ -41,6 +41,7 @@ Object.defineProperty(window.navigator, 'clipboard', {
     readText: vi.fn().mockResolvedValue(''),
   },
   writable: true,
+  configurable: true,
 });
 
 HTMLElement.prototype.scrollIntoView = vi.fn();
