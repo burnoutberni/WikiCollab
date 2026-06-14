@@ -7,7 +7,6 @@ const valueTypeString = 0;
 const valueTypeBoolean = 1;
 
 /**
-/**
  * Encode the inner payload of a custom message (type + key-value pairs).
  * This is the inner content that gets wrapped by the messageCustom envelope.
  *
