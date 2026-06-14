@@ -5,8 +5,8 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { createServer } from 'http';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
-import { securityHeaders } from './middleware/security-headers.js';
 import { setupWebSocket } from './ws/index.js';
+import { getAllowedOrigins } from './ws/origin.js';
 
 const app = new Hono();
 
@@ -20,7 +20,7 @@ app.notFound((c) => {
 });
 
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:3001'],
+  origin: getAllowedOrigins(),
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowHeaders: ['Content-Type'],
 }));
