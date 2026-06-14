@@ -60,6 +60,7 @@ export function DocumentEditor() {
     setUserName,
     setUserColor,
     provider,
+    setContent,
     sendCustomMessage,
     onCustomMessage,
   } = useYjs(id || null);
@@ -118,13 +119,10 @@ export function DocumentEditor() {
     if (ytext) {
       const currentContent = ytext.toString();
       if (currentContent !== newContent) {
-        ytext.doc?.transact(() => {
-          ytext.delete(0, ytext.length);
-          ytext.insert(0, newContent);
-        });
+        setContent(newContent);
       }
     }
-  }, [ytext]);
+  }, [ytext, setContent]);
 
   const handleRestoreVersion = useCallback(async (versionId: string) => {
     try {
@@ -133,10 +131,7 @@ export function DocumentEditor() {
       });
       const data = await res.json();
       if (data.content !== undefined && ytext) {
-        ytext.doc?.transact(() => {
-          ytext.delete(0, ytext.length);
-          ytext.insert(0, data.content);
-        });
+        setContent(data.content);
       }
       if (sendCustomMessage) {
         sendCustomMessage('restore', { versionId, documentId: id! });
@@ -144,7 +139,7 @@ export function DocumentEditor() {
     } catch (error) {
       console.error('Failed to restore version:', error);
     }
-  }, [id, ytext, sendCustomMessage]);
+  }, [id, ytext, setContent, sendCustomMessage]);
 
   if (loading) {
     return (

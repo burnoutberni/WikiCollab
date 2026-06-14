@@ -5,11 +5,14 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { db, schema } from '../db/index.js';
+import { getVersionById } from '../db/helpers.js';
 import { eq } from 'drizzle-orm';
 import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
 import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
+import { decodeCustomMessage, wrapCustomMessage } from 'shared/src/protocol.js';
+import type { StarPayload, RestorePayload } from 'shared';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -108,10 +111,7 @@ function closeConn(doc: WSSharedDoc, conn: WebSocket) {
 }
 
 export function broadcastCustom(doc: WSSharedDoc, data: Uint8Array, excludeConn: WebSocket | null = null) {
-  const encoder = encoding.createEncoder();
-  encoding.writeVarUint(encoder, messageCustom);
-  encoding.writeVarUint8Array(encoder, data);
-  const message = encoding.toUint8Array(encoder);
+  const message = wrapCustomMessage(data);
   doc.conns.forEach((_, conn) => {
     if (conn !== excludeConn) {
       send(doc, conn, message);
@@ -120,25 +120,11 @@ export function broadcastCustom(doc: WSSharedDoc, data: Uint8Array, excludeConn:
 }
 
 function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocket) {
-  const decoder = decoding.createDecoder(data);
-  const messageType = decoding.readVarString(decoder);
+  const { type, payload } = decodeCustomMessage(data);
 
-  switch (messageType) {
+  switch (type) {
     case 'star': {
-      let versionId = '';
-      let starred = false;
-      while (decoder.pos < data.length) {
-        const key = decoding.readVarString(decoder);
-        const valueType = decoding.readVarUint(decoder);
-        if (key === 'versionId' && valueType === 0) {
-          versionId = decoding.readVarString(decoder);
-        } else if (key === 'starred' && valueType === 1) {
-          starred = decoding.readVarUint(decoder) === 1;
-        } else {
-          if (valueType === 0) decoding.readVarString(decoder);
-          else decoding.readVarUint(decoder);
-        }
-      }
+      const { versionId, starred } = payload as unknown as StarPayload;
 
       db.update(schema.documentRevisions)
         .set({ starred })
@@ -157,20 +143,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       break;
     }
     case 'restore': {
-      let versionId = '';
-      let documentId = '';
-      while (decoder.pos < data.length) {
-        const key = decoding.readVarString(decoder);
-        const valueType = decoding.readVarUint(decoder);
-        if (key === 'versionId' && valueType === 0) {
-          versionId = decoding.readVarString(decoder);
-        } else if (key === 'documentId' && valueType === 0) {
-          documentId = decoding.readVarString(decoder);
-        } else {
-          if (valueType === 0) decoding.readVarString(decoder);
-          else decoding.readVarUint(decoder);
-        }
-      }
+      const { versionId, documentId } = payload as unknown as RestorePayload;
 
       db.update(schema.documents)
         .set({ restored_version_id: versionId })
