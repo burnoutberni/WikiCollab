@@ -18,6 +18,7 @@ app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404);
 });
 
+// getAllowedOrigins() is evaluated once at startup; restart the server to apply CORS_ORIGINS changes.
 app.use('*', cors({
   origin: getAllowedOrigins(),
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
