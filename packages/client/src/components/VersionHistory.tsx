@@ -24,6 +24,21 @@ interface VersionHistoryProps {
   onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
 }
 
+function PreviewContent({ content }: { content: string }) {
+  const lines = content.endsWith('\n') ? content.slice(0, -1).split('\n') : content.split('\n');
+  const gutterWidth = `${String(lines.length).length + 1}ch`;
+  return (
+    <pre className="text-sm font-mono max-h-[200px] overflow-auto min-w-0 whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>
+      {lines.map((line, i) => (
+        <div key={i} className="flex">
+          <span className="select-none text-muted-foreground text-right pr-3 border-r border-border shrink-0" style={{ minWidth: gutterWidth }}>{i + 1}</span>
+          <span className="pl-3 min-w-0">{line}</span>
+        </div>
+      ))}
+    </pre>
+  );
+}
+
 export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCustomMessage }: VersionHistoryProps) {
   const { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview } = useVersions(
     documentId,
@@ -165,14 +180,7 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                       {previewLoading ? (
                         <div className="text-sm text-muted-foreground">Loading preview...</div>
                       ) : previewContent !== null ? (
-                        <div className="text-sm font-mono max-h-[200px] overflow-auto min-w-0">
-                          {previewContent.split('\n').map((line, i) => (
-                            <div key={i} className="flex">
-                              <span className="select-none text-muted-foreground text-right pr-3 border-r border-border w-8 shrink-0">{i + 1}</span>
-                              <span className="pl-3 min-w-0 whitespace-pre-wrap break-all">{line}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <PreviewContent content={previewContent} />
                       ) : (
                         <div className="text-sm text-muted-foreground">No content available</div>
                       )}
