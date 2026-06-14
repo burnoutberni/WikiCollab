@@ -10,7 +10,7 @@ import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
 import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
-import { decodeCustomMessage, wrapCustomMessage } from 'shared/src/protocol.js';
+import { decodeCustomMessage, encodeCustomMessage, wrapCustomMessage } from 'shared/src/protocol.js';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -131,15 +131,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
         .where(eq(schema.documentRevisions.id, versionId))
         .run();
 
-      const responseEncoder = encoding.createEncoder();
-      encoding.writeVarString(responseEncoder, 'star');
-      encoding.writeVarString(responseEncoder, 'versionId');
-      encoding.writeVarUint(responseEncoder, 0);
-      encoding.writeVarString(responseEncoder, versionId);
-      encoding.writeVarString(responseEncoder, 'starred');
-      encoding.writeVarUint(responseEncoder, 1);
-      encoding.writeVarUint(responseEncoder, starred ? 1 : 0);
-      broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
+      broadcastCustom(doc, encodeCustomMessage('star', { versionId, starred }));
       break;
     }
     case 'restore': {
@@ -152,12 +144,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
         .where(eq(schema.documents.id, documentId))
         .run();
 
-      const responseEncoder = encoding.createEncoder();
-      encoding.writeVarString(responseEncoder, 'restore');
-      encoding.writeVarString(responseEncoder, 'versionId');
-      encoding.writeVarUint(responseEncoder, 0);
-      encoding.writeVarString(responseEncoder, versionId);
-      broadcastCustom(doc, encoding.toUint8Array(responseEncoder));
+      broadcastCustom(doc, encodeCustomMessage('restore', { versionId }));
       break;
     }
   }
