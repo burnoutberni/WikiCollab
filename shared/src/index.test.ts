@@ -132,11 +132,6 @@ describe('replaceYText', () => {
 describe('Custom message protocol', () => {
   it('roundtrips string payload through encode/decode', () => {
     const encoded = encodeCustomMessage('star', { versionId: 'v1', starred: true });
-    const { type, payload } = decodeCustomMessage(
-      decoding.readVarUint8Array(decoding.createDecoder(encoded))
-    );
-    // The outer message has the messageCustom varuint prefix, so we need to
-    // extract the inner payload the same way the handler does
     const decoder = decoding.createDecoder(encoded);
     decoding.readVarUint(decoder); // skip messageCustom
     const innerData = decoding.readVarUint8Array(decoder);
