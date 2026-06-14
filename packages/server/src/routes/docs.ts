@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { db, schema } from '../db/index.js';
+import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { eq, desc } from 'drizzle-orm';
 import * as Y from 'yjs';
 import { serverFetch, SsrfError } from 'server-fetch';
@@ -23,7 +24,7 @@ docs.post('/', async (c) => {
   const id = slug || nanoid(7);
 
   if (slug) {
-    const existing = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
+    const existing = getDocumentById(id);
     if (existing) {
       return c.json({ error: 'A document with this slug already exists' }, 409);
     }
@@ -47,7 +48,7 @@ docs.post('/', async (c) => {
 
 docs.get('/:id', (c) => {
   const id = c.req.param('id');
-  const doc = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
+  const doc = getDocumentById(id);
 
   if (!doc) {
     return c.json({ error: 'Document not found' }, 404);
@@ -87,7 +88,7 @@ docs.patch('/:id', async (c) => {
     return c.json({ error: 'Document not found' }, 404);
   }
 
-  const doc = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
+  const doc = getDocumentById(id);
   return c.json(doc);
 });
 
@@ -106,10 +107,7 @@ docs.post('/:id/versions/:v/restore', (c) => {
   const id = c.req.param('id');
   const vId = c.req.param('v');
 
-  const version = db.select()
-    .from(schema.documentRevisions)
-    .where(eq(schema.documentRevisions.id, vId))
-    .get();
+  const version = getVersionById(vId);
 
   if (!version) {
     return c.json({ error: 'Version not found' }, 404);
@@ -140,10 +138,7 @@ docs.post('/:id/versions/:v/restore', (c) => {
 docs.post('/:id/versions/:v/star', (c) => {
   const vId = c.req.param('v');
 
-  const version = db.select()
-    .from(schema.documentRevisions)
-    .where(eq(schema.documentRevisions.id, vId))
-    .get();
+  const version = getVersionById(vId);
 
   if (!version) {
     return c.json({ error: 'Version not found' }, 404);
@@ -160,10 +155,7 @@ docs.post('/:id/versions/:v/star', (c) => {
 docs.delete('/:id/versions/:v/star', (c) => {
   const vId = c.req.param('v');
 
-  const version = db.select()
-    .from(schema.documentRevisions)
-    .where(eq(schema.documentRevisions.id, vId))
-    .get();
+  const version = getVersionById(vId);
 
   if (!version) {
     return c.json({ error: 'Version not found' }, 404);
@@ -180,10 +172,7 @@ docs.delete('/:id/versions/:v/star', (c) => {
 docs.get('/:id/versions/:v/preview', (c) => {
   const vId = c.req.param('v');
 
-  const version = db.select()
-    .from(schema.documentRevisions)
-    .where(eq(schema.documentRevisions.id, vId))
-    .get();
+  const version = getVersionById(vId);
 
   if (!version) {
     return c.json({ error: 'Version not found' }, 404);
@@ -211,7 +200,7 @@ docs.post('/:id/push', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
 
-  const doc = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
+  const doc = getDocumentById(id);
 
   if (!doc) {
     return c.json({ error: 'Document not found' }, 404);

@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { IndexeddbPersistence } from 'y-indexeddb';
-import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
+import { replaceYText, encodeCustomMessage, decodeCustomMessage, messageCustom } from 'shared';
 
 export interface Presence {
   clientId: number;
@@ -159,31 +159,16 @@ export function useYjs(docId: string | null) {
 
     awareness.on('change', updatePeers);
 
-    const messageCustom = 2;
     wsProvider.messageHandlers[messageCustom] = (
-      _encoder: encoding.Encoder,
-      decoder: decoding.Decoder,
+      _encoder: any,
+      decoder: any,
       _provider: WebsocketProvider,
       _inc: boolean
     ) => {
       const customData = decoding.readVarUint8Array(decoder);
-      const customDecoder = decoding.createDecoder(customData);
-      const customType = decoding.readVarString(customDecoder);
-      const handlers = customHandlersRef.current.get(customType);
+      const { type, payload } = decodeCustomMessage(customData);
+      const handlers = customHandlersRef.current.get(type);
       if (handlers) {
-        const payload: any = {};
-        try {
-          while (customDecoder.pos < customData.length) {
-            const key = decoding.readVarString(customDecoder);
-            const valueType = decoding.readVarUint(customDecoder);
-            switch (valueType) {
-              case 0: payload[key] = decoding.readVarString(customDecoder); break;
-              case 1: payload[key] = decoding.readVarUint(customDecoder) === 1; break;
-            }
-          }
-        } catch (err) {
-          console.error('Failed to decode custom message:', err);
-        }
         handlers.forEach((handler) => handler(payload));
       }
     };
@@ -214,34 +199,12 @@ export function useYjs(docId: string | null) {
 
   const setContent = useCallback((content: string) => {
     if (!ytext) return;
-    ydoc.transact(() => {
-      ytext.delete(0, ytext.length);
-      ytext.insert(0, content);
-    });
-  }, [ytext, ydoc]);
+    replaceYText(ytext, content);
+  }, [ytext]);
 
   const sendCustomMessage = useCallback((type: string, payload: Record<string, string | boolean>) => {
     if (!provider?.ws || provider.ws.readyState !== WebSocket.OPEN) return;
-
-    const messageCustom = 2;
-    const encoder = encoding.createEncoder();
-    encoding.writeVarUint(encoder, messageCustom);
-
-    const payloadEncoder = encoding.createEncoder();
-    encoding.writeVarString(payloadEncoder, type);
-    for (const [key, value] of Object.entries(payload)) {
-      encoding.writeVarString(payloadEncoder, key);
-      if (typeof value === 'string') {
-        encoding.writeVarUint(payloadEncoder, 0);
-        encoding.writeVarString(payloadEncoder, value);
-      } else {
-        encoding.writeVarUint(payloadEncoder, 1);
-        encoding.writeVarUint(payloadEncoder, value ? 1 : 0);
-      }
-    }
-
-    encoding.writeVarUint8Array(encoder, encoding.toUint8Array(payloadEncoder));
-    provider.ws.send(encoding.toUint8Array(encoder));
+    provider.ws.send(encodeCustomMessage(type, payload) as BufferSource);
   }, [provider]);
 
   const onCustomMessage = useCallback((type: string, handler: CustomMessageHandler) => {

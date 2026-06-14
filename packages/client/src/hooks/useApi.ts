@@ -1,34 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { Document, MediaWikiInstance, Version } from 'shared';
+
+export type { Document, MediaWikiInstance, Version };
 
 const API_BASE = '/api';
-
-export interface Document {
-  id: string;
-  title: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-  expiry: string | null;
-  mediawiki_instance_id: string | null;
-  restored_version_id: string | null;
-}
-
-export interface MediaWikiInstance {
-  id: string;
-  name: string;
-  api_url: string;
-  token: string | null;
-  configured_at: string;
-  css: string | null;
-}
-
-export interface Version {
-  id: string;
-  document_id: string;
-  yjs_state: string | null;
-  starred: boolean;
-  created_at: string;
-}
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);

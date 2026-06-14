@@ -13,5 +13,9 @@
   "devDependencies": {
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "lib0": "^0.2.117",
+    "yjs": "^13.6.31"
   }
 }
