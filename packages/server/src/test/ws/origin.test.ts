@@ -5,6 +5,7 @@ import {
   isOriginAllowed,
   resetAllowedOrigins,
   createOriginValidator,
+  logRejectedOrigin,
 } from '../../ws/origin.js';
 
 function mockReq(url = '/ws'): IncomingMessage {
@@ -110,6 +111,21 @@ describe('WebSocket origin validation', () => {
       expect(warnSpy.mock.calls[0][0]).toContain('origin=https://attacker.com');
       expect(warnSpy.mock.calls[0][0]).toContain('url=/ws/doc-123');
 
+      warnSpy.mockRestore();
+    });
+
+    it('logs the x-forwarded-for header when present', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const req = {
+        url: '/ws',
+        headers: { 'x-forwarded-for': '10.0.0.1' },
+        socket: { remoteAddress: '172.16.0.1' },
+      } as unknown as IncomingMessage;
+
+      logRejectedOrigin(req, 'https://attacker.com');
+
+      expect(warnSpy.mock.calls[0][0]).toContain('172.16.0.1');
+      expect(warnSpy.mock.calls[0][0]).toContain('10.0.0.1');
       warnSpy.mockRestore();
     });
   });
