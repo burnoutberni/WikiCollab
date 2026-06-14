@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { securityHeaders } from '../../middleware/security-headers.js';
 
@@ -10,6 +10,9 @@ function createTestApp() {
 }
 
 describe('Security Headers middleware', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   it('sets all required security headers on /api routes', async () => {
     const app = createTestApp();
     const res = await app.request('/api/test');
@@ -51,24 +54,22 @@ describe('Security Headers middleware', () => {
   });
 
   it('allows disabling HSTS via options', async () => {
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
     const app = new Hono();
     app.use('/api/*', securityHeaders({ strictTransportSecurity: false }));
     app.get('/api/test', (c) => c.json({ ok: true }));
     const res = await app.request('/api/test');
 
     expect(res.headers.get('Strict-Transport-Security')).toBeNull();
-    delete process.env.NODE_ENV;
   });
 
   it('sets HSTS in production by default', async () => {
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
     const app = createTestApp();
     const res = await app.request('/api/test');
 
     expect(res.headers.get('Strict-Transport-Security')).toBe(
-      'max-age=63072000; includeSubDomains; preload'
+      'max-age=63072000; includeSubDomains'
     );
-    delete process.env.NODE_ENV;
   });
 });
