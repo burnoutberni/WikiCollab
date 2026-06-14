@@ -268,6 +268,71 @@ describe('Preview route sanitization', () => {
       expect(data.html).toContain('<strong>Strong</strong>');
       expect(data.html).toContain('<em>Emphasis</em>');
     });
+
+    it('preserves MediaWiki-specific tags', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<ref>Reference</ref>' +
+        '<gallery>Image1.png</gallery>' +
+        '<math>x^2</math>' +
+        '<syntaxhighlight lang="javascript">var x = 1;</syntaxhighlight>'
+      );
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('<ref>');
+      expect(data.html).toContain('<gallery>');
+      expect(data.html).toContain('<math>');
+      expect(data.html).toContain('<syntaxhighlight');
+    });
+  });
+
+  describe('dangerous CSS stripped', () => {
+    it('strips javascript: from style attributes', async () => {
+      mockParser.toHtml.mockReturnValue('<div style="background:url(javascript:alert(1))">Styled</div>');
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('strips expression() from style attributes', async () => {
+      mockParser.toHtml.mockReturnValue('<div style="width:expression(alert(1))">Styled</div>');
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('expression');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('preserves safe inline styles', async () => {
+      mockParser.toHtml.mockReturnValue('<span style="color:red;font-size:12px">Red text</span>');
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('style="color:red;font-size:12px"');
+      expect(data.html).toContain('Red text');
+    });
   });
 
   describe('both code paths sanitized', () => {

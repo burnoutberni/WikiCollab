@@ -9,6 +9,13 @@ interface SourceMapEntry {
 
 const instances = new Hono();
 
+function sanitizeStyle(value: string): string {
+  return value
+    .replace(/javascript\s*:/gi, '')
+    .replace(/expression\s*\(/gi, '')
+    .replace(/url\s*\(\s*['"]?\s*javascript\s*:/gi, 'url(');
+}
+
 function sanitize(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
@@ -42,6 +49,12 @@ function sanitize(html: string): string {
       'a': (tagName, attribs) => {
         if (attribs.target === '_blank') {
           return { tagName, attribs: { ...attribs, rel: 'noopener noreferrer' } };
+        }
+        return { tagName, attribs };
+      },
+      '*': (tagName, attribs) => {
+        if (attribs.style) {
+          return { tagName, attribs: { ...attribs, style: sanitizeStyle(attribs.style) } };
         }
         return { tagName, attribs };
       },
