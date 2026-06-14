@@ -66,6 +66,8 @@ export function decodeCustomMessage(data: Uint8Array): { type: string; payload: 
         case valueTypeBoolean:
           payload[key] = decoding.readVarUint(decoder) === 1;
           break;
+        default:
+          throw new Error(`Unknown value type ${valueType} for key "${key}"`);
       }
     }
 
