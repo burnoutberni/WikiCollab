@@ -36,7 +36,14 @@ export function createMockWebSocket(): MockWebSocket {
         listeners[event].forEach((handler) => handler(...args));
       }
     },
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
+    addEventListener: vi.fn((event: string, handler: Function) => {
+      if (!listeners[event]) listeners[event] = [];
+      listeners[event].push(handler);
+    }),
+    removeEventListener: vi.fn((event: string, handler: Function) => {
+      if (listeners[event]) {
+        listeners[event] = listeners[event].filter((h) => h !== handler);
+      }
+    }),
   };
 }
