@@ -6,6 +6,7 @@ export interface Document {
   updated_at: string;
   expiry: string | null;
   mediawiki_instance_id: string | null;
+  restored_version_id: string | null;
 }
 
 export interface MediaWikiInstance {
@@ -14,15 +15,18 @@ export interface MediaWikiInstance {
   api_url: string;
   token: string | null;
   configured_at: string;
+  css: string | null;
 }
 
 export interface DocumentRevision {
   id: string;
   document_id: string;
-  yjs_state: Uint8Array;
+  yjs_state: string | null;
   starred: boolean;
   created_at: string;
 }
+
+export type Version = DocumentRevision;
 
 export interface TemplateCache {
   id: string;
@@ -35,6 +39,7 @@ export interface TemplateCache {
 export interface CreateDocumentRequest {
   title?: string;
   content?: string;
+  slug?: string;
 }
 
 export interface UpdateDocumentRequest {
@@ -50,8 +55,10 @@ export interface CreateInstanceRequest {
 }
 
 export interface PushToWikiRequest {
-  title: string;
-  content: string;
+  api_url: string;
+  token: string;
+  title?: string;
+  content?: string;
   summary?: string;
 }
 
@@ -73,3 +80,16 @@ export interface PreviewResponse {
   html: string;
   sourceMap: SourceMapEntry[];
 }
+
+export interface StarPayload {
+  versionId: string;
+  starred: boolean;
+}
+
+export interface RestorePayload {
+  versionId: string;
+  documentId: string;
+}
+
+export { replaceYText } from './yjs.js';
+export { messageCustom, encodeInnerPayload, encodeCustomMessage, decodeCustomMessage, wrapCustomMessage } from './protocol.js';
