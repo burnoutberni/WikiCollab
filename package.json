@@ -7,10 +7,15 @@
     "dev:client": "pnpm --filter client dev",
     "build": "pnpm --filter server build && pnpm --filter client build",
     "start": "pnpm --filter server start",
-    "lint": "pnpm --filter client lint && pnpm --filter server lint"
+    "lint": "pnpm --filter client lint && pnpm --filter server lint",
+    "test": "pnpm -r run test",
+    "test:watch": "pnpm -r run test:watch",
+    "test:coverage": "pnpm -r run test:coverage"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.8",
     "concurrently": "^10.0.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   }
 }
