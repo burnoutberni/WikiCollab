@@ -7,7 +7,31 @@ const valueTypeString = 0;
 const valueTypeBoolean = 1;
 
 /**
- * Encode a custom message payload into a Uint8Array.
+ * Encode the inner payload of a custom message (type + key-value pairs).
+ * This is the inner content that gets wrapped by the messageCustom envelope.
+ *
+ * @param type - Message type identifier (e.g. 'star', 'restore')
+ * @param payload - Key-value map; strings and booleans supported
+ * @returns Encoded inner payload bytes
+ */
+export function encodeInnerPayload(type: string, payload: Record<string, string | boolean>): Uint8Array {
+  const encoder = encoding.createEncoder();
+  encoding.writeVarString(encoder, type);
+  for (const [key, value] of Object.entries(payload)) {
+    encoding.writeVarString(encoder, key);
+    if (typeof value === 'string') {
+      encoding.writeVarUint(encoder, valueTypeString);
+      encoding.writeVarString(encoder, value);
+    } else {
+      encoding.writeVarUint(encoder, valueTypeBoolean);
+      encoding.writeVarUint(encoder, value ? 1 : 0);
+    }
+  }
+  return encoding.toUint8Array(encoder);
+}
+
+/**
+ * Encode a full custom message payload into a Uint8Array.
  *
  * Wire format: messageCustom (varuint) | inner payload length (varuint8array)
  * Inner payload: type (varstring) | key-value pairs (varstring key, varuint type, value)
@@ -17,24 +41,7 @@ const valueTypeBoolean = 1;
  * @returns Encoded message ready to send over WebSocket
  */
 export function encodeCustomMessage(type: string, payload: Record<string, string | boolean>): Uint8Array {
-  const outerEncoder = encoding.createEncoder();
-  encoding.writeVarUint(outerEncoder, messageCustom);
-
-  const payloadEncoder = encoding.createEncoder();
-  encoding.writeVarString(payloadEncoder, type);
-  for (const [key, value] of Object.entries(payload)) {
-    encoding.writeVarString(payloadEncoder, key);
-    if (typeof value === 'string') {
-      encoding.writeVarUint(payloadEncoder, valueTypeString);
-      encoding.writeVarString(payloadEncoder, value);
-    } else {
-      encoding.writeVarUint(payloadEncoder, valueTypeBoolean);
-      encoding.writeVarUint(payloadEncoder, value ? 1 : 0);
-    }
-  }
-
-  encoding.writeVarUint8Array(outerEncoder, encoding.toUint8Array(payloadEncoder));
-  return encoding.toUint8Array(outerEncoder);
+  return wrapCustomMessage(encodeInnerPayload(type, payload));
 }
 
 /**

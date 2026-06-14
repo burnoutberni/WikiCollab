@@ -11,7 +11,7 @@ import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
 import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
-import { decodeCustomMessage, encodeCustomMessage, wrapCustomMessage } from 'shared';
+import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -129,29 +129,32 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
 
       const version = getVersionById(versionId);
       if (!version) break;
+      if (version.document_id !== doc.name) break;
 
       db.update(schema.documentRevisions)
         .set({ starred })
         .where(eq(schema.documentRevisions.id, versionId))
         .run();
 
-      broadcastCustom(doc, encodeCustomMessage('star', { versionId, starred }));
+      broadcastCustom(doc, encodeInnerPayload('star', { versionId, starred }));
       break;
     }
     case 'restore': {
       const versionId = typeof payload.versionId === 'string' ? payload.versionId : '';
       const documentId = typeof payload.documentId === 'string' ? payload.documentId : '';
       if (!versionId || !documentId) break;
+      if (documentId !== doc.name) break;
 
       const version = getVersionById(versionId);
       if (!version) break;
+      if (version.document_id !== doc.name) break;
 
       db.update(schema.documents)
         .set({ restored_version_id: versionId })
         .where(eq(schema.documents.id, documentId))
         .run();
 
-      broadcastCustom(doc, encodeCustomMessage('restore', { versionId }));
+      broadcastCustom(doc, encodeInnerPayload('restore', { versionId }));
       break;
     }
   }

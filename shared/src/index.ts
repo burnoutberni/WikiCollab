@@ -92,4 +92,4 @@ export interface RestorePayload {
 }
 
 export { replaceYText } from './yjs.js';
-export { messageCustom, encodeCustomMessage, decodeCustomMessage, wrapCustomMessage } from './protocol.js';
+export { messageCustom, encodeInnerPayload, encodeCustomMessage, decodeCustomMessage, wrapCustomMessage } from './protocol.js';
