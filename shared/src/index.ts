@@ -90,3 +90,6 @@ export interface RestorePayload {
   versionId: string;
   documentId: string;
 }
+
+export { replaceYText } from './yjs.js';
+export { messageCustom, encodeCustomMessage, decodeCustomMessage, wrapCustomMessage } from './protocol.js';

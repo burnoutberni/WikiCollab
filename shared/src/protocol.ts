@@ -44,24 +44,28 @@ export function encodeCustomMessage(type: string, payload: Record<string, string
  * @returns The message type and decoded key-value payload
  */
 export function decodeCustomMessage(data: Uint8Array): { type: string; payload: Record<string, string | boolean> } {
-  const decoder = decoding.createDecoder(data);
-  const type = decoding.readVarString(decoder);
-  const payload: Record<string, string | boolean> = {};
+  try {
+    const decoder = decoding.createDecoder(data);
+    const type = decoding.readVarString(decoder);
+    const payload: Record<string, string | boolean> = {};
 
-  while (decoder.pos < data.length) {
-    const key = decoding.readVarString(decoder);
-    const valueType = decoding.readVarUint(decoder);
-    switch (valueType) {
-      case valueTypeString:
-        payload[key] = decoding.readVarString(decoder);
-        break;
-      case valueTypeBoolean:
-        payload[key] = decoding.readVarUint(decoder) === 1;
-        break;
+    while (decoder.pos < data.length) {
+      const key = decoding.readVarString(decoder);
+      const valueType = decoding.readVarUint(decoder);
+      switch (valueType) {
+        case valueTypeString:
+          payload[key] = decoding.readVarString(decoder);
+          break;
+        case valueTypeBoolean:
+          payload[key] = decoding.readVarUint(decoder) === 1;
+          break;
+      }
     }
-  }
 
-  return { type, payload };
+    return { type, payload };
+  } catch (err) {
+    throw new Error(`Failed to decode custom message: ${err instanceof Error ? err.message : err}`);
+  }
 }
 
 /**

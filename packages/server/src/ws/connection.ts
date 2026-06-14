@@ -11,7 +11,7 @@ import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
 import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
-import { decodeCustomMessage, encodeCustomMessage, wrapCustomMessage } from 'shared/src/protocol.js';
+import { decodeCustomMessage, encodeCustomMessage, wrapCustomMessage } from 'shared';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;

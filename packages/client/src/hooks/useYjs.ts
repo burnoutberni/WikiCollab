@@ -3,8 +3,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import * as decoding from 'lib0/decoding';
-import { replaceYText } from 'shared/src/yjs.js';
-import { encodeCustomMessage, decodeCustomMessage, messageCustom } from 'shared/src/protocol.js';
+import { replaceYText, encodeCustomMessage, decodeCustomMessage, messageCustom } from 'shared';
 
 export interface Presence {
   clientId: number;
