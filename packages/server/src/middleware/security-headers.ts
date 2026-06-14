@@ -10,6 +10,8 @@ export interface SecurityHeadersOptions {
   permissionsPolicy?: string;
 }
 
+// 'unsafe-inline' and 'unsafe-eval' are required by the Yjs collaborative editor.
+// Remove these if the editor dependency is replaced with a CSP-compatible alternative.
 const DEFAULT_CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
