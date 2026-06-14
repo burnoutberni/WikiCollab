@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
 import * as Y from 'yjs';
-import { serverFetch } from 'server-fetch';
+import { serverFetch, SsrfError } from 'server-fetch';
 
 const docs = new Hono();
 
@@ -249,6 +249,9 @@ docs.post('/:id/push', async (c) => {
 
     return c.json({ success: true, result: result.edit?.result });
   } catch (error) {
+    if (error instanceof SsrfError) {
+      return c.json({ error: 'Request blocked by security policy' }, 400);
+    }
     return c.json({ error: 'Failed to push to wiki' }, 500);
   }
 });

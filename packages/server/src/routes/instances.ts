@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { serverFetch } from 'server-fetch';
+import { serverFetch, SsrfError } from 'server-fetch';
 
 interface SourceMapEntry {
   sourceLine: number;
@@ -63,6 +63,9 @@ instances.post('/preview', async (c) => {
         return c.json({ html: data.parse.text['*'], sourceMap });
       }
     } catch (err) {
+      if (err instanceof SsrfError) {
+        return c.json({ error: 'Request blocked by security policy' }, 400);
+      }
       console.error('MediaWiki preview request failed:', err);
     }
   }
@@ -108,12 +111,19 @@ instances.post('/css', async (c) => {
           }
         }
       } catch (err) {
-        console.error(`Failed to fetch CSS page ${page}:`, err);
+        if (err instanceof SsrfError) {
+          console.error(`SSRF blocked for CSS page ${page}`);
+        } else {
+          console.error(`Failed to fetch CSS page ${page}:`, err);
+        }
       }
     }
 
     return c.json({ css: cssParts.join('\n\n') });
   } catch (err) {
+    if (err instanceof SsrfError) {
+      return c.json({ error: 'Request blocked by security policy' }, 400);
+    }
     console.error('Failed to fetch CSS from MediaWiki:', err);
     return c.json({ error: 'Failed to fetch CSS from MediaWiki' }, 500);
   }
