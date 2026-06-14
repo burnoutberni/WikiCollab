@@ -165,9 +165,14 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                       {previewLoading ? (
                         <div className="text-sm text-muted-foreground">Loading preview...</div>
                       ) : previewContent !== null ? (
-                        <pre className="text-sm font-mono max-h-[200px] overflow-auto min-w-0" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                          {previewContent}
-                        </pre>
+                        <div className="text-sm font-mono max-h-[200px] overflow-auto min-w-0">
+                          {previewContent.split('\n').map((line, i) => (
+                            <div key={i} className="flex">
+                              <span className="select-none text-muted-foreground text-right pr-3 border-r border-border w-8 shrink-0">{i + 1}</span>
+                              <span className="pl-3 min-w-0 whitespace-pre-wrap break-all">{line}</span>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
                         <div className="text-sm text-muted-foreground">No content available</div>
                       )}
