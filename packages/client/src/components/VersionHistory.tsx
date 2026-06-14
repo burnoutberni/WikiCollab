@@ -161,11 +161,11 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                     </div>
                   </div>
                   {previewingVersion === version.id && (
-                    <div className="mt-2 rounded-md border bg-muted p-3">
+                    <div className="mt-2 rounded-md border bg-muted p-3 min-w-0">
                       {previewLoading ? (
                         <div className="text-sm text-muted-foreground">Loading preview...</div>
                       ) : previewContent !== null ? (
-                        <pre className="text-sm whitespace-pre-wrap font-mono max-h-[200px] overflow-auto">
+                        <pre className="text-sm font-mono max-h-[200px] overflow-auto min-w-0" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                           {previewContent}
                         </pre>
                       ) : (
