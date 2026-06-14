@@ -141,7 +141,7 @@ describe('Custom message protocol', () => {
     expect(result.payload.starred).toBe(true);
   });
 
-  it('roundtrips boolean payload through encode/decode', () => {
+  it('roundtrips string-only payload through encode/decode', () => {
     const encoded = encodeCustomMessage('restore', { versionId: 'v2', documentId: 'd1' });
     const decoder = decoding.createDecoder(encoded);
     decoding.readVarUint(decoder);
