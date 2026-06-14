@@ -37,9 +37,18 @@ const SCHEMA_SQL = `
   );
 `;
 
-export function createTestDb() {
+export interface TestDb {
+  db: ReturnType<typeof drizzle>;
+  close: () => void;
+}
+
+export function createTestDb(): TestDb {
   const sqlite = new Database(':memory:');
   sqlite.pragma('foreign_keys = ON');
   sqlite.exec(SCHEMA_SQL);
-  return drizzle(sqlite, { schema });
+  const db = drizzle(sqlite, { schema });
+  return {
+    db,
+    close: () => sqlite.close(),
+  };
 }

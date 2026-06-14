@@ -1,11 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createTestDb } from './setup.js';
 import * as schema from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 
 describe('Database schema', () => {
+  let cleanup: (() => void) | undefined;
+
+  afterEach(() => {
+    cleanup?.();
+    cleanup = undefined;
+  });
+
   it('can insert and query documents', () => {
-    const db = createTestDb();
+    const { db, close } = createTestDb();
+    cleanup = close;
+
     db.insert(schema.documents).values({
       id: 'test1',
       title: 'Test Document',
@@ -21,7 +30,9 @@ describe('Database schema', () => {
   });
 
   it('can insert and query mediawiki_instances', () => {
-    const db = createTestDb();
+    const { db, close } = createTestDb();
+    cleanup = close;
+
     db.insert(schema.mediawikiInstances).values({
       id: 'inst1',
       name: 'Wikipedia',
@@ -36,7 +47,9 @@ describe('Database schema', () => {
   });
 
   it('can insert and query document_revisions', () => {
-    const db = createTestDb();
+    const { db, close } = createTestDb();
+    cleanup = close;
+
     db.insert(schema.documents).values({
       id: 'doc1',
       title: 'Parent Doc',
@@ -61,7 +74,9 @@ describe('Database schema', () => {
   });
 
   it('enforces foreign key constraints', () => {
-    const db = createTestDb();
+    const { db, close } = createTestDb();
+    cleanup = close;
+
     expect(() => {
       db.insert(schema.documentRevisions).values({
         id: 'rev2',

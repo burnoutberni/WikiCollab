@@ -1,50 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Hono } from 'hono';
 import * as schema from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import * as Y from 'yjs';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-
-function createTestDb() {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('foreign_keys = ON');
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS documents (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL DEFAULT 'Untitled',
-      content TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      expiry TEXT,
-      mediawiki_instance_id TEXT,
-      restored_version_id TEXT
-    );
-    CREATE TABLE IF NOT EXISTS mediawiki_instances (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      api_url TEXT NOT NULL,
-      token TEXT,
-      css TEXT,
-      configured_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS document_revisions (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      yjs_state TEXT,
-      starred INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS template_cache (
-      id TEXT PRIMARY KEY,
-      instance_id TEXT NOT NULL REFERENCES mediawiki_instances(id) ON DELETE CASCADE,
-      template_name TEXT NOT NULL,
-      template_data TEXT NOT NULL,
-      fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-  return drizzle(sqlite, { schema });
-}
+import { createTestDb } from '../setup.js';
 
 // Mock db/index.js so the production router uses our in-memory test DB.
 // vi.hoisted runs before vi.mock factories; no imports are available inside.
@@ -73,15 +32,23 @@ import docsRoutes from '../../routes/docs.js';
 
 describe('Docs routes', () => {
   let app: Hono;
+  let closeDb: (() => void) | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Swap to a fresh in-memory DB for each test
-    mockDbModule.db = createTestDb();
+    const testDb = createTestDb();
+    mockDbModule.db = testDb.db;
     mockDbModule.schema = schema;
+    closeDb = testDb.close;
 
     app = new Hono();
     app.route('/api/docs', docsRoutes);
+  });
+
+  afterEach(() => {
+    closeDb?.();
+    closeDb = undefined;
   });
 
   it('GET / returns empty array initially', async () => {
