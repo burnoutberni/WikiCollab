@@ -5,14 +5,12 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { db, schema } from '../db/index.js';
-import { getVersionById } from '../db/helpers.js';
 import { eq } from 'drizzle-orm';
 import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
 import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
 import { decodeCustomMessage, wrapCustomMessage } from 'shared/src/protocol.js';
-import type { StarPayload, RestorePayload } from 'shared';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -124,7 +122,9 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
 
   switch (type) {
     case 'star': {
-      const { versionId, starred } = payload as unknown as StarPayload;
+      const versionId = typeof payload.versionId === 'string' ? payload.versionId : '';
+      const starred = typeof payload.starred === 'boolean' ? payload.starred : false;
+      if (!versionId) break;
 
       db.update(schema.documentRevisions)
         .set({ starred })
@@ -143,7 +143,9 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       break;
     }
     case 'restore': {
-      const { versionId, documentId } = payload as unknown as RestorePayload;
+      const versionId = typeof payload.versionId === 'string' ? payload.versionId : '';
+      const documentId = typeof payload.documentId === 'string' ? payload.documentId : '';
+      if (!versionId || !documentId) break;
 
       db.update(schema.documents)
         .set({ restored_version_id: versionId })
