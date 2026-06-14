@@ -1,167 +1,87 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Hono } from 'hono';
-import { createTestDb } from '../setup.js';
 import * as schema from '../../db/schema.js';
-import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
 import * as Y from 'yjs';
-import type { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 
-type TestDb = ReturnType<typeof drizzle>;
-
-function createDocsRoutes(db: TestDb) {
-  const docs = new Hono();
-
-  docs.get('/', (c) => {
-    const allDocs = db.select().from(schema.documents).all();
-    return c.json(allDocs);
-  });
-
-  docs.post('/', async (c) => {
-    const body = await c.req.json();
-    const slug = body.slug?.trim();
-    if (slug && !/^[a-zA-Z0-9_-]+$/.test(slug)) {
-      return c.json({ error: 'Slug can only contain letters, numbers, hyphens, and underscores' }, 400);
-    }
-    const id = slug || nanoid(7);
-    if (slug) {
-      const existing = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
-      if (existing) {
-        return c.json({ error: 'A document with this slug already exists' }, 409);
-      }
-    }
-    const now = new Date().toISOString();
-    const doc = {
-      id,
-      title: body.title || 'Untitled',
-      content: body.content || '',
-      created_at: now,
-      updated_at: now,
-      expiry: body.expiry || null,
-      mediawiki_instance_id: body.mediawiki_instance_id || null,
-    };
-    db.insert(schema.documents).values(doc).run();
-    return c.json(doc, 201);
-  });
-
-  docs.get('/:id', (c) => {
-    const id = c.req.param('id');
-    const doc = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
-    if (!doc) return c.json({ error: 'Document not found' }, 404);
-    return c.json(doc);
-  });
-
-  docs.delete('/:id', (c) => {
-    const id = c.req.param('id');
-    const result = db.delete(schema.documents).where(eq(schema.documents.id, id)).run();
-    if (result.changes === 0) return c.json({ error: 'Document not found' }, 404);
-    return c.json({ success: true });
-  });
-
-  docs.patch('/:id', async (c) => {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { updated_at: now };
-    if (body.title !== undefined) updates.title = body.title;
-    if (body.mediawiki_instance_id !== undefined) updates.mediawiki_instance_id = body.mediawiki_instance_id;
-    if (body.expiry !== undefined) updates.expiry = body.expiry;
-    const result = db.update(schema.documents).set(updates).where(eq(schema.documents.id, id)).run();
-    if (result.changes === 0) return c.json({ error: 'Document not found' }, 404);
-    const doc = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
-    return c.json(doc);
-  });
-
-  docs.get('/:id/versions', (c) => {
-    const id = c.req.param('id');
-    const versions = db.select()
-      .from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.document_id, id))
-      .all()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return c.json(versions);
-  });
-
-  docs.post('/:id/versions/:v/star', (c) => {
-    const vId = c.req.param('v');
-    const version = db.select().from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.id, vId)).get();
-    if (!version) return c.json({ error: 'Version not found' }, 404);
-    db.update(schema.documentRevisions).set({ starred: true })
-      .where(eq(schema.documentRevisions.id, vId)).run();
-    return c.json({ success: true });
-  });
-
-  docs.delete('/:id/versions/:v/star', (c) => {
-    const vId = c.req.param('v');
-    const version = db.select().from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.id, vId)).get();
-    if (!version) return c.json({ error: 'Version not found' }, 404);
-    db.update(schema.documentRevisions).set({ starred: false })
-      .where(eq(schema.documentRevisions.id, vId)).run();
-    return c.json({ success: true });
-  });
-
-  docs.post('/:id/push', async (c) => {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-    const doc = db.select().from(schema.documents).where(eq(schema.documents.id, id)).get();
-    if (!doc) return c.json({ error: 'Document not found' }, 404);
-    if (!body.api_url) return c.json({ error: 'api_url is required' }, 400);
-    if (!body.token) return c.json({ error: 'token is required' }, 400);
-    return c.json({ success: true, result: 'Success' });
-  });
-
-  docs.get('/:id/versions/:v/preview', (c) => {
-    const vId = c.req.param('v');
-    const version = db.select().from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.id, vId)).get();
-    if (!version) return c.json({ error: 'Version not found' }, 404);
-    if (!version.yjs_state) return c.json({ content: '' });
-    try {
-      const state = Buffer.from(version.yjs_state, 'base64');
-      const doc = new Y.Doc();
-      Y.applyUpdate(doc, state);
-      const content = doc.getText('wikitext').toString();
-      doc.destroy();
-      return c.json({ content });
-    } catch {
-      return c.json({ error: 'Failed to decode version' }, 500);
-    }
-  });
-
-  docs.post('/:id/versions/:v/restore', (c) => {
-    const id = c.req.param('id');
-    const vId = c.req.param('v');
-    const version = db.select().from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.id, vId)).get();
-    if (!version) return c.json({ error: 'Version not found' }, 404);
-    db.update(schema.documents).set({ restored_version_id: vId })
-      .where(eq(schema.documents.id, id)).run();
-    if (!version.yjs_state) return c.json({ success: true, content: '' });
-    try {
-      const state = Buffer.from(version.yjs_state, 'base64');
-      const doc = new Y.Doc();
-      Y.applyUpdate(doc, state);
-      const content = doc.getText('wikitext').toString();
-      doc.destroy();
-      return c.json({ success: true, content });
-    } catch {
-      return c.json({ success: true, content: '' });
-    }
-  });
-
-  return docs;
+function createTestDb() {
+  const sqlite = new Database(':memory:');
+  sqlite.pragma('foreign_keys = ON');
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS documents (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT 'Untitled',
+      content TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expiry TEXT,
+      mediawiki_instance_id TEXT,
+      restored_version_id TEXT
+    );
+    CREATE TABLE IF NOT EXISTS mediawiki_instances (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      api_url TEXT NOT NULL,
+      token TEXT,
+      css TEXT,
+      configured_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS document_revisions (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      yjs_state TEXT,
+      starred INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS template_cache (
+      id TEXT PRIMARY KEY,
+      instance_id TEXT NOT NULL REFERENCES mediawiki_instances(id) ON DELETE CASCADE,
+      template_name TEXT NOT NULL,
+      template_data TEXT NOT NULL,
+      fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  return drizzle(sqlite, { schema });
 }
+
+// Mock db/index.js so the production router uses our in-memory test DB.
+// vi.hoisted runs before vi.mock factories; no imports are available inside.
+const { mockDbModule } = vi.hoisted(() => ({
+  mockDbModule: { db: null as any, schema: null as any },
+}));
+vi.mock('../../db/index.js', () => mockDbModule);
+
+// Mock server-fetch to avoid real HTTP in push tests
+const { mockServerFetch } = vi.hoisted(() => ({
+  mockServerFetch: vi.fn(),
+}));
+vi.mock('server-fetch', () => ({
+  serverFetch: mockServerFetch,
+  SsrfError: class SsrfError extends Error {
+    url: string;
+    constructor(url: string) {
+      super(`SSRF blocked: ${url}`);
+      this.url = url;
+    }
+  },
+}));
+
+// Import production router after mocks
+import docsRoutes from '../../routes/docs.js';
 
 describe('Docs routes', () => {
   let app: Hono;
-  let db: TestDb;
 
   beforeEach(() => {
-    db = createTestDb();
+    vi.clearAllMocks();
+    // Swap to a fresh in-memory DB for each test
+    mockDbModule.db = createTestDb();
+    mockDbModule.schema = schema;
+
     app = new Hono();
-    app.route('/api/docs', createDocsRoutes(db));
+    app.route('/api/docs', docsRoutes);
   });
 
   it('GET / returns empty array initially', async () => {
@@ -326,7 +246,85 @@ describe('Docs routes', () => {
     expect(res.status).toBe(404);
   });
 
+  it('POST /:id/push calls serverFetch with correct params', async () => {
+    mockServerFetch.mockResolvedValue({
+      json: () => Promise.resolve({ edit: { result: 'Success' } }),
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Push Success' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_url: 'https://en.wikipedia.org/w/api.php',
+        token: 'test-token',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.result).toBe('Success');
+    expect(mockServerFetch).toHaveBeenCalledOnce();
+    expect(mockServerFetch.mock.calls[0][0]).toBe('https://en.wikipedia.org/w/api.php');
+  });
+
+  it('POST /:id/push handles wiki API error response', async () => {
+    mockServerFetch.mockResolvedValue({
+      json: () => Promise.resolve({ error: { info: 'Invalid token' } }),
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Push Error' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_url: 'https://en.wikipedia.org/w/api.php',
+        token: 'bad-token',
+      }),
+    });
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid token');
+  });
+
+  it('POST /:id/push handles network failure', async () => {
+    mockServerFetch.mockRejectedValue(new Error('Network error'));
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Push Network Error' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_url: 'https://en.wikipedia.org/w/api.php',
+        token: 'test-token',
+      }),
+    });
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toBe('Failed to push to wiki');
+  });
+
   it('POST /:id/versions/:v/star stars a version', async () => {
+    const db = mockDbModule.db;
+
     const createRes = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -352,6 +350,8 @@ describe('Docs routes', () => {
   });
 
   it('DELETE /:id/versions/:v/star unstars a version', async () => {
+    const db = mockDbModule.db;
+
     const createRes = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -377,6 +377,8 @@ describe('Docs routes', () => {
   });
 
   it('GET /:id/versions/:v/preview returns content from yjs state', async () => {
+    const db = mockDbModule.db;
+
     const createRes = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -402,5 +404,38 @@ describe('Docs routes', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.content).toBe('Hello from Yjs');
+  });
+
+  it('POST /:id/versions/:v/restore restores content from yjs state', async () => {
+    const db = mockDbModule.db;
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Restore Test' }),
+    });
+    const created = await createRes.json();
+
+    const doc = new Y.Doc();
+    doc.getText('wikitext').insert(0, 'Restored content');
+    const state = Y.encodeStateAsUpdate(doc);
+    const base64State = Buffer.from(state).toString('base64');
+    doc.destroy();
+
+    db.insert(schema.documentRevisions).values({
+      id: 'rev-restore-1',
+      document_id: created.id,
+      yjs_state: base64State,
+      starred: false,
+      created_at: new Date().toISOString(),
+    }).run();
+
+    const res = await app.request(`/api/docs/${created.id}/versions/rev-restore-1/restore`, {
+      method: 'POST',
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.content).toBe('Restored content');
   });
 });
