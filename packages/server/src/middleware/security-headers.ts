@@ -40,7 +40,7 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): Middlewar
     c.header('Content-Security-Policy', options.contentSecurityPolicy ?? DEFAULT_CSP);
 
     if (options.strictTransportSecurity !== false && isProduction) {
-      c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+      c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
     }
   };
 }
