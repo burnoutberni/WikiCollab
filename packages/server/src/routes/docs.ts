@@ -96,7 +96,7 @@ docs.get('/:id/versions', (c) => {
   const versions = db.select()
     .from(schema.documentRevisions)
     .where(eq(schema.documentRevisions.document_id, id))
-    .orderBy(desc(schema.documentRevisions.created_at))
+    .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
     .all();
 
   return c.json(versions);
