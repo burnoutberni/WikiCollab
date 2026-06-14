@@ -5,6 +5,7 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { db, schema } from '../db/index.js';
+import { getVersionById } from '../db/helpers.js';
 import { eq } from 'drizzle-orm';
 import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
@@ -126,6 +127,9 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       const starred = typeof payload.starred === 'boolean' ? payload.starred : false;
       if (!versionId) break;
 
+      const version = getVersionById(versionId);
+      if (!version) break;
+
       db.update(schema.documentRevisions)
         .set({ starred })
         .where(eq(schema.documentRevisions.id, versionId))
@@ -138,6 +142,9 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       const versionId = typeof payload.versionId === 'string' ? payload.versionId : '';
       const documentId = typeof payload.documentId === 'string' ? payload.documentId : '';
       if (!versionId || !documentId) break;
+
+      const version = getVersionById(versionId);
+      if (!version) break;
 
       db.update(schema.documents)
         .set({ restored_version_id: versionId })
