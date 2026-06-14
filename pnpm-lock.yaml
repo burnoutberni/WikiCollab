@@ -213,6 +213,9 @@ importers:
       yjs:
         specifier: ^13.6.27
         version: 13.6.31
+      zod:
+        specifier: ^3.25.1
+        version: 3.25.76
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.12
@@ -247,6 +250,9 @@ importers:
       yjs:
         specifier: ^13.6.31
         version: 13.6.31
+      zod:
+        specifier: ^3.25.1
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^6.0.3
@@ -2915,6 +2921,9 @@ packages:
     resolution: {integrity: sha512-Eq+5BRfbeGyqGVrTJL3bEcr8gKkxPuyuoHmAwpk52fDb8kOVMrfVSTRPd6yiGgX5Fskb96qCRjzjbRjrL4YEnw==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
 
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -5294,3 +5303,5 @@ snapshots:
   yjs@13.6.31:
     dependencies:
       lib0: 0.2.117
+
+  zod@3.25.76: {}
