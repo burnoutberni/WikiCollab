@@ -64,6 +64,7 @@ instances.post('/preview', async (c) => {
       }
     } catch (err) {
       if (err instanceof SsrfError) {
+        console.error(`SSRF blocked: ${err.url}`);
         return c.json({ error: 'Request blocked by security policy' }, 400);
       }
       console.error('MediaWiki preview request failed:', err);
@@ -122,6 +123,7 @@ instances.post('/css', async (c) => {
     return c.json({ css: cssParts.join('\n\n') });
   } catch (err) {
     if (err instanceof SsrfError) {
+      console.error(`SSRF blocked: ${err.url}`);
       return c.json({ error: 'Request blocked by security policy' }, 400);
     }
     console.error('Failed to fetch CSS from MediaWiki:', err);
