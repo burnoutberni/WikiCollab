@@ -7,7 +7,7 @@ let allowedOrigins: string[] | null = null;
 function parseOrigins(raw: string): string[] {
   return raw
     .split(',')
-    .map((o) => o.trim())
+    .map((o) => o.trim().replace(/\/$/, '').toLowerCase())
     .filter(Boolean);
 }
 
