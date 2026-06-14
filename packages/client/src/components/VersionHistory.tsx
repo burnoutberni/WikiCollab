@@ -24,6 +24,21 @@ interface VersionHistoryProps {
   onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
 }
 
+function PreviewContent({ content }: { content: string }) {
+  const lines = content.endsWith('\n') ? content.slice(0, -1).split('\n') : content.split('\n');
+  const gutterWidth = `${String(lines.length).length + 1}ch`;
+  return (
+    <pre className="text-sm font-mono max-h-[200px] overflow-auto min-w-0 whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>
+      {lines.map((line, i) => (
+        <div key={i} className="flex">
+          <span className="select-none text-muted-foreground text-right pr-3 border-r border-border shrink-0" style={{ minWidth: gutterWidth }}>{i + 1}</span>
+          <span className="pl-3 min-w-0">{line}</span>
+        </div>
+      ))}
+    </pre>
+  );
+}
+
 export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCustomMessage }: VersionHistoryProps) {
   const { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview } = useVersions(
     documentId,
@@ -74,17 +89,17 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Tooltip>
-          <TooltipTrigger asChild>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
             <Button variant="ghost" size="sm">
               <History className="h-4 w-4 mr-2" />
               History
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>Version history</TooltipContent>
-        </Tooltip>
-      </DialogTrigger>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Version history</TooltipContent>
+      </Tooltip>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Version History</DialogTitle>
@@ -161,13 +176,11 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                     </div>
                   </div>
                   {previewingVersion === version.id && (
-                    <div className="mt-2 rounded-md border bg-muted p-3">
+                    <div className="mt-2 rounded-md border bg-muted p-3 min-w-0">
                       {previewLoading ? (
                         <div className="text-sm text-muted-foreground">Loading preview...</div>
                       ) : previewContent !== null ? (
-                        <pre className="text-sm whitespace-pre-wrap font-mono max-h-[200px] overflow-auto">
-                          {previewContent}
-                        </pre>
+                        <PreviewContent content={previewContent} />
                       ) : (
                         <div className="text-sm text-muted-foreground">No content available</div>
                       )}
