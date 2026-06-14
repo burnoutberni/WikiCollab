@@ -38,6 +38,14 @@ function sanitize(html: string): string {
     allowedSchemesByTag: {
       img: ['http', 'https', 'data'],
     },
+    transformTags: {
+      'a': (tagName, attribs) => {
+        if (attribs.target === '_blank') {
+          return { tagName, attribs: { ...attribs, rel: 'noopener noreferrer' } };
+        }
+        return { tagName, attribs };
+      },
+    },
     disallowedTagsMode: 'discard',
   });
 }
