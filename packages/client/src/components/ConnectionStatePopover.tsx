@@ -83,58 +83,58 @@ export function ConnectionStatePopover({
           </PopoverTrigger>
         </TooltipTrigger>
         <TooltipContent>Connection details</TooltipContent>
-      <PopoverContent
-        side="top"
-        align="start"
-        className="w-64 p-3 text-sm"
-        data-testid="connection-state-popover"
-      >
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 font-medium">
-            <Activity className="h-4 w-4" />
-            <span>Status</span>
-            <span className="ml-auto flex items-center gap-1 text-xs font-normal">
-              {statusIcon}
-              <span>{statusText}</span>
-            </span>
-          </div>
-
-          {!connected && (
-            <div className="pt-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full gap-1.5"
-                disabled={retrying}
-                onClick={handleRetry}
-                data-testid="connection-retry-btn"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${retrying ? 'animate-spin' : ''}`} />
-                {retrying ? 'Reconnecting…' : 'Retry'}
-              </Button>
+        <PopoverContent
+          side="top"
+          align="start"
+          className="w-64 p-3 text-sm"
+          data-testid="connection-state-popover"
+        >
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-medium">
+              <Activity className="h-4 w-4" />
+              <span>Status</span>
+              <span className="ml-auto flex items-center gap-1 text-xs font-normal">
+                {statusIcon}
+                <span>{statusText}</span>
+              </span>
             </div>
-          )}
 
-          {lastConnected && (
-            <>
-              <Separator />
-
-              <div className="space-y-1.5 text-muted-foreground">
-                <div className="flex justify-between">
-                  <span>{connected ? 'Connected since' : 'Last connected'}</span>
-                  <span className="text-foreground">{connectedSinceText}</span>
-                </div>
-                {connected && (
-                  <div className="flex justify-between">
-                    <span>Duration</span>
-                    <span className="text-foreground">{durationText}</span>
-                  </div>
-                )}
+            {!connected && (
+              <div className="pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  disabled={retrying}
+                  onClick={handleRetry}
+                  data-testid="connection-retry-btn"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${retrying ? 'animate-spin' : ''}`} />
+                  {retrying ? 'Reconnecting…' : 'Retry'}
+                </Button>
               </div>
-            </>
-          )}
-        </div>
-      </PopoverContent>
+            )}
+
+            {lastConnected && (
+              <>
+                <Separator />
+
+                <div className="space-y-1.5 text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>{connected ? 'Connected since' : 'Last connected'}</span>
+                    <span className="text-foreground">{connectedSinceText}</span>
+                  </div>
+                  {connected && (
+                    <div className="flex justify-between">
+                      <span>Duration</span>
+                      <span className="text-foreground">{durationText}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </PopoverContent>
       </Popover>
     </Tooltip>
   );
