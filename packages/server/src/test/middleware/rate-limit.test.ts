@@ -91,4 +91,33 @@ describe('Rate limit middleware', () => {
     });
     expect(r2.status).toBe(429);
   });
+
+  it('separate limiter instances have independent quotas', async () => {
+    const limiterA = createRateLimiter({ max: 2, windowMs: 60000 });
+    const limiterB = createRateLimiter({ max: 2, windowMs: 60000 });
+
+    const app = new Hono();
+    app.use('/api/a', limiterA);
+    app.get('/api/a', (c) => c.json({ ok: true }));
+    app.use('/api/b', limiterB);
+    app.get('/api/b', (c) => c.json({ ok: true }));
+
+    const ip = '10.0.0.1';
+    const headers = { 'x-forwarded-for': ip };
+
+    await app.request('/api/a', { headers });
+    await app.request('/api/a', { headers });
+
+    const rA = await app.request('/api/a', { headers });
+    expect(rA.status).toBe(429);
+
+    const rB1 = await app.request('/api/b', { headers });
+    expect(rB1.status).toBe(200);
+
+    const rB2 = await app.request('/api/b', { headers });
+    expect(rB2.status).toBe(200);
+
+    const rB3 = await app.request('/api/b', { headers });
+    expect(rB3.status).toBe(429);
+  });
 });
