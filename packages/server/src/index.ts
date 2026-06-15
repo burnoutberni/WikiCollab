@@ -41,7 +41,7 @@ app.route('/api/docs', docsRoutes);
 app.route('/api/instances', instancesRoutes);
 
 app.get('/api/health', (c) => {
-  return c.json({ status: 'ok' });
+  return c.json({ status: 'ok', version: process.env.APP_VERSION || '0.0.0' });
 });
 
 if (process.env.NODE_ENV === 'production') {
