@@ -356,7 +356,11 @@ export function DocumentEditor() {
               <Save className="h-3 w-3" />
               Saved
             </span>
-            <ConnectionStatePopover connected={connected} lastConnected={lastConnected} />
+            <ConnectionStatePopover
+              connected={connected}
+              lastConnected={lastConnected}
+              onReconnect={() => provider?.connect()}
+            />
           </div>
           <div className="flex items-center gap-4">
             <Tooltip>

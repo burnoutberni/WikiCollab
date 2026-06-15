@@ -86,6 +86,7 @@ vi.mock('lucide-react', () => {
         'Code',
         'Columns',
         'FileText',
+        'RefreshCw',
         'Save',
         'Settings',
         'Share2',
@@ -152,13 +153,13 @@ describe('DocumentEditor', () => {
       userColor: '#FF6B6B',
       setUserName: vi.fn(),
       setUserColor: vi.fn(),
-      provider: null,
+      provider: { connect: vi.fn() },
       getContent: vi.fn().mockReturnValue(''),
       setContent: vi.fn(),
       sendCustomMessage: vi.fn(),
       onCustomMessage: vi.fn(),
       lastConnected: Date.now() - 5000,
-    });
+    } as any);
   });
 
   it('shows loading state', () => {

@@ -1,6 +1,7 @@
-import { Activity, Wifi, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Activity, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -8,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface ConnectionStatePopoverProps {
   connected: boolean;
   lastConnected: number | null;
+  onReconnect?: () => void;
 }
 
 function formatDuration(ms: number): string {
@@ -27,14 +29,27 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString();
 }
 
-export function ConnectionStatePopover({ connected, lastConnected }: ConnectionStatePopoverProps) {
+export function ConnectionStatePopover({
+  connected,
+  lastConnected,
+  onReconnect,
+}: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
-    if (!connected) return;
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
+    if (connected) {
+      setRetrying(false);
+      const interval = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(interval);
+    }
   }, [connected]);
+
+  useEffect(() => {
+    if (!retrying) return;
+    const timeout = setTimeout(() => setRetrying(false), 8000);
+    return () => clearTimeout(timeout);
+  }, [retrying]);
 
   const statusIcon = connected ? (
     <Wifi className="h-3 w-3 text-green-500" />
@@ -44,9 +59,14 @@ export function ConnectionStatePopover({ connected, lastConnected }: ConnectionS
 
   const statusText = connected ? 'Connected' : 'Disconnected';
 
-  const durationText = lastConnected ? formatDuration(now - lastConnected) : null;
+  const durationText = connected && lastConnected ? formatDuration(now - lastConnected) : null;
 
   const connectedSinceText = lastConnected ? formatTime(lastConnected) : null;
+
+  const handleRetry = useCallback(() => {
+    setRetrying(true);
+    onReconnect?.();
+  }, [onReconnect]);
 
   return (
     <Tooltip>
@@ -79,6 +99,22 @@ export function ConnectionStatePopover({ connected, lastConnected }: ConnectionS
             </span>
           </div>
 
+          {!connected && (
+            <div className="pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5"
+                disabled={retrying}
+                onClick={handleRetry}
+                data-testid="connection-retry-btn"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${retrying ? 'animate-spin' : ''}`} />
+                {retrying ? 'Reconnecting…' : 'Retry'}
+              </Button>
+            </div>
+          )}
+
           {lastConnected && (
             <>
               <Separator />
@@ -88,10 +124,12 @@ export function ConnectionStatePopover({ connected, lastConnected }: ConnectionS
                   <span>{connected ? 'Connected since' : 'Last connected'}</span>
                   <span className="text-foreground">{connectedSinceText}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Duration</span>
-                  <span className="text-foreground">{durationText}</span>
-                </div>
+                {connected && (
+                  <div className="flex justify-between">
+                    <span>Duration</span>
+                    <span className="text-foreground">{durationText}</span>
+                  </div>
+                )}
               </div>
             </>
           )}

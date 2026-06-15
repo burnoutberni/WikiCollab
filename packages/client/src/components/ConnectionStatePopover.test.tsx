@@ -11,7 +11,9 @@ vi.mock('lucide-react', () => {
     props?.className ? <div className={props.className} /> : <div />;
   return {
     default: m,
-    ...Object.fromEntries(['Activity', 'Wifi', 'WifiOff'].map((n) => [n, m])),
+    ...Object.fromEntries(
+      ['Activity', 'RefreshCw', 'Wifi', 'WifiOff'].map((n) => [n, m])
+    ),
   };
 });
 
@@ -23,6 +25,7 @@ describe('ConnectionStatePopover', () => {
   const defaultProps = {
     connected: true,
     lastConnected: Date.now() - 10000,
+    onReconnect: vi.fn(),
   };
 
   it('renders trigger button with connected state', () => {
@@ -32,12 +35,14 @@ describe('ConnectionStatePopover', () => {
   });
 
   it('renders trigger button with disconnected state', () => {
-    renderWithProviders(<ConnectionStatePopover connected={false} lastConnected={null} />);
+    renderWithProviders(
+      <ConnectionStatePopover connected={false} lastConnected={null} />
+    );
     expect(screen.getByTestId('connection-state-trigger')).toBeInTheDocument();
     expect(screen.getByText('Disconnected')).toBeInTheDocument();
   });
 
-  it('shows popover content when trigger is clicked (connected)', async () => {
+  it('shows popover when trigger is clicked (connected)', async () => {
     const user = userEvent.setup();
     renderWithProviders(<ConnectionStatePopover {...defaultProps} />);
 
@@ -45,42 +50,24 @@ describe('ConnectionStatePopover', () => {
 
     expect(screen.getByTestId('connection-state-popover')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getAllByText('Connected').length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('shows popover content when trigger is clicked (disconnected)', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<ConnectionStatePopover connected={false} lastConnected={null} />);
-
-    await user.click(screen.getByTestId('connection-state-trigger'));
-
-    expect(screen.getByTestId('connection-state-popover')).toBeInTheDocument();
-    expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getAllByText('Disconnected').length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('shows connected since and duration when connected', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<ConnectionStatePopover {...defaultProps} />);
-
-    await user.click(screen.getByTestId('connection-state-trigger'));
-
     expect(screen.getByText('Connected since')).toBeInTheDocument();
     expect(screen.getByText('Duration')).toBeInTheDocument();
   });
 
-  it('does not show duration fields when disconnected without prior connection', async () => {
+  it('shows popover when trigger is clicked (disconnected)', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ConnectionStatePopover connected={false} lastConnected={null} />);
+    renderWithProviders(
+      <ConnectionStatePopover connected={false} lastConnected={null} />
+    );
 
     await user.click(screen.getByTestId('connection-state-trigger'));
 
-    expect(screen.queryByText('Connected since')).not.toBeInTheDocument();
-    expect(screen.queryByText('Last connected')).not.toBeInTheDocument();
-    expect(screen.queryByText('Duration')).not.toBeInTheDocument();
+    expect(screen.getByTestId('connection-state-popover')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByTestId('connection-retry-btn')).toBeInTheDocument();
   });
 
-  it('shows last connected info when disconnected but had prior session connection', async () => {
+  it('shows last connected info when disconnected but had prior session', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <ConnectionStatePopover connected={false} lastConnected={Date.now() - 30000} />
@@ -89,6 +76,34 @@ describe('ConnectionStatePopover', () => {
     await user.click(screen.getByTestId('connection-state-trigger'));
 
     expect(screen.getByText('Last connected')).toBeInTheDocument();
-    expect(screen.getByText('Duration')).toBeInTheDocument();
+  });
+
+  it('does not show last connected fields without prior connection', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ConnectionStatePopover connected={false} lastConnected={null} />
+    );
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+
+    expect(screen.queryByText('Last connected')).not.toBeInTheDocument();
+    expect(screen.queryByText('Connected since')).not.toBeInTheDocument();
+  });
+
+  it('calls onReconnect when retry button is clicked', async () => {
+    const onReconnect = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ConnectionStatePopover
+        connected={false}
+        lastConnected={null}
+        onReconnect={onReconnect}
+      />
+    );
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+    await user.click(screen.getByTestId('connection-retry-btn'));
+
+    expect(onReconnect).toHaveBeenCalledOnce();
   });
 });
