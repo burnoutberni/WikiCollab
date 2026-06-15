@@ -1,18 +1,18 @@
 import type { Context } from 'hono';
-import { type ZodSchema, type ZodError } from 'zod';
+import { z } from 'zod';
 
-function formatZodError(error: ZodError): { error: string; details: Array<{ field: string; message: string }> } {
+function formatZodError(error: z.ZodError): { error: string; details: Array<{ field: string; message: string }> } {
   return {
     error: 'Validation failed',
-    details: error.issues.map((issue: { path: (string | number)[]; message: string }) => ({
+    details: error.issues.map((issue) => ({
       field: issue.path.join('.'),
       message: issue.message,
     })),
   };
 }
 
-export async function parseAndValidate<T>(c: Context, schema: ZodSchema<T>): Promise<
-  | { success: true; data: T }
+export async function parseAndValidate<T extends z.ZodType>(c: Context, schema: T): Promise<
+  | { success: true; data: z.output<T> }
   | { success: false; response: Response }
 > {
   let body: unknown;
