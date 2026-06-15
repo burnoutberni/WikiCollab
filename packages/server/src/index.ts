@@ -2,10 +2,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { createServer } from 'http';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
 import { setupWebSocket } from './ws/index.js';
+import { getAllowedOrigins } from './ws/origin.js';
 
 const app = new Hono();
 
@@ -18,8 +18,9 @@ app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404);
 });
 
+// getAllowedOrigins() is evaluated once at startup; restart the server to apply CORS_ORIGINS changes.
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:3001'],
+  origin: getAllowedOrigins(),
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowHeaders: ['Content-Type'],
 }));
