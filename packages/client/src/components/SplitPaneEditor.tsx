@@ -193,7 +193,7 @@ export function SplitPaneEditor({
         if (href.startsWith('#')) {
           const id = href.slice(1);
           if (id) {
-            const el = previewRef.current?.querySelector(`[id="${id}"]`);
+            const el = previewRef.current?.ownerDocument?.getElementById(id);
             el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         } else {
