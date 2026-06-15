@@ -5,6 +5,7 @@ import { CssSchema, PreviewSchema } from 'shared';
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 
+/** Endpoints that proxy MediaWiki-specific preview and stylesheet lookups. */
 const instances = new Hono();
 
 instances.post('/preview', async (c) => {

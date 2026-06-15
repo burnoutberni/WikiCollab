@@ -5,6 +5,52 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+
+          if (id.includes('@bhsd/codemirror-mediawiki')) {
+            return 'mediawiki-editor';
+          }
+
+          if (id.includes('/codemirror/') || id.includes('@codemirror/')) {
+            return 'codemirror';
+          }
+
+          if (
+            id.includes('/yjs/') ||
+            id.includes('/y-websocket/') ||
+            id.includes('/y-indexeddb/') ||
+            id.includes('/y-codemirror.next/') ||
+            id.includes('/y-protocols/') ||
+            id.includes('/lib0/')
+          ) {
+            return 'yjs';
+          }
+
+          if (id.includes('@radix-ui/')) {
+            return 'radix';
+          }
+
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/react-router-dom/')
+          ) {
+            return 'vendor';
+          }
+
+          if (id.includes('/lucide-react/')) {
+            return 'icons';
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

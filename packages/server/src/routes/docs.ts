@@ -9,7 +9,9 @@ import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { pushLimiter } from '../middleware/rate-limit.js';
 import { parseAndValidate } from '../middleware/validate.js';
+import { setVersionStarred } from '../services/versions.js';
 
+/** REST endpoints for document CRUD, versioning, and outbound wiki pushes. */
 const docs = new Hono();
 
 docs.get('/', (c) => {
@@ -144,35 +146,19 @@ docs.post('/:id/versions/:v/restore', (c) => {
 
 docs.post('/:id/versions/:v/star', (c) => {
   const vId = c.req.param('v');
-
-  const version = getVersionById(vId);
-
-  if (!version) {
+  const updated = setVersionStarred(vId, true, { db, schema, getVersionById });
+  if (!updated) {
     return c.json({ error: 'Version not found' }, 404);
   }
-
-  db.update(schema.documentRevisions)
-    .set({ starred: true })
-    .where(eq(schema.documentRevisions.id, vId))
-    .run();
-
   return c.json({ success: true });
 });
 
 docs.delete('/:id/versions/:v/star', (c) => {
   const vId = c.req.param('v');
-
-  const version = getVersionById(vId);
-
-  if (!version) {
+  const updated = setVersionStarred(vId, false, { db, schema, getVersionById });
+  if (!updated) {
     return c.json({ error: 'Version not found' }, 404);
   }
-
-  db.update(schema.documentRevisions)
-    .set({ starred: false })
-    .where(eq(schema.documentRevisions.id, vId))
-    .run();
-
   return c.json({ success: true });
 });
 

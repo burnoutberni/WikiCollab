@@ -25,6 +25,7 @@ export interface AwarenessState {
   } | null;
 }
 
+/** Generates a lightweight client-only identity for awareness and local persistence. */
 function generateUserId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
@@ -37,6 +38,7 @@ function generateUserName(): string {
   return `${adj} ${noun}`;
 }
 
+/** Shared collaborator color palette, including options shown in the picker UI. */
 export const COLORS = [
   '#FF6B6B',
   '#4ECDC4',
@@ -58,6 +60,10 @@ function generateColor(): string {
 
 type CustomMessageHandler = (data: any) => void;
 
+/**
+ * Sets up the shared Yjs document, websocket provider, IndexedDB cache, and awareness state.
+ * Persists local identity fields in `localStorage`.
+ */
 export function useYjs(docId: string | null) {
   const ydocRef = useRef<Y.Doc | null>(null);
   if (!ydocRef.current) {

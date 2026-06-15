@@ -4,12 +4,14 @@ import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
+/** Props for a share button that copies the document URL instead of navigating. */
 interface ShareButtonProps {
   documentId: string;
   showLabel?: boolean;
   className?: string;
 }
 
+/** Copies the canonical document URL to the clipboard and shows short-lived feedback. */
 export function ShareButton({ documentId, showLabel = false, className }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const url = `${window.location.origin}/doc/${documentId}`;

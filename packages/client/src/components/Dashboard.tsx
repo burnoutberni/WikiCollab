@@ -22,6 +22,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 const SORT_OPTIONS: SortKey[] = ['newest', 'oldest', 'alpha', 'alpha-rev'];
 
+/** Lists documents, applies client-side search/sort, and stages newly polled items separately. */
 export function Dashboard() {
   const { documents, loading, pendingCount, loadPending, createDocument } = useDocuments();
   const navigate = useNavigate();

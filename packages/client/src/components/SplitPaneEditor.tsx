@@ -10,6 +10,7 @@ import defaultCss from '@/styles/wikipedia.css?inline';
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
+/** Props for the synchronized source editor and preview pane. */
 interface SplitPaneEditorProps {
   content: string;
   onChange: (value: string) => void;
@@ -27,6 +28,7 @@ interface SplitPaneEditorProps {
   onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
 }
 
+/** Extracts the site origin used to rewrite relative preview links and assets. */
 function getWikiBaseUrl(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
@@ -36,6 +38,10 @@ function getWikiBaseUrl(apiUrl: string): string {
   }
 }
 
+/**
+ * Rewrites relative links in preview HTML so rendered output behaves like the target wiki.
+ * Fragment-only links are preserved so in-preview anchors continue to target the current page.
+ */
 function rewriteRelativeUrls(html: string, baseUrl: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -63,6 +69,9 @@ function rewriteRelativeUrls(html: string, baseUrl: string): string {
   return doc.body.innerHTML;
 }
 
+/**
+ * Renders the collaborative editor beside a wiki preview and keeps preview refreshes throttled.
+ */
 export function SplitPaneEditor({
   content,
   onChange,

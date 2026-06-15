@@ -1,5 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+/** Primary document records; `content` mirrors the latest persisted Yjs text. */
 export const documents = sqliteTable('documents', {
   id: text('id').primaryKey(),
   title: text('title').notNull().default('Untitled'),
@@ -11,6 +12,7 @@ export const documents = sqliteTable('documents', {
   restored_version_id: text('restored_version_id'),
 });
 
+/** Configured MediaWiki targets used for preview and push operations. */
 export const mediawikiInstances = sqliteTable('mediawiki_instances', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -20,6 +22,7 @@ export const mediawikiInstances = sqliteTable('mediawiki_instances', {
   configured_at: text('configured_at').notNull().default(new Date().toISOString()),
 });
 
+/** Immutable revision snapshots stored as base64-encoded Yjs updates. */
 export const documentRevisions = sqliteTable('document_revisions', {
   id: text('id').primaryKey(),
   document_id: text('document_id')
@@ -30,6 +33,7 @@ export const documentRevisions = sqliteTable('document_revisions', {
   created_at: text('created_at').notNull().default(new Date().toISOString()),
 });
 
+/** Cached template payloads fetched from remote MediaWiki instances. */
 export const templateCache = sqliteTable('template_cache', {
   id: text('id').primaryKey(),
   instance_id: text('instance_id')

@@ -59,6 +59,7 @@ import { yCollab } from 'y-codemirror.next';
 import type { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 
+/** Draws the local user's caret and label without relying on remote awareness rendering. */
 class LocalCursorWidget extends WidgetType {
   constructor(
     readonly color: string,
@@ -88,6 +89,7 @@ class LocalCursorWidget extends WidgetType {
   }
 }
 
+/** Mirrors the current selection as local-only decorations so the active user sees their own label. */
 function localCursorPlugin(userName: string, userColor: string) {
   const colorLight = userColor + '33';
   const cursorDeco = Decoration.widget({
@@ -149,6 +151,7 @@ const defaultMwConfig = {
   implicitlyClosedHtmlTags: [] as string[],
 };
 
+/** Props for the collaborative CodeMirror editor. */
 interface WikitextEditorProps {
   content: string;
   onChange: (value: string) => void;
@@ -161,10 +164,15 @@ interface WikitextEditorProps {
 }
 
 export interface WikitextEditorHandle {
+  /** Moves selection to a position and scrolls it into view. */
   jumpToPosition: (anchor: number, head?: number) => void;
+  /** Scrolls a position into view without changing selection. */
   scrollToPosition: (pos: number) => void;
 }
 
+/**
+ * Hosts the shared CodeMirror instance and binds it to a Yjs text source when collaboration is enabled.
+ */
 export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(
   function WikitextEditor(
     { ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor },
@@ -318,6 +326,7 @@ interface TooltipState {
   left: number;
 }
 
+/** Lightweight formatting toolbar that issues direct CodeMirror transactions against the active view. */
 function Toolbar({
   view,
   undoManager,

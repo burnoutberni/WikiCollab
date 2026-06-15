@@ -12,6 +12,7 @@ import * as Y from 'yjs';
 import { getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { generatePreview } from '../preview.js';
+import { setVersionStarred } from '../services/versions.js';
 import { envInt } from '../utils/env.js';
 import { getClientIp } from '../utils/ip.js';
 import {
@@ -25,6 +26,10 @@ import {
 import { createOriginValidator } from './origin.js';
 import { getPersistence, runContentInitializor } from './persistence.js';
 
+/**
+ * Shared Yjs document wrapper for a single WikiCollab page.
+ * Tracks live sockets, awareness state, and async initialization before first use.
+ */
 export class WSSharedDoc extends Y.Doc {
   name: string;
   conns: Map<WebSocket, Set<number>>;
@@ -81,6 +86,7 @@ export class WSSharedDoc extends Y.Doc {
 
 const docs = new Map<string, WSSharedDoc>();
 
+/** Lazily creates and caches a shared document, binding persistence on first access. */
 function getYDoc(docname: string, gc = true): WSSharedDoc {
   let doc = docs.get(docname);
   if (!doc) {
@@ -95,6 +101,7 @@ function getYDoc(docname: string, gc = true): WSSharedDoc {
   return doc;
 }
 
+/** Sends a WS frame and eagerly tears down dead sockets to keep awareness state accurate. */
 function send(doc: WSSharedDoc, conn: WebSocket, m: Uint8Array) {
   if (conn.readyState !== wsReadyStateConnecting && conn.readyState !== wsReadyStateOpen) {
     closeConn(doc, conn);
@@ -109,6 +116,7 @@ function send(doc: WSSharedDoc, conn: WebSocket, m: Uint8Array) {
   }
 }
 
+/** Closes a socket, clears its awareness state, and flushes persistence for the last client. */
 function closeConn(doc: WSSharedDoc, conn: WebSocket) {
   if (doc.conns.has(conn)) {
     const controlledIds = doc.conns.get(conn)!;
@@ -127,6 +135,7 @@ function closeConn(doc: WSSharedDoc, conn: WebSocket) {
   conn.close();
 }
 
+/** Broadcasts an already-encoded custom payload to every connection except the optional sender. */
 export function broadcastCustom(
   doc: WSSharedDoc,
   data: Uint8Array,
@@ -143,6 +152,7 @@ export function broadcastCustom(
 const previewDebounces = new Map<string, ReturnType<typeof setTimeout>>();
 const MAX_PREVIEW_DEBOUNCE_KEYS = 100;
 
+/** Bounds the preview debounce cache so per-document preview requests cannot grow forever. */
 function evictPreviewDebounce(): void {
   if (previewDebounces.size >= MAX_PREVIEW_DEBOUNCE_KEYS) {
     const oldest = previewDebounces.keys().next().value;
@@ -154,6 +164,7 @@ function evictPreviewDebounce(): void {
   }
 }
 
+/** Handles app-level WS messages such as starring, restoring, and preview refreshes. */
 function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
   const { type, payload } = decodeCustomMessage(data);
 
@@ -167,10 +178,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
       if (!version) break;
       if (version.document_id !== doc.name) break;
 
-      db.update(schema.documentRevisions)
-        .set({ starred })
-        .where(eq(schema.documentRevisions.id, versionId))
-        .run();
+      setVersionStarred(versionId, starred, { db, schema, getVersionById });
 
       broadcastCustom(doc, encodeInnerPayload('star', { versionId, starred }));
       break;
@@ -222,6 +230,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
   }
 }
 
+/** Dispatches raw WS frames into Yjs sync, awareness, or WikiCollab custom handlers. */
 function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array) {
   try {
     const encoder = encoding.createEncoder();
@@ -259,9 +268,11 @@ const WS_CONCURRENT = envInt('RATE_LIMIT_WS_CONCURRENT', 100);
 const WS_RATE_MAX = envInt('RATE_LIMIT_WS_RATE_MAX', 100);
 const WS_RATE_WINDOW_MS = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
 
+/** Tracks concurrent WS connections per resolved client IP. */
 export const wsConnectionCounts = new Map<string, number>();
 const wsConnectionRate = new Map<string, number[]>();
 
+/** Extracts the same client IP identity used by HTTP rate limiting from an upgrade request. */
 function getWsIp(req: {
   headers?: Record<string, string | string[] | undefined>;
   socket?: { remoteAddress?: string };
@@ -274,6 +285,7 @@ function getWsIp(req: {
   return getClientIp(forwarded, realIp, connectionIp);
 }
 
+/** Enforces both concurrent-connection and sliding-window WS limits for an IP. */
 export function checkWsRateLimit(ip: string): boolean {
   const current = wsConnectionCounts.get(ip) || 0;
   if (current >= WS_CONCURRENT) return false;
@@ -302,6 +314,10 @@ setInterval(() => {
   }
 }, 60000).unref();
 
+/**
+ * Attaches a socket to a shared Yjs document.
+ * Sends initial sync and awareness state after async document hydration completes.
+ */
 export async function setupWSConnection(
   conn: WebSocket,
   req: { url?: string },
@@ -373,6 +389,7 @@ export async function setupWSConnection(
   }
 }
 
+/** Creates the process-wide WebSocket server and applies origin and connection checks. */
 export function setupWebSocket(server: ServerType) {
   const wss = new WebSocketServer({
     server: server as unknown as Server,
@@ -442,6 +459,7 @@ export function setupWebSocket(server: ServerType) {
   return wss;
 }
 
+/** Clears WS rate-limit and preview debounce state for test isolation. */
 export function resetWsRateLimiters(): void {
   wsConnectionCounts.clear();
   wsConnectionRate.clear();
