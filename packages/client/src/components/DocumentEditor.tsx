@@ -328,6 +328,8 @@ export function DocumentEditor() {
                 userColor={userColor}
                 editorRef={editorRef}
                 onCursorChange={handleCursorChange}
+                sendCustomMessage={sendCustomMessage}
+                onCustomMessage={onCustomMessage}
               />
             )}
           </main>
