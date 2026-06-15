@@ -67,7 +67,7 @@ export class WSSharedDoc extends Y.Doc {
       syncProtocol.writeUpdate(encoder, update);
       const message = encoding.toUint8Array(encoder);
       doc.conns.forEach((_, conn) => send(doc, conn, message));
-    }) as unknown as (eventName: string, ...args: unknown[]) => void);
+    }) as any);
 
     this.initialized = runContentInitializor(this);
   }
@@ -386,7 +386,8 @@ export function setupWebSocket(server: ServerType) {
         socket?: { remoteAddress?: string };
       }
     ) => {
-      const url = new URL(req.url!, `http://${req.headers.host}`);
+      const host = req.headers?.host ?? 'localhost';
+      const url = new URL(req.url!, `http://${host}`);
       const docName = url.pathname.split('/').pop();
 
       if (!docName) {

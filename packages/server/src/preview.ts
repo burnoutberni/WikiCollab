@@ -111,7 +111,7 @@ function sanitize(html: string): string {
   });
 }
 
-type ParserRoot = ReturnType<Awaited<ReturnType<typeof wikiparser.default.parse>>>;
+type ParserRoot = Awaited<ReturnType<typeof wikiparser.default.parse>>;
 
 function generateSourceMap(root: ParserRoot): SourceMapEntry[] {
   const sourceMap: SourceMapEntry[] = [];
