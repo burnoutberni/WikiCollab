@@ -92,6 +92,7 @@ export function VersionHistory({
       if (previewingVersion === versionId) {
         setPreviewingVersion(null);
         setPreviewContent(null);
+        previewRequestRef.current = null;
         return;
       }
 
