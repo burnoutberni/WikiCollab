@@ -48,8 +48,13 @@ describe('WebSocket origin validation', () => {
   });
 
   describe('isOriginAllowed', () => {
-    it('allows undefined origin (same-origin or non-browser)', () => {
+    it('allows undefined origin in development (no CORS_ORIGINS set)', () => {
       expect(isOriginAllowed(undefined as unknown as string)).toBe(true);
+    });
+
+    it('rejects undefined origin when CORS_ORIGINS is configured', () => {
+      process.env.CORS_ORIGINS = 'https://trusted.com';
+      expect(isOriginAllowed(undefined as unknown as string)).toBe(false);
     });
 
     it('allows default origins in development', () => {
@@ -89,13 +94,23 @@ describe('WebSocket origin validation', () => {
       expect(cb).toHaveBeenCalledWith(false, 403, 'Forbidden: origin not allowed');
     });
 
-    it('allows connections with no origin header', () => {
+    it('allows connections with no origin header in development', () => {
       const validator = createOriginValidator();
       const cb = vi.fn();
 
       validator({ origin: '' as any, req: mockReq(), secure: true }, cb);
 
       expect(cb).toHaveBeenCalledWith(true);
+    });
+
+    it('rejects connections with no origin header when CORS_ORIGINS is set', () => {
+      process.env.CORS_ORIGINS = 'https://trusted.com';
+      const validator = createOriginValidator();
+      const cb = vi.fn();
+
+      validator({ origin: '' as any, req: mockReq(), secure: true }, cb);
+
+      expect(cb).toHaveBeenCalledWith(false, 403, 'Forbidden: origin not allowed');
     });
 
     it('logs rejected connections', () => {

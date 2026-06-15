@@ -24,7 +24,7 @@ export function resetAllowedOrigins(): void {
 }
 
 export function isOriginAllowed(origin: string): boolean {
-  if (!origin) return true;
+  if (!origin) return !process.env.CORS_ORIGINS;
   const allowed = getAllowedOrigins();
   return allowed.includes(origin);
 }
