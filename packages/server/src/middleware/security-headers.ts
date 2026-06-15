@@ -2,7 +2,7 @@ import type { MiddlewareHandler } from 'hono';
 
 export interface SecurityHeadersOptions {
   contentSecurityPolicy?: string;
-  strictTransportSecurity?: boolean;
+  strictTransportSecurity?: boolean | string;
   xFrameOptions?: string;
   xContentTypeOptions?: string;
   xXSSProtection?: string;
@@ -40,7 +40,17 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): Middlewar
     c.header('Content-Security-Policy', options.contentSecurityPolicy ?? DEFAULT_CSP);
 
     if (options.strictTransportSecurity !== false && isProduction) {
-      c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+      const isHttps =
+        c.req.header('x-forwarded-proto') === 'https' ||
+        c.req.url.startsWith('https://');
+
+      if (isHttps) {
+        const value =
+          typeof options.strictTransportSecurity === 'string'
+            ? options.strictTransportSecurity
+            : 'max-age=63072000; includeSubDomains';
+        c.header('Strict-Transport-Security', value);
+      }
     }
   };
 }
