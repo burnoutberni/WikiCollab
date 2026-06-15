@@ -4,11 +4,11 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
+import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
+import { securityHeaders } from './middleware/security-headers.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
-import { securityHeaders } from './middleware/security-headers.js';
-import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
 import { setupWebSocket } from './ws/index.js';
 import { getAllowedOrigins } from './ws/origin.js';
 
