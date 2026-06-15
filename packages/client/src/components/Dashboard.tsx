@@ -26,9 +26,11 @@ export function Dashboard() {
   const { documents, loading, pendingCount, loadPending, createDocument } = useDocuments();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortKey>(
-    () => (localStorage.getItem('wikicollab-sort') as SortKey) || 'newest'
-  );
+  const [sort, setSort] = useState<SortKey>(() => {
+    const stored = localStorage.getItem('wikicollab-sort');
+    const valid = SORT_OPTIONS.includes(stored as SortKey);
+    return valid ? (stored as SortKey) : 'newest';
+  });
 
   useEffect(() => {
     localStorage.setItem('wikicollab-sort', sort);
