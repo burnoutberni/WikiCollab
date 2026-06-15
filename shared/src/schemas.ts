@@ -33,8 +33,9 @@ export const PreviewSchema = z.object({
   api_url: z
     .string()
     .url({ protocol: /^https?$/ })
+    .nullable()
     .optional(),
-  page: z.string().max(200).optional(),
+  page: z.string().max(200).nullable().optional(),
 });
 
 export const CssSchema = z.object({
