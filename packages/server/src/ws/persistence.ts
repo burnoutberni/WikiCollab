@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import * as encoding from 'lib0/encoding';
 import { nanoid } from 'nanoid';
 import * as Y from 'yjs';
@@ -25,8 +25,8 @@ export function initContentInitializor() {
       .select()
       .from(schema.documentRevisions)
       .where(eq(schema.documentRevisions.document_id, docName))
-      .all()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+      .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
+      .get();
 
     if (latestRevision?.yjs_state) {
       const state = Buffer.from(latestRevision.yjs_state, 'base64');
