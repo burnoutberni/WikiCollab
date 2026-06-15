@@ -4,6 +4,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
+import { securityHeaders } from './middleware/security-headers.js';
 import { setupWebSocket } from './ws/index.js';
 import { getAllowedOrigins } from './ws/origin.js';
 
@@ -24,6 +25,8 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowHeaders: ['Content-Type'],
 }));
+
+app.use('/api/*', securityHeaders());
 
 app.route('/api/docs', docsRoutes);
 app.route('/api/instances', instancesRoutes);
