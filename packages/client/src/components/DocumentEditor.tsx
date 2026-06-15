@@ -77,6 +77,8 @@ export function DocumentEditor() {
   const editorRef = useRef<WikitextEditorHandle | null>(null);
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const collaboratorCount = peers.length + 1;
+  const websocketServerUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
   useEffect(() => {
     if (doc) {
@@ -295,7 +297,7 @@ export function DocumentEditor() {
                   )}
                   <Users className="h-3.5 w-3.5" />
                   <span>
-                    {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
+                    {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
                   </span>
                 </button>
                 {collaboratorsExpanded && (
@@ -359,6 +361,9 @@ export function DocumentEditor() {
             <ConnectionStatePopover
               connected={connected}
               lastConnected={lastConnected}
+              documentId={id!}
+              collaboratorCount={collaboratorCount}
+              websocketServerUrl={websocketServerUrl}
               onReconnect={() => provider?.connect()}
             />
           </div>
@@ -368,7 +373,7 @@ export function DocumentEditor() {
                 <TooltipTrigger asChild>
                   <PopoverTrigger asChild>
                     <button className="hover:underline cursor-pointer">
-                      {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
+                      {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
                     </button>
                   </PopoverTrigger>
                 </TooltipTrigger>

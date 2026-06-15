@@ -11,9 +11,7 @@ vi.mock('lucide-react', () => {
     props?.className ? <div className={props.className} /> : <div />;
   return {
     default: m,
-    ...Object.fromEntries(
-      ['Activity', 'RefreshCw', 'Wifi', 'WifiOff'].map((n) => [n, m])
-    ),
+    ...Object.fromEntries(['Activity', 'RefreshCw', 'Wifi', 'WifiOff'].map((n) => [n, m])),
   };
 });
 
@@ -25,6 +23,9 @@ describe('ConnectionStatePopover', () => {
   const defaultProps = {
     connected: true,
     lastConnected: Date.now() - 10000,
+    documentId: 'doc-123',
+    collaboratorCount: 3,
+    websocketServerUrl: 'ws://localhost:3000/ws',
     onReconnect: vi.fn(),
   };
 
@@ -36,7 +37,7 @@ describe('ConnectionStatePopover', () => {
 
   it('renders trigger button with disconnected state', () => {
     renderWithProviders(
-      <ConnectionStatePopover connected={false} lastConnected={null} />
+      <ConnectionStatePopover {...defaultProps} connected={false} lastConnected={null} />
     );
     expect(screen.getByTestId('connection-state-trigger')).toBeInTheDocument();
     expect(screen.getByText('Disconnected')).toBeInTheDocument();
@@ -50,6 +51,12 @@ describe('ConnectionStatePopover', () => {
 
     expect(screen.getByTestId('connection-state-popover')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Document')).toBeInTheDocument();
+    expect(screen.getByText('doc-123')).toBeInTheDocument();
+    expect(screen.getByText('Collaborators')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('WebSocket')).toBeInTheDocument();
+    expect(screen.getByText('ws://localhost:3000/ws')).toBeInTheDocument();
     expect(screen.getByText('Connected since')).toBeInTheDocument();
     expect(screen.getByText('Duration')).toBeInTheDocument();
   });
@@ -57,7 +64,7 @@ describe('ConnectionStatePopover', () => {
   it('shows popover when trigger is clicked (disconnected)', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <ConnectionStatePopover connected={false} lastConnected={null} />
+      <ConnectionStatePopover {...defaultProps} connected={false} lastConnected={null} />
     );
 
     await user.click(screen.getByTestId('connection-state-trigger'));
@@ -70,7 +77,11 @@ describe('ConnectionStatePopover', () => {
   it('shows last connected info when disconnected but had prior session', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <ConnectionStatePopover connected={false} lastConnected={Date.now() - 30000} />
+      <ConnectionStatePopover
+        {...defaultProps}
+        connected={false}
+        lastConnected={Date.now() - 30000}
+      />
     );
 
     await user.click(screen.getByTestId('connection-state-trigger'));
@@ -81,7 +92,7 @@ describe('ConnectionStatePopover', () => {
   it('does not show last connected fields without prior connection', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <ConnectionStatePopover connected={false} lastConnected={null} />
+      <ConnectionStatePopover {...defaultProps} connected={false} lastConnected={null} />
     );
 
     await user.click(screen.getByTestId('connection-state-trigger'));
@@ -95,6 +106,7 @@ describe('ConnectionStatePopover', () => {
     const user = userEvent.setup();
     renderWithProviders(
       <ConnectionStatePopover
+        {...defaultProps}
         connected={false}
         lastConnected={null}
         onReconnect={onReconnect}
@@ -102,8 +114,31 @@ describe('ConnectionStatePopover', () => {
     );
 
     await user.click(screen.getByTestId('connection-state-trigger'));
-    await user.click(screen.getByTestId('connection-retry-btn'));
+    const retryButton = screen.getByTestId('connection-retry-btn');
+    await user.click(retryButton);
 
     expect(onReconnect).toHaveBeenCalledOnce();
+    expect(retryButton).toBeDisabled();
+    expect(screen.getByText('Reconnecting…')).toBeInTheDocument();
+  });
+
+  it('clamps duration to zero when lastConnected is ahead of current time', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ConnectionStatePopover {...defaultProps} lastConnected={Date.now() + 1000} />
+    );
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+
+    expect(screen.getByText('0s')).toBeInTheDocument();
+  });
+
+  it('adds an accessible name to the trigger button', () => {
+    renderWithProviders(<ConnectionStatePopover {...defaultProps} />);
+
+    expect(screen.getByRole('button', { name: 'Connection status: Connected' })).toHaveAttribute(
+      'type',
+      'button'
+    );
   });
 });

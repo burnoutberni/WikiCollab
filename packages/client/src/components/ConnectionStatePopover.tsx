@@ -9,6 +9,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface ConnectionStatePopoverProps {
   connected: boolean;
   lastConnected: number | null;
+  documentId: string;
+  collaboratorCount: number;
+  websocketServerUrl: string;
   onReconnect?: () => void;
 }
 
@@ -32,6 +35,9 @@ function formatTime(timestamp: number): string {
 export function ConnectionStatePopover({
   connected,
   lastConnected,
+  documentId,
+  collaboratorCount,
+  websocketServerUrl,
   onReconnect,
 }: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
@@ -59,7 +65,8 @@ export function ConnectionStatePopover({
 
   const statusText = connected ? 'Connected' : 'Disconnected';
 
-  const durationText = connected && lastConnected ? formatDuration(now - lastConnected) : null;
+  const durationText =
+    connected && lastConnected ? formatDuration(Math.max(0, now - lastConnected)) : null;
 
   const connectedSinceText = lastConnected ? formatTime(lastConnected) : null;
 
@@ -74,6 +81,8 @@ export function ConnectionStatePopover({
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
             <button
+              type="button"
+              aria-label={`Connection status: ${statusText}`}
               className="flex items-center gap-1 cursor-pointer hover:opacity-80"
               data-testid="connection-state-trigger"
             >
@@ -114,6 +123,27 @@ export function ConnectionStatePopover({
                 </Button>
               </div>
             )}
+
+            <Separator />
+
+            <div className="space-y-1.5 text-muted-foreground">
+              <div className="flex justify-between gap-3">
+                <span>Document</span>
+                <span className="max-w-[10rem] truncate font-mono text-foreground">
+                  {documentId}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>Collaborators</span>
+                <span className="text-foreground">{collaboratorCount}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>WebSocket</span>
+                <span className="max-w-[10rem] truncate font-mono text-foreground">
+                  {websocketServerUrl}
+                </span>
+              </div>
+            </div>
 
             {lastConnected && (
               <>
