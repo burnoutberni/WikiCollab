@@ -1,19 +1,17 @@
 import type { Context, Next } from 'hono';
+import { envInt, envWindow } from '../utils/env.js';
 
 interface RateLimitEntry {
   timestamps: number[];
 }
 
-interface RateLimitStore {
-  get(key: string): RateLimitEntry | undefined;
-  set(key: string, entry: RateLimitEntry): void;
-}
-
-interface RateLimitOptions {
+interface RateLimiterOptions {
   max: number;
   windowMs: number;
   message?: string;
 }
+
+export type RateLimiterHandler = ((c: Context, next: Next) => Promise<Response | void>) & { reset: () => void };
 
 function getIp(c: Context): string {
   const forwarded = c.req.header('x-forwarded-for');
@@ -25,29 +23,28 @@ function getIp(c: Context): string {
   return 'unknown';
 }
 
-const inMemoryStore = new Map<string, RateLimitEntry>();
-
-export function createRateLimiter(opts: RateLimitOptions) {
+export function createRateLimiter(opts: RateLimiterOptions): RateLimiterHandler {
   const { max, windowMs, message = 'Too many requests, please try again later' } = opts;
+  const store = new Map<string, RateLimitEntry>();
 
   const cleanup = setInterval(() => {
     const now = Date.now();
-    for (const [key, entry] of inMemoryStore) {
+    for (const [key, entry] of store) {
       entry.timestamps = entry.timestamps.filter((t) => now - t < windowMs);
       if (entry.timestamps.length === 0) {
-        inMemoryStore.delete(key);
+        store.delete(key);
       }
     }
   }, windowMs);
   if (typeof cleanup.unref === 'function') cleanup.unref();
 
-  return async (c: Context, next: Next) => {
+  const handler = async (c: Context, next: Next) => {
     const ip = getIp(c);
     const now = Date.now();
-    let entry = inMemoryStore.get(ip);
+    let entry = store.get(ip);
     if (!entry) {
       entry = { timestamps: [] };
-      inMemoryStore.set(ip, entry);
+      store.set(ip, entry);
     }
     entry.timestamps = entry.timestamps.filter((t) => now - t < windowMs);
     if (entry.timestamps.length >= max) {
@@ -59,34 +56,36 @@ export function createRateLimiter(opts: RateLimitOptions) {
     entry.timestamps.push(now);
     await next();
   };
+
+  (handler as RateLimiterHandler).reset = () => {
+    store.clear();
+    clearInterval(cleanup);
+  };
+
+  return handler as RateLimiterHandler;
 }
 
-function envInt(key: string, def: number): number {
-  const val = process.env[key];
-  if (val === undefined) return def;
-  const parsed = parseInt(val, 10);
-  return Number.isNaN(parsed) ? def : parsed;
-}
-
-function envWindow(key: string, def: number): number {
-  return envInt(key, def) * 1000;
-}
-
-export const crudLimiter = createRateLimiter({
+const _crud = createRateLimiter({
   max: envInt('RATE_LIMIT_CRUD_MAX', 100),
   windowMs: envWindow('RATE_LIMIT_CRUD_WINDOW', 60),
 });
 
-export const pushLimiter = createRateLimiter({
+const _push = createRateLimiter({
   max: envInt('RATE_LIMIT_PUSH_MAX', 10),
   windowMs: envWindow('RATE_LIMIT_PUSH_WINDOW', 60),
 });
 
-export const previewLimiter = createRateLimiter({
+const _preview = createRateLimiter({
   max: envInt('RATE_LIMIT_PREVIEW_MAX', 60),
   windowMs: envWindow('RATE_LIMIT_PREVIEW_WINDOW', 60),
 });
 
+export const crudLimiter = _crud;
+export const pushLimiter = _push;
+export const previewLimiter = _preview;
+
 export function resetRateLimiters(): void {
-  inMemoryStore.clear();
+  _crud.reset();
+  _push.reset();
+  _preview.reset();
 }
