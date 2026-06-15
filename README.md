@@ -19,18 +19,50 @@ pnpm dev
 
 Open `http://localhost:5173` in your browser.
 
-## Stack
+## Deployment
 
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS, Yjs
-- **Backend**: Hono, better-sqlite3, Yjs WebSocket
+### Environment
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+cp .env.example .env
+```
+
+At minimum, set these for production:
+
+- `CORS_ORIGINS` — your production domain(s), e.g. `https://wiki.example.com`
+- `TRUSTED_PROXIES` — see below
+
+### Reverse Proxy & Trusted Proxies
+
+When deploying behind a reverse proxy (Caddy, nginx, Cloudflare, Railway, etc.), the server
+sees the proxy's IP instead of the real client IP. **Set the `TRUSTED_PROXIES` environment variable** so rate limiting
+and IP logging use the correct client address:
+
+```bash
+# Caddy / nginx / generic (internal Docker networks)
+TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+
+# Single known proxy IP
+TRUSTED_PROXIES=203.0.113.10
+```
+
+Without this, **all traffic is treated as coming from the proxy IP** and rate limits are shared across all users.
 
 ## Project Structure
 
 ```
+shared/      — Shared types and utilities
 packages/
   client/    — React SPA
   server/    — Hono API + WebSocket server
 ```
+
+## Stack
+
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, Yjs, CodeMirror 6
+- **Backend**: Hono, better-sqlite3, Yjs WebSocket
 
 ## License
 

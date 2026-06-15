@@ -341,6 +341,103 @@ describe('Preview route sanitization', () => {
       expect(data.html).toContain('style="color:red;font-size:12px"');
       expect(data.html).toContain('Red text');
     });
+
+    it('strips hex-escaped javascript: in style attributes (\\6a\\61vascript:)', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<div style="background:\\6a\\61vascript:alert(1)">Styled</div>'
+      );
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\6a\\61vascript:');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('strips hex-escaped expression() in style attributes (\\65xpression\\28)', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<div style="width:\\65xpression\\28 alert(1)">Styled</div>'
+      );
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('expression');
+      expect(data.html).not.toContain('\\65xpression\\28');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('strips escaped url(javascript:) in style attributes', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<div style="back\\67round:url(javascript:alert(1))">Styled</div>'
+      );
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\67round');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('strips non-hex-escaped javascript: in style attributes (\\java\\script:)', async () => {
+      mockParser.toHtml.mockReturnValue('<div style="\\java\\script:alert(1)">Styled</div>');
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\j');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('strips line-continuation-escaped javascript: in style attributes (ja\\[newline]vascript:)', async () => {
+      mockParser.toHtml.mockReturnValue('<div style="ja\\\nvascript:alert(1)">Styled</div>');
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('strips unicode-escaped javascript: in style attributes (\\00006a\\000061vascript:)', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<div style="background:\\00006a\\000061vascript:alert(1)">Styled</div>'
+      );
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\00006a\\000061vascript:');
+      expect(data.html).toContain('Styled');
+    });
   });
 
   describe('both code paths sanitized', () => {

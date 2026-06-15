@@ -1,6 +1,8 @@
 import type { Context, Next } from 'hono';
+import type { IncomingMessage } from 'http';
 
 import { envInt, envWindow } from '../utils/env.js';
+import { getClientIp } from '../utils/ip.js';
 
 interface RateLimitEntry {
   timestamps: number[];
@@ -16,14 +18,16 @@ export type RateLimiterHandler = ((c: Context, next: Next) => Promise<Response |
   reset: () => void;
 };
 
+function getConnectionIp(c: Context): string | undefined {
+  const incoming = (c.env as { incoming?: IncomingMessage })?.incoming;
+  return incoming?.socket?.remoteAddress;
+}
+
 function getIp(c: Context): string {
   const forwarded = c.req.header('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-  const remote = c.req.header('x-real-ip');
-  if (remote) return remote;
-  return 'unknown';
+  const realIp = c.req.header('x-real-ip');
+  const connectionIp = getConnectionIp(c);
+  return getClientIp(forwarded, realIp, connectionIp);
 }
 
 export function createRateLimiter(opts: RateLimiterOptions): RateLimiterHandler {

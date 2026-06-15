@@ -1,5 +1,7 @@
 import type { IncomingMessage } from 'http';
 
+import { getClientIp } from '../utils/ip.js';
+
 const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:3001'];
 
 let allowedOrigins: string[] | null = null;
@@ -30,10 +32,13 @@ export function isOriginAllowed(origin: string): boolean {
 }
 
 export function logRejectedOrigin(req: IncomingMessage, origin: string | undefined): void {
-  const socketIp = req.socket.remoteAddress;
-  const forwardedFor = req.headers['x-forwarded-for'];
-  const ip = forwardedFor ? `${socketIp} (forwarded: ${forwardedFor})` : socketIp;
-  console.warn(`[WS REJECTED] origin=${origin ?? 'none'} ip=${ip} url=${req.url}`);
+  const fwd = req.headers['x-forwarded-for'];
+  const forwardedFor = Array.isArray(fwd) ? fwd[0] : fwd;
+  const ri = req.headers['x-real-ip'];
+  const realIp = Array.isArray(ri) ? ri[0] : ri;
+  const connectionIp = req.socket.remoteAddress;
+  const clientIp = getClientIp(forwardedFor, realIp, connectionIp);
+  console.warn(`[WS REJECTED] origin=${origin ?? 'none'} ip=${clientIp} url=${req.url}`);
 }
 
 export function createOriginValidator() {

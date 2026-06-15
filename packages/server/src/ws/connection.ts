@@ -13,6 +13,7 @@ import { getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { generatePreview } from '../preview.js';
 import { envInt } from '../utils/env.js';
+import { getClientIp } from '../utils/ip.js';
 import {
   messageAwareness,
   messageCustom,
@@ -267,11 +268,10 @@ function getWsIp(req: {
 }): string {
   const forwardedRaw = req?.headers?.['x-forwarded-for'];
   const forwarded = Array.isArray(forwardedRaw) ? forwardedRaw[0] : forwardedRaw;
-  if (forwarded) return forwarded.split(',')[0].trim();
   const realIpRaw = req?.headers?.['x-real-ip'];
   const realIp = Array.isArray(realIpRaw) ? realIpRaw[0] : realIpRaw;
-  if (realIp) return realIp;
-  return req?.socket?.remoteAddress || 'unknown';
+  const connectionIp = req?.socket?.remoteAddress;
+  return getClientIp(forwarded, realIp, connectionIp);
 }
 
 function checkWsRateLimit(ip: string): boolean {

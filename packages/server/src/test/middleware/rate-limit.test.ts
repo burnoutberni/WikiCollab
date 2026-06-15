@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createRateLimiter, resetRateLimiters } from '../../middleware/rate-limit.js';
 
@@ -11,9 +11,17 @@ function createTestApp(max = 3, windowSec = 1) {
   return app;
 }
 
+function mockEnv(remoteAddress: string): object {
+  return { incoming: { socket: { remoteAddress } } };
+}
+
 describe('Rate limit middleware', () => {
   beforeEach(() => {
     resetRateLimiters();
+  });
+
+  afterEach(() => {
+    delete process.env.TRUSTED_PROXIES;
   });
 
   it('allows requests under the limit', async () => {
@@ -120,5 +128,55 @@ describe('Rate limit middleware', () => {
 
     const rB3 = await app.request('/api/b', { headers });
     expect(rB3.status).toBe(429);
+  });
+
+  describe('trusted proxy', () => {
+    it('uses forwarded IP from trusted proxy', async () => {
+      process.env.TRUSTED_PROXIES = '10.0.0.0/8';
+      const app = createTestApp(1, 60);
+      const req = new Request('http://localhost/api/test', {
+        headers: { 'x-forwarded-for': '1.2.3.4' },
+      });
+      const res = await app.fetch(req, mockEnv('10.0.0.1'));
+      expect(res.status).toBe(200);
+
+      const res2 = await app.fetch(req, mockEnv('10.0.0.1'));
+      expect(res2.status).toBe(429);
+    });
+
+    it('rejects spoofed X-Forwarded-For from non-trusted IP', async () => {
+      process.env.TRUSTED_PROXIES = '10.0.0.0/8';
+      const app = createTestApp(1, 60);
+      const attackerIp = '203.0.113.5';
+      const req = new Request('http://localhost/api/test', {
+        headers: { 'x-forwarded-for': '1.2.3.4' },
+      });
+      const req2 = new Request('http://localhost/api/test', {
+        headers: { 'x-forwarded-for': '5.6.7.8' },
+      });
+
+      const r1 = await app.fetch(req, mockEnv(attackerIp));
+      expect(r1.status).toBe(200);
+
+      const r2 = await app.fetch(req2, mockEnv(attackerIp));
+      expect(r2.status).toBe(429);
+    });
+
+    it('ignores X-Forwarded-For when no trusted proxies configured', async () => {
+      delete process.env.TRUSTED_PROXIES;
+      const app = createTestApp(1, 60);
+      const req = new Request('http://localhost/api/test', {
+        headers: { 'x-forwarded-for': '1.2.3.4' },
+      });
+      const req2 = new Request('http://localhost/api/test', {
+        headers: { 'x-forwarded-for': '5.6.7.8' },
+      });
+
+      const r1 = await app.fetch(req, mockEnv('127.0.0.1'));
+      expect(r1.status).toBe(200);
+
+      const r2 = await app.fetch(req2, mockEnv('127.0.0.1'));
+      expect(r2.status).toBe(429);
+    });
   });
 });
