@@ -32,8 +32,10 @@ export function isOriginAllowed(origin: string): boolean {
 }
 
 export function logRejectedOrigin(req: IncomingMessage, origin: string | undefined): void {
-  const forwardedFor = req.headers['x-forwarded-for'] as string | undefined;
-  const realIp = req.headers['x-real-ip'] as string | undefined;
+  const fwd = req.headers['x-forwarded-for'];
+  const forwardedFor = Array.isArray(fwd) ? fwd[0] : fwd;
+  const ri = req.headers['x-real-ip'];
+  const realIp = Array.isArray(ri) ? ri[0] : ri;
   const connectionIp = req.socket.remoteAddress;
   const clientIp = getClientIp(forwardedFor, realIp, connectionIp);
   console.warn(`[WS REJECTED] origin=${origin ?? 'none'} ip=${clientIp} url=${req.url}`);

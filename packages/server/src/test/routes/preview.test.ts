@@ -355,6 +355,7 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\6a\\61vascript:');
       expect(data.html).toContain('Styled');
     });
 
@@ -371,6 +372,7 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).not.toContain('expression');
+      expect(data.html).not.toContain('\\65xpression\\28');
       expect(data.html).toContain('Styled');
     });
 
@@ -387,6 +389,7 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\67round');
       expect(data.html).toContain('Styled');
     });
 
@@ -403,6 +406,7 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\00006a\\000061vascript:');
       expect(data.html).toContain('Styled');
     });
   });

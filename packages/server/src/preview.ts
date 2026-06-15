@@ -8,10 +8,11 @@ interface SourceMapEntry {
 }
 
 function decodeCssEscape(value: string): string {
-  return value.replace(/\\([0-9a-fA-F]{1,6})(\s|$)|(\\(.))/g, (_match, hex, space, other, char) => {
+  return value.replace(/\\([0-9a-fA-F]{1,6})\s?|(\\(.))/g, (_match, hex, _space, other, char) => {
     if (hex !== undefined) {
       const cp = Number.parseInt(hex, 16);
-      return cp > 0 ? String.fromCodePoint(cp) : '';
+      if (cp > 0 && cp <= 0x10ffff) return String.fromCodePoint(cp);
+      return '';
     }
     return char;
   });

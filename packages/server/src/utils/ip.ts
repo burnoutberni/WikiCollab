@@ -1,5 +1,11 @@
 import { isIPv4, isIPv6 } from 'node:net';
 
+function normalizeIp(ip: string): string {
+  const v4mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  if (v4mapped) return v4mapped[1];
+  return ip;
+}
+
 function netmask(bits: number, isV6: boolean): number[] {
   const totalBytes = isV6 ? 16 : 4;
   const mask: number[] = [];
@@ -40,14 +46,15 @@ function ipToBytes(ip: string): number[] {
 }
 
 export function cidrMatch(ip: string, cidr: string): boolean {
+  const normalizedIp = normalizeIp(ip);
   const [range, bitsStr] = cidr.split('/');
-  if (!range || !bitsStr) return ip === cidr;
+  if (!range || !bitsStr) return normalizedIp === cidr;
 
   const isV4 = isIPv4(range);
   const isV6 = isIPv6(range);
   if (!isV4 && !isV6) return false;
-  if (isV4 && !isIPv4(ip)) return false;
-  if (isV6 && !isIPv6(ip)) return false;
+  if (isV4 && !isIPv4(normalizedIp)) return false;
+  if (isV6 && !isIPv6(normalizedIp)) return false;
 
   const bits = Number.parseInt(bitsStr, 10);
   if (Number.isNaN(bits) || bits < 0) return false;
@@ -55,7 +62,7 @@ export function cidrMatch(ip: string, cidr: string): boolean {
   if (isV6 && bits > 128) return false;
 
   const mask = netmask(bits, isV6);
-  const ipB = ipToBytes(ip);
+  const ipB = ipToBytes(normalizedIp);
   const rangeB = ipToBytes(range);
 
   if (ipB.length !== rangeB.length) return false;
@@ -73,9 +80,10 @@ export function parseTrustedProxies(): string[] {
 }
 
 export function isTrustedProxy(ip: string, trustedProxies: string[]): boolean {
+  const normalizedIp = normalizeIp(ip);
   return trustedProxies.some((entry) => {
-    if (entry.includes('/')) return cidrMatch(ip, entry);
-    return ip === entry;
+    if (entry.includes('/')) return cidrMatch(normalizedIp, entry);
+    return normalizedIp === entry;
   });
 }
 
@@ -99,7 +107,7 @@ export function getClientIp(
       .map((s) => s.trim())
       .filter(Boolean);
     if (ips && ips.length > 0) {
-      return ips[ips.length - 1];
+      return ips[0];
     }
     if (xRealIp) return xRealIp;
   }

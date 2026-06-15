@@ -34,6 +34,14 @@ describe('cidrMatch', () => {
   it('matches IPv6 within range', () => {
     expect(cidrMatch('2001:db8::1', '2001:db8::/32')).toBe(true);
   });
+
+  it('matches IPv4-mapped IPv6 against IPv4 CIDR', () => {
+    expect(cidrMatch('::ffff:10.0.0.50', '10.0.0.0/24')).toBe(true);
+  });
+
+  it('rejects IPv4-mapped IPv6 outside IPv4 CIDR', () => {
+    expect(cidrMatch('::ffff:10.0.1.1', '10.0.0.0/24')).toBe(false);
+  });
 });
 
 describe('parseTrustedProxies', () => {
@@ -67,12 +75,20 @@ describe('isTrustedProxy', () => {
     expect(isTrustedProxy('10.0.0.1', ['10.0.0.1'])).toBe(true);
   });
 
+  it('matches IPv4-mapped IPv6 against exact IPv4', () => {
+    expect(isTrustedProxy('::ffff:10.0.0.1', ['10.0.0.1'])).toBe(true);
+  });
+
   it('matches CIDR range', () => {
     expect(isTrustedProxy('10.0.5.5', ['10.0.0.0/8'])).toBe(true);
   });
 
   it('rejects non-matching IP', () => {
     expect(isTrustedProxy('1.2.3.4', ['10.0.0.0/8'])).toBe(false);
+  });
+
+  it('matches IPv4-mapped IPv6 against IPv4 CIDR', () => {
+    expect(isTrustedProxy('::ffff:10.0.5.5', ['10.0.0.0/8'])).toBe(true);
   });
 });
 
@@ -109,9 +125,9 @@ describe('getClientIp', () => {
       expect(getClientIp('1.2.3.4', undefined, '10.0.0.1')).toBe('1.2.3.4');
     });
 
-    it('uses rightmost IP from X-Forwarded-For', () => {
+    it('uses leftmost IP from X-Forwarded-For', () => {
       process.env.TRUSTED_PROXIES = '10.0.0.0/8';
-      expect(getClientIp('1.2.3.4, 10.0.0.5', undefined, '10.0.0.1')).toBe('10.0.0.5');
+      expect(getClientIp('1.2.3.4, 10.0.0.5', undefined, '10.0.0.1')).toBe('1.2.3.4');
     });
 
     it('uses x-real-ip as fallback when no x-forwarded-for', () => {
