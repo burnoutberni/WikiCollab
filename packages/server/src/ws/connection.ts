@@ -262,12 +262,14 @@ const wsConnectionCounts = new Map<string, number>();
 const wsConnectionRate = new Map<string, number[]>();
 
 function getWsIp(req: {
-  headers?: Record<string, string | undefined>;
+  headers?: Record<string, string | string[] | undefined>;
   socket?: { remoteAddress?: string };
 }): string {
-  const forwarded = req?.headers?.['x-forwarded-for'];
+  const forwardedRaw = req?.headers?.['x-forwarded-for'];
+  const forwarded = Array.isArray(forwardedRaw) ? forwardedRaw[0] : forwardedRaw;
   if (forwarded) return forwarded.split(',')[0].trim();
-  const realIp = req?.headers?.['x-real-ip'];
+  const realIpRaw = req?.headers?.['x-real-ip'];
+  const realIp = Array.isArray(realIpRaw) ? realIpRaw[0] : realIpRaw;
   if (realIp) return realIp;
   return req?.socket?.remoteAddress || 'unknown';
 }
@@ -383,7 +385,7 @@ export function setupWebSocket(server: ServerType) {
       ws: WebSocket,
       req: {
         url?: string;
-        headers?: Record<string, string | undefined>;
+        headers?: Record<string, string | string[] | undefined>;
         socket?: { remoteAddress?: string };
       }
     ) => {
