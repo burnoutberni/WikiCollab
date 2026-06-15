@@ -7,6 +7,7 @@ import * as Y from 'yjs';
 import { serverFetch, SsrfError } from 'server-fetch';
 import { CreateDocumentSchema, UpdateDocumentSchema, PushToWikiSchema } from 'shared';
 import { parseAndValidate } from '../middleware/validate.js';
+import { pushLimiter } from '../middleware/rate-limit.js';
 
 const docs = new Hono();
 
@@ -198,8 +199,8 @@ docs.get('/:id/versions/:v/preview', (c) => {
   }
 });
 
-docs.post('/:id/push', async (c) => {
-  const id = c.req.param('id');
+docs.post('/:id/push', pushLimiter, async (c) => {
+  const id = c.req.param('id')!;
   const result = await parseAndValidate(c, PushToWikiSchema);
   if (!result.success) return result.response;
   const body = result.data;
