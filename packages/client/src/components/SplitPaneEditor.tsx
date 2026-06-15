@@ -36,7 +36,7 @@ function getWikiBaseUrl(apiUrl: string): string {
   }
 }
 
-function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): string {
+function rewriteRelativeUrls(html: string, baseUrl: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
@@ -47,13 +47,10 @@ function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): 
         href &&
         !href.startsWith('http') &&
         !href.startsWith('//') &&
-        !href.startsWith('javascript:')
+        !href.startsWith('javascript:') &&
+        !href.startsWith('#')
       ) {
-        if (href.startsWith('#')) {
-          el.setAttribute('href', baseUrl + '/wiki/' + encodeURIComponent(pageTitle) + href);
-        } else {
-          el.setAttribute('href', baseUrl + (href.startsWith('/') ? href : '/' + href));
-        }
+        el.setAttribute('href', baseUrl + (href.startsWith('/') ? href : '/' + href));
       }
     } else if (el instanceof HTMLImageElement) {
       const src = el.getAttribute('src');
@@ -113,11 +110,7 @@ export function SplitPaneEditor({
         if (payload.api_url === currentApiUrl && payload.page === currentTitle) {
           let html = payload.html;
           if (currentApiUrl) {
-            html = rewriteRelativeUrls(
-              html,
-              getWikiBaseUrl(currentApiUrl),
-              currentTitle || 'Untitled'
-            );
+            html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl));
           }
           setPreviewHtml(html);
           setLoading(false);
@@ -146,7 +139,7 @@ export function SplitPaneEditor({
         const data = await res.json();
         let html = data.html || '';
         if (apiUrl) {
-          html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl), title || 'Untitled');
+          html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl));
         }
         setPreviewHtml(html);
       } else {
@@ -194,10 +187,18 @@ export function SplitPaneEditor({
     const target = e.target as HTMLElement;
     const anchor = target.closest('a');
     if (anchor) {
-      e.preventDefault();
       const href = anchor.getAttribute('href');
       if (href && !href.startsWith('javascript:')) {
-        setLinkModalUrl(href);
+        e.preventDefault();
+        if (href.startsWith('#')) {
+          const id = href.slice(1);
+          if (id) {
+            const el = previewRef.current?.ownerDocument?.getElementById(id);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        } else {
+          setLinkModalUrl(href);
+        }
       }
     }
   }, []);
