@@ -169,11 +169,15 @@ export function useYjs(docId: string | null) {
     awareness.on('change', updatePeers);
 
     wsProvider.messageHandlers[messageCustom] = (_encoder: any, decoder: any) => {
-      const customData = decoding.readVarUint8Array(decoder);
-      const { type, payload } = decodeCustomMessage(customData);
-      const handlers = customHandlersRef.current.get(type);
-      if (handlers) {
-        handlers.forEach((handler) => handler(payload));
+      try {
+        const customData = decoding.readVarUint8Array(decoder);
+        const { type, payload } = decodeCustomMessage(customData);
+        const handlers = customHandlersRef.current.get(type);
+        if (handlers) {
+          handlers.forEach((handler) => handler(payload));
+        }
+      } catch (err) {
+        console.warn('Dropped malformed custom message', err);
       }
     };
 
