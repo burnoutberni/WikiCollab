@@ -13,6 +13,7 @@ describe('Security Headers middleware', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
+
   it('sets all required security headers on /api routes', async () => {
     const app = createTestApp();
     const res = await app.request('/api/test');
@@ -29,7 +30,9 @@ describe('Security Headers middleware', () => {
 
   it('does not set HSTS in non-production', async () => {
     const app = createTestApp();
-    const res = await app.request('/api/test');
+    const res = await app.request('/api/test', {
+      headers: { 'x-forwarded-proto': 'https' },
+    });
     expect(res.headers.get('Strict-Transport-Security')).toBeNull();
   });
 
@@ -58,18 +61,52 @@ describe('Security Headers middleware', () => {
     const app = new Hono();
     app.use('/api/*', securityHeaders({ strictTransportSecurity: false }));
     app.get('/api/test', (c) => c.json({ ok: true }));
+    const res = await app.request('/api/test', {
+      headers: { 'x-forwarded-proto': 'https' },
+    });
+
+    expect(res.headers.get('Strict-Transport-Security')).toBeNull();
+  });
+
+  it('sets HSTS in production over HTTPS by default', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const app = createTestApp();
+    const res = await app.request('/api/test', {
+      headers: { 'x-forwarded-proto': 'https' },
+    });
+
+    expect(res.headers.get('Strict-Transport-Security')).toBe(
+      'max-age=63072000; includeSubDomains'
+    );
+  });
+
+  it('does not set HSTS over HTTP even in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const app = createTestApp();
     const res = await app.request('/api/test');
 
     expect(res.headers.get('Strict-Transport-Security')).toBeNull();
   });
 
-  it('sets HSTS in production by default', async () => {
+  it('sets HSTS when URL scheme is https://', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     const app = createTestApp();
-    const res = await app.request('/api/test');
+    const res = await app.request('https://localhost/api/test');
 
     expect(res.headers.get('Strict-Transport-Security')).toBe(
       'max-age=63072000; includeSubDomains'
     );
+  });
+
+  it('allows custom HSTS value via string option', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const app = new Hono();
+    app.use('/api/*', securityHeaders({ strictTransportSecurity: 'max-age=3600' }));
+    app.get('/api/test', (c) => c.json({ ok: true }));
+    const res = await app.request('/api/test', {
+      headers: { 'x-forwarded-proto': 'https' },
+    });
+
+    expect(res.headers.get('Strict-Transport-Security')).toBe('max-age=3600');
   });
 });
