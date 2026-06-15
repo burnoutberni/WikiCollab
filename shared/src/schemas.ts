@@ -21,7 +21,7 @@ export const UpdateDocumentSchema = z.object({
 });
 
 export const PushToWikiSchema = z.object({
-  api_url: z.string().url('api_url must be a valid URL'),
+  api_url: z.string().url({ protocol: /^https?$/ }),
   token: z.string().min(1, 'token is required'),
   title: z.string().max(500).optional(),
   content: z.string().max(50000).optional(),
@@ -30,10 +30,10 @@ export const PushToWikiSchema = z.object({
 
 export const PreviewSchema = z.object({
   wikitext: z.string().optional(),
-  api_url: z.string().url().optional(),
+  api_url: z.string().url({ protocol: /^https?$/ }).optional(),
   page: z.string().max(200).optional(),
 });
 
 export const CssSchema = z.object({
-  api_url: z.string().url('api_url must be a valid URL'),
+  api_url: z.string().url({ protocol: /^https?$/ }),
 });
