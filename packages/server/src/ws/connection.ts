@@ -12,6 +12,7 @@ import type { Server } from 'http';
 import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
 import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
+import { createOriginValidator } from './origin.js';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -258,7 +259,10 @@ export async function setupWSConnection(conn: WebSocket, req: any, { docName, gc
 }
 
 export function setupWebSocket(server: ServerType) {
-  const wss = new WebSocketServer({ server: server as unknown as Server });
+  const wss = new WebSocketServer({
+    server: server as unknown as Server,
+    verifyClient: createOriginValidator(),
+  });
 
   wss.on('connection', (ws: WebSocket, req: any) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
