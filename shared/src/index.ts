@@ -93,3 +93,11 @@ export interface RestorePayload {
 
 export { replaceYText } from './yjs.js';
 export { messageCustom, encodeInnerPayload, encodeCustomMessage, decodeCustomMessage, wrapCustomMessage } from './protocol.js';
+export {
+  CreateDocumentSchema,
+  UpdateDocumentSchema,
+  PushToWikiSchema,
+  PreviewSchema,
+  CssSchema,
+} from './schemas.js';
+export type { z } from 'zod';
