@@ -167,7 +167,7 @@ export interface WikitextEditorHandle {
 
 export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(
   function WikitextEditor(
-    { ytext, provider, onRemoteChange, onCursorChange, userName, userColor },
+    { ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor },
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -252,6 +252,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               const newValue = update.state.doc.toString();
+              onChange(newValue);
               onRemoteChange?.(newValue);
             }
             if (update.selectionSet) {
@@ -284,7 +285,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
         v.destroy();
         setView(null);
       };
-    }, [ytext, provider, onRemoteChange, onCursorChange, userName, userColor]);
+    }, [ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor]);
 
     return (
       <div className="h-full w-full flex flex-col relative">
