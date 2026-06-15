@@ -41,7 +41,8 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): Middlewar
 
     if (options.strictTransportSecurity !== false && isProduction) {
       const isHttps =
-        c.req.header('x-forwarded-proto') === 'https' || c.req.url.startsWith('https://');
+        (process.env.TRUST_PROXY === 'true' && c.req.header('x-forwarded-proto') === 'https') ||
+        c.req.url.startsWith('https://');
 
       if (isHttps) {
         const value =
