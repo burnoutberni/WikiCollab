@@ -69,13 +69,26 @@ describe('ConnectionStatePopover', () => {
     expect(screen.getByText('Duration')).toBeInTheDocument();
   });
 
-  it('does not show duration fields when disconnected', async () => {
+  it('does not show duration fields when disconnected without prior connection', async () => {
     const user = userEvent.setup();
     renderWithProviders(<ConnectionStatePopover connected={false} lastConnected={null} />);
 
     await user.click(screen.getByTestId('connection-state-trigger'));
 
     expect(screen.queryByText('Connected since')).not.toBeInTheDocument();
+    expect(screen.queryByText('Last connected')).not.toBeInTheDocument();
     expect(screen.queryByText('Duration')).not.toBeInTheDocument();
+  });
+
+  it('shows last connected info when disconnected but had prior session connection', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ConnectionStatePopover connected={false} lastConnected={Date.now() - 30000} />
+    );
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+
+    expect(screen.getByText('Last connected')).toBeInTheDocument();
+    expect(screen.getByText('Duration')).toBeInTheDocument();
   });
 });

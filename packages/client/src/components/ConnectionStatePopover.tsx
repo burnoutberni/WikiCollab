@@ -44,9 +44,9 @@ export function ConnectionStatePopover({ connected, lastConnected }: ConnectionS
 
   const statusText = connected ? 'Connected' : 'Disconnected';
 
-  const durationText = connected && lastConnected ? formatDuration(now - lastConnected) : null;
+  const durationText = lastConnected ? formatDuration(now - lastConnected) : null;
 
-  const connectedSinceText = connected && lastConnected ? formatTime(lastConnected) : null;
+  const connectedSinceText = lastConnected ? formatTime(lastConnected) : null;
 
   return (
     <Tooltip>
@@ -79,13 +79,13 @@ export function ConnectionStatePopover({ connected, lastConnected }: ConnectionS
             </span>
           </div>
 
-          {connected && (
+          {lastConnected && (
             <>
               <Separator />
 
               <div className="space-y-1.5 text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>Connected since</span>
+                  <span>{connected ? 'Connected since' : 'Last connected'}</span>
                   <span className="text-foreground">{connectedSinceText}</span>
                 </div>
                 <div className="flex justify-between">
