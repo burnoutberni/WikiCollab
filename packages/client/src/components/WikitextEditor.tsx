@@ -81,10 +81,10 @@ class LocalCursorWidget extends WidgetType {
     return span;
   }
   eq(other: LocalCursorWidget) {
-    return this.color === other.color;
+    return this.color === other.color && this.name === other.name;
   }
   compare(other: LocalCursorWidget) {
-    return this.color === other.color;
+    return this.color === other.color && this.name === other.name;
   }
 }
 
