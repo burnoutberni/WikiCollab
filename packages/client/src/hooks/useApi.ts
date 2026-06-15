@@ -168,10 +168,16 @@ export function useInstances() {
     return () => window.removeEventListener('storage', handler);
   }, []);
 
-  const persist = useCallback((next: MediaWikiInstance[]) => {
-    setInstances(next);
-    localStorage.setItem('wikicollab-instances', JSON.stringify(next));
-  }, []);
+  const persist = useCallback(
+    (nextOrUpdater: MediaWikiInstance[] | ((prev: MediaWikiInstance[]) => MediaWikiInstance[])) => {
+      setInstances((prev) => {
+        const next = typeof nextOrUpdater === 'function' ? nextOrUpdater(prev) : nextOrUpdater;
+        localStorage.setItem('wikicollab-instances', JSON.stringify(next));
+        return next;
+      });
+    },
+    []
+  );
 
   const createInstance = useCallback(
     async (name: string, apiUrl: string, token?: string) => {
@@ -184,26 +190,34 @@ export function useInstances() {
         configured_at: new Date().toISOString(),
         css: null,
       };
-      persist([...instances, instance]);
+      persist((prev) => [...prev, instance]);
       return instance;
     },
-    [instances, persist]
+    [persist]
   );
 
   const deleteInstance = useCallback(
     async (id: string) => {
-      persist(instances.filter((i) => i.id !== id));
+      persist((prev) => prev.filter((i) => i.id !== id));
     },
-    [instances, persist]
+    [persist]
   );
 
   const updateInstance = useCallback(
     async (id: string, updates: { name?: string; api_url?: string; token?: string }) => {
-      const next = instances.map((i) => (i.id === id ? { ...i, ...updates } : i));
-      persist(next);
-      return next.find((i) => i.id === id)!;
+      let updated: MediaWikiInstance | undefined;
+      persist((prev) => {
+        const next = prev.map((i) => {
+          if (i.id !== id) return i;
+          updated = { ...i, ...updates };
+          return updated;
+        });
+        return next;
+      });
+      if (!updated) throw new Error('Instance not found');
+      return updated;
     },
-    [instances, persist]
+    [persist]
   );
 
   return { instances, loading, createInstance, deleteInstance, updateInstance };
