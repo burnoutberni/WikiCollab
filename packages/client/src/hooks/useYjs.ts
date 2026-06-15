@@ -1,4 +1,5 @@
 import * as decoding from 'lib0/decoding';
+import type * as encoding from 'lib0/encoding';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { decodeCustomMessage, encodeCustomMessage, messageCustom, replaceYText } from 'shared';
 import { IndexeddbPersistence } from 'y-indexeddb';
@@ -168,7 +169,10 @@ export function useYjs(docId: string | null) {
 
     awareness.on('change', updatePeers);
 
-    wsProvider.messageHandlers[messageCustom] = (_encoder: any, decoder: any) => {
+    wsProvider.messageHandlers[messageCustom] = (
+      _encoder: encoding.Encoder,
+      decoder: decoding.Decoder
+    ) => {
       try {
         const customData = decoding.readVarUint8Array(decoder);
         const { type, payload } = decodeCustomMessage(customData);
