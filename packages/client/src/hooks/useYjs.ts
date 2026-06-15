@@ -56,6 +56,7 @@ function generateColor(): string {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CustomMessageHandler = (data: any) => void;
 
 export function useYjs(docId: string | null) {
