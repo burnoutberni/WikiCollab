@@ -5,6 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
 import { securityHeaders } from './middleware/security-headers.js';
+import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
 import { setupWebSocket } from './ws/index.js';
 import { getAllowedOrigins } from './ws/origin.js';
 
@@ -27,6 +28,10 @@ app.use('*', cors({
 }));
 
 app.use('/api/*', securityHeaders());
+
+app.use('/api/docs/*', crudLimiter);
+app.use('/api/instances/preview', previewLimiter);
+app.use('/api/instances/css', previewLimiter);
 
 app.route('/api/docs', docsRoutes);
 app.route('/api/instances', instancesRoutes);
