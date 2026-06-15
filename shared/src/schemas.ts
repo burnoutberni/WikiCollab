@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
+export const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
 
 export const CreateDocumentSchema = z.object({
   title: z.string().max(500).optional(),
-  content: z.string().optional(),
+  content: z.string().max(50000).optional(),
   slug: z
     .string()
     .max(100)
@@ -24,7 +24,7 @@ export const PushToWikiSchema = z.object({
   api_url: z.string().url('api_url must be a valid URL'),
   token: z.string().min(1, 'token is required'),
   title: z.string().max(500).optional(),
-  content: z.string().optional(),
+  content: z.string().max(50000).optional(),
   summary: z.string().max(500).optional(),
 });
 

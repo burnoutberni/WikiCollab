@@ -20,7 +20,7 @@ docs.post('/', async (c) => {
   if (!result.success) return result.response;
   const body = result.data;
 
-  const slug = body.slug?.trim();
+  const slug = body.slug;
 
   if (slug) {
     const existing = getDocumentById(slug);
