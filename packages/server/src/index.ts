@@ -4,8 +4,6 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
-import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
-import { securityHeaders } from './middleware/security-headers.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import docsRoutes from './routes/docs.js';
 import instancesRoutes from './routes/instances.js';
@@ -32,12 +30,6 @@ app.use(
     allowHeaders: ['Content-Type'],
   })
 );
-
-app.use('/api/*', securityHeaders());
-
-app.use('/api/docs/*', crudLimiter);
-app.use('/api/instances/preview', previewLimiter);
-app.use('/api/instances/css', previewLimiter);
 
 app.use('/api/*', securityHeaders());
 
