@@ -217,6 +217,7 @@ export function DocumentEditor() {
                   size="sm"
                   onClick={() => setViewMode('source')}
                   className="rounded-r-none"
+                  data-testid="view-source"
                 >
                   <Code className="h-4 w-4" />
                 </Button>
@@ -231,6 +232,7 @@ export function DocumentEditor() {
                   size="sm"
                   onClick={() => setViewMode('split')}
                   className="rounded-none"
+                  data-testid="view-split"
                 >
                   <Columns className="h-4 w-4" />
                 </Button>

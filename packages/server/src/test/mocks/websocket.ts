@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 
 type EventHandler = (...args: unknown[]) => void;
 
-interface MockWebSocket {
+export interface MockWebSocket {
   readyState: number;
   binaryType: string;
   send: ReturnType<typeof vi.fn>;

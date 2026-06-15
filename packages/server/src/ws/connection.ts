@@ -259,7 +259,7 @@ const WS_CONCURRENT = envInt('RATE_LIMIT_WS_CONCURRENT', 100);
 const WS_RATE_MAX = envInt('RATE_LIMIT_WS_RATE_MAX', 100);
 const WS_RATE_WINDOW_MS = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
 
-const wsConnectionCounts = new Map<string, number>();
+export const wsConnectionCounts = new Map<string, number>();
 const wsConnectionRate = new Map<string, number[]>();
 
 function getWsIp(req: {
@@ -274,7 +274,7 @@ function getWsIp(req: {
   return getClientIp(forwarded, realIp, connectionIp);
 }
 
-function checkWsRateLimit(ip: string): boolean {
+export function checkWsRateLimit(ip: string): boolean {
   const current = wsConnectionCounts.get(ip) || 0;
   if (current >= WS_CONCURRENT) return false;
 
