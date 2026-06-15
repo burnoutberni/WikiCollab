@@ -17,6 +17,8 @@ RUN pnpm run build
 
 FROM node:22-alpine AS production
 
+ARG VERSION=0.0.0
+
 WORKDIR /app
 
 COPY --from=base /app/package.json ./
@@ -35,6 +37,7 @@ COPY --from=base /app/packages/client/dist ./packages/client/dist
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV APP_VERSION=$VERSION
 
 EXPOSE 3000
 
