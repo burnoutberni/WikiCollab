@@ -143,7 +143,7 @@ describe('WebSocket origin validation', () => {
       warnSpy.mockRestore();
     });
 
-    it('logs the x-forwarded-for header when present', () => {
+    it('logs the resolved client IP', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const req = {
         url: '/ws',
@@ -154,7 +154,6 @@ describe('WebSocket origin validation', () => {
       logRejectedOrigin(req, 'https://attacker.com');
 
       expect(warnSpy.mock.calls[0][0]).toContain('172.16.0.1');
-      expect(warnSpy.mock.calls[0][0]).toContain('10.0.0.1');
       warnSpy.mockRestore();
     });
   });
