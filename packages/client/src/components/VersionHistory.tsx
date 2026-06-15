@@ -1,5 +1,5 @@
 import { Eye, History, RotateCcw, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -56,6 +56,7 @@ export function VersionHistory({
   const [previewingVersion, setPreviewingVersion] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const previewRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -95,10 +96,13 @@ export function VersionHistory({
       }
 
       setPreviewingVersion(versionId);
+      previewRequestRef.current = versionId;
       setPreviewLoading(true);
       const content = await getVersionPreview(versionId);
-      setPreviewContent(content);
-      setPreviewLoading(false);
+      if (previewRequestRef.current === versionId) {
+        setPreviewContent(content);
+        setPreviewLoading(false);
+      }
     },
     [previewingVersion, getVersionPreview]
   );
