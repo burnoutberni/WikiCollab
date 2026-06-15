@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Hono } from 'hono';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { securityHeaders } from '../../middleware/security-headers.js';
 
 function createTestApp() {

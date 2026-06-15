@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Document, MediaWikiInstance, Version } from 'shared';
 
 export type { Document, MediaWikiInstance, Version };

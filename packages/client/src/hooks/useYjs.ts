@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
-import { IndexeddbPersistence } from 'y-indexeddb';
 import * as decoding from 'lib0/decoding';
-import { replaceYText, encodeCustomMessage, decodeCustomMessage, messageCustom } from 'shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { decodeCustomMessage, encodeCustomMessage, messageCustom, replaceYText } from 'shared';
+import { IndexeddbPersistence } from 'y-indexeddb';
+import { WebsocketProvider } from 'y-websocket';
+import * as Y from 'yjs';
 
 export interface Presence {
   clientId: number;

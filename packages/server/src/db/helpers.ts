@@ -1,6 +1,7 @@
-import { db, schema } from './index.js';
 import { eq } from 'drizzle-orm';
-import type { documents, documentRevisions } from './schema.js';
+
+import { db, schema } from './index.js';
+import type { documentRevisions, documents } from './schema.js';
 
 type DocumentRow = typeof documents.$inferSelect;
 type VersionRow = typeof documentRevisions.$inferSelect;

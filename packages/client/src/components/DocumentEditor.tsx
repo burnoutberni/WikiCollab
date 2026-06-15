@@ -1,9 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Code,
+  Columns,
+  FileText,
+  Save,
+  Settings,
+  Share2,
+  Users,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -12,31 +25,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  ArrowLeft,
-  FileText,
-  Code,
-  Columns,
-  Settings,
-  Users,
-  Wifi,
-  WifiOff,
-  Save,
-  ChevronDown,
-  ChevronRight,
-  Share2,
-  Check,
-} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDocument, useInstances } from '@/hooks/useApi';
-import { useYjs } from '@/hooks/useYjs';
 import { useEditorLock } from '@/hooks/useEditorLock';
-import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
-import { SplitPaneEditor } from './SplitPaneEditor';
+import { useYjs } from '@/hooks/useYjs';
+
+import { CollaboratorList } from './CollaboratorList';
 import { InstanceManager } from './InstanceManager';
 import { PushToWiki } from './PushToWiki';
+import { SplitPaneEditor } from './SplitPaneEditor';
 import { VersionHistory } from './VersionHistory';
-import { CollaboratorList } from './CollaboratorList';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
 type ViewMode = 'source' | 'split';
 

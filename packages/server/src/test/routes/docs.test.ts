@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Hono } from 'hono';
-import * as schema from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { Hono } from 'hono';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
+
+import * as schema from '../../db/schema.js';
 import { createTestDb } from '../setup.js';
 
 // Mock db/index.js so the production router uses our in-memory test DB.

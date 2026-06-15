@@ -1,7 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { createTestDb } from './setup.js';
-import * as schema from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import * as schema from '../db/schema.js';
+import { createTestDb } from './setup.js';
 
 describe('Database schema', () => {
   let cleanup: (() => void) | undefined;

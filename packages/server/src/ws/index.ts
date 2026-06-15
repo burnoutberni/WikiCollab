@@ -5,5 +5,5 @@ initContentInitializor();
 initPersistence();
 
 export { setupWebSocket, setupWSConnection };
-export { WSSharedDoc, broadcastCustom } from './connection.js';
-export { messageSync, messageAwareness, messageCustom } from './constants.js';
+export { broadcastCustom, WSSharedDoc } from './connection.js';
+export { messageAwareness, messageCustom, messageSync } from './constants.js';

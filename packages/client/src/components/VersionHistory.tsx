@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { Eye, History, RotateCcw, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -9,8 +10,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { History, RotateCcw, Star, Eye, X } from 'lucide-react';
 import { useVersions } from '@/hooks/useApi';
 
 interface VersionHistoryProps {

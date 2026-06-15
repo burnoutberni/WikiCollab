@@ -1,23 +1,23 @@
-import { describe, it, expect } from 'vitest';
-import * as Y from 'yjs';
-import { replaceYText } from './yjs';
-import {
-  encodeCustomMessage,
-  decodeCustomMessage,
-  wrapCustomMessage,
-  messageCustom,
-} from './protocol';
 import * as decoding from 'lib0/decoding';
+import { describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 
 import type {
-  Document,
-  MediaWikiInstance,
-  DocumentRevision,
   CreateDocumentRequest,
-  ViewMode,
   CursorPresence,
+  Document,
+  DocumentRevision,
+  MediaWikiInstance,
   PreviewResponse,
+  ViewMode,
 } from '../src/index';
+import {
+  decodeCustomMessage,
+  encodeCustomMessage,
+  messageCustom,
+  wrapCustomMessage,
+} from './protocol';
+import { replaceYText } from './yjs';
 
 describe('Shared types', () => {
   it('Document interface has required fields', () => {

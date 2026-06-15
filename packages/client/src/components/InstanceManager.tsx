@@ -1,15 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ExternalLink, Plus, Server, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,8 +11,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Server, Trash2, Plus, ExternalLink } from 'lucide-react';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
 const WIKI_PRESETS: { name: string; api_url: string }[] = [

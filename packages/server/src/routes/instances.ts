@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { serverFetch, SsrfError } from 'server-fetch';
-import { PreviewSchema, CssSchema } from 'shared';
+import { CssSchema, PreviewSchema } from 'shared';
+
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 

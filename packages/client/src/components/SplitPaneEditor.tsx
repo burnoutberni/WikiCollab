@@ -1,12 +1,14 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
-import { PreviewLinkModal } from './PreviewLinkModal';
+import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { WebsocketProvider } from 'y-websocket';
+import type * as Y from 'yjs';
+
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { RefreshCw } from 'lucide-react';
-import type * as Y from 'yjs';
-import type { WebsocketProvider } from 'y-websocket';
 import defaultCss from '@/styles/wikipedia.css?inline';
+
+import { PreviewLinkModal } from './PreviewLinkModal';
+import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
 interface SplitPaneEditorProps {
   content: string;

@@ -1,63 +1,63 @@
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
-import type { DecorationSet, ViewUpdate } from '@codemirror/view';
-import {
-  EditorView,
-  Decoration,
-  ViewPlugin,
-  WidgetType,
-  highlightSpecialChars,
-  drawSelection,
-  dropCursor,
-  rectangularSelection,
-  crosshairCursor,
-  highlightActiveLine,
-  keymap,
-  lineNumbers,
-  highlightActiveLineGutter,
-} from '@codemirror/view';
-import type { Range } from '@codemirror/state';
-import { EditorState, RangeSet, EditorSelection } from '@codemirror/state';
-import { history, historyKeymap } from '@codemirror/commands';
-import {
-  bracketMatching,
-  indentOnInput,
-  syntaxHighlighting,
-  defaultHighlightStyle,
-  foldGutter,
-  foldKeymap,
-} from '@codemirror/language';
-import {
-  closeBrackets,
-  closeBracketsKeymap,
-  autocompletion,
-  completionKeymap,
-} from '@codemirror/autocomplete';
-import { searchKeymap } from '@codemirror/search';
-import { yCollab } from 'y-codemirror.next';
 import { registerMediaWiki } from '@bhsd/codemirror-mediawiki';
 import { languages } from '@bhsd/codemirror-mediawiki/codemirror';
 import {
-  Undo2,
-  Redo2,
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from '@codemirror/autocomplete';
+import { history, historyKeymap } from '@codemirror/commands';
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from '@codemirror/language';
+import { searchKeymap } from '@codemirror/search';
+import type { Range } from '@codemirror/state';
+import { EditorSelection, EditorState, RangeSet } from '@codemirror/state';
+import type { DecorationSet, ViewUpdate } from '@codemirror/view';
+import {
+  crosshairCursor,
+  Decoration,
+  drawSelection,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
+  ViewPlugin,
+  WidgetType,
+} from '@codemirror/view';
+import {
+  Ban,
   Bold,
-  Italic,
+  Code2,
+  ExternalLink,
+  FileCode,
   Heading2,
   Heading3,
   Heading4,
-  Link,
-  ExternalLink,
-  Code2,
-  Tag,
   Image,
-  FileCode,
+  Italic,
+  Link,
   Minus,
-  Table,
-  Route,
   Quote,
-  Ban,
+  Redo2,
+  Route,
+  Table,
+  Tag,
+  Undo2,
 } from 'lucide-react';
-import * as Y from 'yjs';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { yCollab } from 'y-codemirror.next';
 import type { WebsocketProvider } from 'y-websocket';
+import * as Y from 'yjs';
 
 class LocalCursorWidget extends WidgetType {
   constructor(
@@ -284,7 +284,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
         v.destroy();
         setView(null);
       };
-    }, [ytext, provider, userName, userColor]);
+    }, [ytext, provider, onRemoteChange, onCursorChange, userName, userColor]);
 
     return (
       <div className="h-full w-full flex flex-col relative">

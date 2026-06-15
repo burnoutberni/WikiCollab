@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { MousePointer2 } from 'lucide-react';
-import { COLORS } from '@/hooks/useYjs';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+
 import type { Presence } from '@/hooks/useYjs';
+import { COLORS } from '@/hooks/useYjs';
 
 interface CollaboratorListProps {
   peers: Presence[];

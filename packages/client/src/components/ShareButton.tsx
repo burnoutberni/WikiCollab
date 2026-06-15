@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { Check, Share2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
-import { Share2, Check } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ShareButtonProps {

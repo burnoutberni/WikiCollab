@@ -1,3 +1,6 @@
+import { ExternalLink } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -6,8 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
 
 interface PreviewLinkModalProps {
   url: string;

@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { Send } from 'lucide-react';
+import { useCallback, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Send } from 'lucide-react';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
 interface PushToWikiProps {

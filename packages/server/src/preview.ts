@@ -1,5 +1,5 @@
-import { serverFetch, SsrfError } from 'server-fetch';
 import sanitizeHtml from 'sanitize-html';
+import { serverFetch, SsrfError } from 'server-fetch';
 import type wikiparser from 'wikiparser-node';
 
 interface SourceMapEntry {

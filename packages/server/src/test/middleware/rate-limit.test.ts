@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import { createRateLimiter, resetRateLimiters } from '../../middleware/rate-limit.js';
 
 function createTestApp(max = 3, windowSec = 1) {

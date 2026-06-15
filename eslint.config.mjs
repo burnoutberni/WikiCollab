@@ -3,11 +3,15 @@ import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
+import simpleImportSort from 'eslint-plugin-simple-import-sort';
 
 export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    plugins: {
+      'simple-import-sort': simpleImportSort,
+    },
     rules: {
       'no-constant-binary-expression': 'off',
       'quotes': ['error', 'single'],
@@ -15,9 +19,10 @@ export default tseslint.config(
       'indent': ['error', 2],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/consistent-type-imports': 'error',
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
     },
   },
-  eslintConfigPrettier,
   {
     files: ['packages/client/**/*.{ts,tsx}'],
     plugins: {
@@ -57,6 +62,7 @@ export default tseslint.config(
       },
     },
   },
+  eslintConfigPrettier,
   {
     ignores: [
       '**/dist/**',

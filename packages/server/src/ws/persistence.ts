@@ -1,10 +1,11 @@
-import * as Y from 'yjs';
-import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
+import * as encoding from 'lib0/encoding';
 import { nanoid } from 'nanoid';
+import * as Y from 'yjs';
+
+import { db, schema } from '../db/index.js';
 import type { WSSharedDoc } from './connection.js';
 import { broadcastCustom } from './connection.js';
-import * as encoding from 'lib0/encoding';
 
 let contentInitializor: (ydoc: Y.Doc) => Promise<void> = () => Promise.resolve();
 

@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { IncomingMessage } from 'http';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
+  createOriginValidator,
   getAllowedOrigins,
   isOriginAllowed,
-  resetAllowedOrigins,
-  createOriginValidator,
   logRejectedOrigin,
+  resetAllowedOrigins,
 } from '../../ws/origin.js';
 
 function mockReq(url = '/ws'): IncomingMessage {
