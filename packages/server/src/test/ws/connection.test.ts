@@ -16,7 +16,12 @@ const { mockDbModule } = vi.hoisted(() => ({
 vi.mock('../../db/index.js', () => mockDbModule);
 
 import * as schema from '../../db/schema.js';
-import { resetWsRateLimiters, setupWSConnection } from '../../ws/connection.js';
+import {
+  checkWsRateLimit,
+  resetWsRateLimiters,
+  setupWSConnection,
+  wsConnectionCounts,
+} from '../../ws/connection.js';
 import { messageAwareness, messageSync } from '../../ws/constants.js';
 import { createMockWebSocket } from '../mocks/websocket.js';
 import { createTestDb } from '../setup.js';
@@ -313,8 +318,8 @@ describe('WebSocket connections', () => {
       expect(() => ws.emit('message', msg)).not.toThrow();
     });
 
-    it('handles malformed custom message without throwing', () => {
-      const ws = makeMockWs();
+    it('handles malformed custom message without throwing', async () => {
+      const ws = await connectWs('/malformed-custom');
       const msg = wrapCustomMessage(new Uint8Array([255, 255, 255]));
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       expect(() => ws.emit('message', msg)).not.toThrow();
@@ -336,6 +341,17 @@ describe('WebSocket connections', () => {
       expect(ws2.close).not.toHaveBeenCalled();
       expect(ws3.close).not.toHaveBeenCalled();
     });
+
+    it('rejects connection when concurrent limit is exceeded', () => {
+      resetWsRateLimiters();
+      const ip = '10.0.0.1';
+
+      expect(checkWsRateLimit(ip)).toBe(true);
+
+      wsConnectionCounts.set(ip, 100);
+
+      expect(checkWsRateLimit(ip)).toBe(false);
+    });
   });
 
   describe('Multiple concurrent clients', () => {
@@ -349,8 +365,8 @@ describe('WebSocket connections', () => {
   });
 
   describe('Error handling', () => {
-    it('handles unknown message type without throwing', () => {
-      const ws = makeMockWs();
+    it('handles unknown message type without throwing', async () => {
+      const ws = await connectWs('/unknown-type');
       const encoder = encoding.createEncoder();
       encoding.writeVarUint(encoder, 99);
       const msg = encoding.toUint8Array(encoder);
@@ -360,8 +376,8 @@ describe('WebSocket connections', () => {
       spy.mockRestore();
     });
 
-    it('handles empty message without throwing', () => {
-      const ws = makeMockWs();
+    it('handles empty message without throwing', async () => {
+      const ws = await connectWs('/empty-message');
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       expect(() => ws.emit('message', new Uint8Array([]))).not.toThrow();
       spy.mockRestore();

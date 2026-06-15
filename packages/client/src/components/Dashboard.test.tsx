@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -192,7 +192,9 @@ describe('Dashboard', () => {
     await user.click(screen.getByText('Create Document'));
 
     expect(mockCreateDocument).toHaveBeenCalledWith('Untitled');
-    expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1');
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1');
+    });
   });
 
   it('clicking a document card navigates to it', async () => {

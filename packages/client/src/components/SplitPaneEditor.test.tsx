@@ -118,12 +118,15 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
+    await vi.waitFor(() => {
+      expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(1);
+    });
+
     const refreshBtn = screen.getByRole('button');
     await user.click(refreshBtn);
 
-    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
-      '/api/instances/preview',
-      expect.any(Object)
-    );
+    await vi.waitFor(() => {
+      expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2);
+    });
   });
 });

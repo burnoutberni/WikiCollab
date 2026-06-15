@@ -280,12 +280,7 @@ describe('useInstances', () => {
     const id = result.current.instances[0].id;
 
     await act(async () => {
-      try {
-        await result.current.updateInstance(id, { name: 'Updated' });
-      } catch {
-        // updated variable is checked synchronously before React processes
-        // setState function updater; state update still applies via act flush
-      }
+      await result.current.updateInstance(id, { name: 'Updated' });
     });
 
     const stored = JSON.parse(localStorage.getItem('wikicollab-instances')!);
@@ -345,9 +340,7 @@ describe('useVersions', () => {
 
     const { result } = renderHook(() => useVersions('doc-1'));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
-
-    expect(result.current.versions).toEqual(versions);
+    await waitFor(() => expect(result.current.versions).toEqual(versions));
   });
 
   it('does not fetch when documentId is null', () => {
@@ -372,7 +365,7 @@ describe('useVersions', () => {
 
     const { result } = renderHook(() => useVersions('doc-1'));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.versions).toEqual(versions));
 
     await act(async () => {
       await result.current.starVersion('v1');
@@ -391,7 +384,7 @@ describe('useVersions', () => {
 
     const { result } = renderHook(() => useVersions('doc-1', sendCustomMessage));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.versions).toEqual(versions));
 
     await act(async () => {
       await result.current.starVersion('v1');
@@ -412,7 +405,7 @@ describe('useVersions', () => {
 
     const { result } = renderHook(() => useVersions('doc-1'));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.versions).toEqual(versions));
 
     await act(async () => {
       await result.current.unstarVersion('v1');
@@ -431,7 +424,7 @@ describe('useVersions', () => {
 
     const { result } = renderHook(() => useVersions('doc-1', sendCustomMessage));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.versions).toEqual(versions));
 
     await act(async () => {
       await result.current.unstarVersion('v1');
@@ -451,17 +444,15 @@ describe('useVersions', () => {
   });
 
   it('getVersionPreview returns content', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ content: 'Preview content' }),
-      })
-    );
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: 'Preview content' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     const { result } = renderHook(() => useVersions('doc-1'));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
     const preview = await result.current.getVersionPreview('v1');
     expect(preview).toBe('Preview content');
@@ -475,11 +466,12 @@ describe('useVersions', () => {
   });
 
   it('getVersionPreview returns null on error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+    const fetchMock = vi.fn().mockRejectedValue(new Error('Network error'));
+    vi.stubGlobal('fetch', fetchMock);
 
     const { result } = renderHook(() => useVersions('doc-1'));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
     const preview = await result.current.getVersionPreview('v1');
     expect(preview).toBeNull();

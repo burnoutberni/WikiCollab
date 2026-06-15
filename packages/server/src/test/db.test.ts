@@ -250,13 +250,13 @@ describe('Database schema', () => {
     const expiredDocs = db
       .select()
       .from(schema.documents)
-      .where(sql`expiry IS NOT NULL AND expiry < datetime('now')`)
+      .where(sql`expiry IS NOT NULL AND datetime(expiry) < datetime('now')`)
       .all();
     expect(expiredDocs).toHaveLength(1);
     expect(expiredDocs[0].id).toBe('expired-doc');
   });
 
-  it('handles concurrent reads', () => {
+  it('handles many sequential reads', () => {
     const { db, close } = createTestDb();
     cleanup = close;
 

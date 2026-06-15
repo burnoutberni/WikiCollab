@@ -206,18 +206,17 @@ export function useInstances() {
   const updateInstance = useCallback(
     async (id: string, updates: { name?: string; api_url?: string; token?: string }) => {
       let updated: MediaWikiInstance | undefined;
-      persist((prev) => {
-        const next = prev.map((i) => {
-          if (i.id !== id) return i;
-          updated = { ...i, ...updates };
-          return updated;
-        });
-        return next;
+      const next = instances.map((i) => {
+        if (i.id !== id) return i;
+        updated = { ...i, ...updates };
+        return updated;
       });
+      setInstances(next);
+      localStorage.setItem('wikicollab-instances', JSON.stringify(next));
       if (!updated) throw new Error('Instance not found');
       return updated;
     },
-    [persist]
+    [instances]
   );
 
   return { instances, loading, createInstance, deleteInstance, updateInstance };

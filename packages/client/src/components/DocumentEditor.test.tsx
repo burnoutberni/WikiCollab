@@ -178,15 +178,12 @@ describe('DocumentEditor', () => {
 
   it('view mode toggling (source/split)', async () => {
     const user = userEvent.setup();
-    const { container } = renderWithProviders(<DocumentEditor />);
+    renderWithProviders(<DocumentEditor />);
 
-    const viewModeContainer = container.querySelector('.items-center.border.rounded-md');
-    const viewButtons = viewModeContainer!.querySelectorAll('button');
-
-    await user.click(viewButtons[0]);
+    await user.click(screen.getByTestId('view-source'));
     expect(screen.getByTestId('wikitext-editor')).toBeInTheDocument();
 
-    await user.click(viewButtons[1]);
+    await user.click(screen.getByTestId('view-split'));
     expect(screen.getByTestId('split-pane-editor')).toBeInTheDocument();
   });
 
