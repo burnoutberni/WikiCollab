@@ -59,9 +59,7 @@ export function DocumentEditor() {
     setContent,
     sendCustomMessage,
     onCustomMessage,
-    wsUrl,
     lastConnected,
-    connectionDuration,
   } = useYjs(id || null);
 
   const [title, setTitle] = useState('');
@@ -358,14 +356,7 @@ export function DocumentEditor() {
               <Save className="h-3 w-3" />
               Saved
             </span>
-            <ConnectionStatePopover
-              connected={connected}
-              wsUrl={wsUrl}
-              lastConnected={lastConnected}
-              connectionDuration={connectionDuration}
-              peerCount={peers.length}
-              docId={id || ''}
-            />
+            <ConnectionStatePopover connected={connected} lastConnected={lastConnected} />
           </div>
           <div className="flex items-center gap-4">
             <Tooltip>

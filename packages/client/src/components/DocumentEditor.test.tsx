@@ -157,9 +157,7 @@ describe('DocumentEditor', () => {
       setContent: vi.fn(),
       sendCustomMessage: vi.fn(),
       onCustomMessage: vi.fn(),
-      wsUrl: 'ws://localhost:3000/ws',
       lastConnected: Date.now() - 5000,
-      connectionDuration: 5000,
     });
   });
 

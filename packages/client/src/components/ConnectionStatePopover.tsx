@@ -1,17 +1,12 @@
 import { Activity, Wifi, WifiOff } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 
 interface ConnectionStatePopoverProps {
   connected: boolean;
-  wsUrl: string;
   lastConnected: number | null;
-  connectionDuration: number | null;
-  peerCount: number;
-  docId: string;
-  onReconnect?: () => void;
 }
 
 function formatDuration(ms: number): string {
@@ -31,14 +26,15 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString();
 }
 
-export function ConnectionStatePopover({
-  connected,
-  wsUrl,
-  lastConnected,
-  connectionDuration,
-  peerCount,
-  docId,
-}: ConnectionStatePopoverProps) {
+export function ConnectionStatePopover({ connected, lastConnected }: ConnectionStatePopoverProps) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!connected) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [connected]);
+
   const statusIcon = connected ? (
     <Wifi className="h-3 w-3 text-green-500" />
   ) : (
@@ -47,19 +43,9 @@ export function ConnectionStatePopover({
 
   const statusText = connected ? 'Connected' : 'Disconnected';
 
-  const connectedSinceText = useMemo(() => {
-    if (connected && lastConnected) {
-      return formatTime(lastConnected);
-    }
-    return null;
-  }, [connected, lastConnected]);
+  const durationText = connected && lastConnected ? formatDuration(now - lastConnected) : null;
 
-  const durationText = useMemo(() => {
-    if (connectionDuration !== null) {
-      return formatDuration(connectionDuration);
-    }
-    return null;
-  }, [connectionDuration]);
+  const connectedSinceText = connected && lastConnected ? formatTime(lastConnected) : null;
 
   return (
     <Popover>
@@ -75,29 +61,24 @@ export function ConnectionStatePopover({
       <PopoverContent
         side="top"
         align="start"
-        className="w-72 p-3 text-sm"
+        className="w-64 p-3 text-sm"
         data-testid="connection-state-popover"
       >
         <div className="space-y-2">
           <div className="flex items-center gap-2 font-medium">
             <Activity className="h-4 w-4" />
-            <span>Connection</span>
+            <span>Status</span>
             <span className="ml-auto flex items-center gap-1 text-xs font-normal">
               {statusIcon}
               <span>{statusText}</span>
             </span>
           </div>
 
-          <Separator />
+          {connected && (
+            <>
+              <Separator />
 
-          <div className="space-y-1.5 text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Status</span>
-              <span className={connected ? 'text-green-500' : 'text-red-500'}>{statusText}</span>
-            </div>
-
-            {connected && (
-              <>
+              <div className="space-y-1.5 text-muted-foreground">
                 <div className="flex justify-between">
                   <span>Connected since</span>
                   <span className="text-foreground">{connectedSinceText}</span>
@@ -106,36 +87,9 @@ export function ConnectionStatePopover({
                   <span>Duration</span>
                   <span className="text-foreground">{durationText}</span>
                 </div>
-              </>
-            )}
-
-            <div className="flex justify-between">
-              <span>Document</span>
-              <span
-                className="text-foreground font-mono text-xs truncate max-w-[140px]"
-                title={docId}
-              >
-                {docId}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span>Collaborators</span>
-              <span className="text-foreground">{peerCount}</span>
-            </div>
-
-            <Separator />
-
-            <div className="flex justify-between">
-              <span>Server</span>
-              <span
-                className="text-foreground font-mono text-xs truncate max-w-[140px]"
-                title={wsUrl}
-              >
-                {wsUrl}
-              </span>
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </PopoverContent>
     </Popover>
