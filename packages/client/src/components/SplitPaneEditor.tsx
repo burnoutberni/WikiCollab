@@ -24,7 +24,7 @@ interface SplitPaneEditorProps {
   editorRef?: React.RefObject<WikitextEditorHandle | null>;
   onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
+  onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
 }
 
 function getWikiBaseUrl(apiUrl: string): string {

@@ -56,8 +56,7 @@ function generateColor(): string {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CustomMessageHandler = (data: any) => void;
+type CustomMessageHandler<T = unknown> = (data: T) => void;
 
 export function useYjs(docId: string | null) {
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -110,7 +109,18 @@ export function useYjs(docId: string | null) {
   }, []);
 
   useEffect(() => {
-    if (!docId) return;
+    if (!docId) {
+      setProvider(null);
+      setConnected(false);
+      setPeers([]);
+      setLastConnected(null);
+      return;
+    }
+
+    setProvider(null);
+    setConnected(false);
+    setPeers([]);
+    setLastConnected(null);
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
@@ -228,14 +238,14 @@ export function useYjs(docId: string | null) {
     [provider]
   );
 
-  const onCustomMessage = useCallback((type: string, handler: CustomMessageHandler) => {
+  const onCustomMessage = useCallback(<T>(type: string, handler: CustomMessageHandler<T>) => {
     if (!customHandlersRef.current.has(type)) {
       customHandlersRef.current.set(type, new Set());
     }
-    customHandlersRef.current.get(type)!.add(handler);
+    customHandlersRef.current.get(type)!.add(handler as CustomMessageHandler);
 
     return () => {
-      customHandlersRef.current.get(type)?.delete(handler);
+      customHandlersRef.current.get(type)?.delete(handler as CustomMessageHandler);
     };
   }, []);
 

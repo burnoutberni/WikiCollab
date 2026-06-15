@@ -18,7 +18,7 @@ interface VersionHistoryProps {
   documentId: string;
   onRestore: (versionId: string) => void;
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
+  onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
 }
 
 function PreviewContent({ content }: { content: string }) {

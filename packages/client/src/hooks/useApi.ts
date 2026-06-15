@@ -225,7 +225,7 @@ export function useInstances() {
 export function useVersions(
   documentId: string | null,
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void,
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void
+  onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void
 ) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
