@@ -45,6 +45,19 @@ describe('WebSocket origin validation', () => {
       const origins = getAllowedOrigins();
       expect(origins).toEqual(['https://a.com', 'https://b.com']);
     });
+
+    it('returns a new array on each call (no shared reference)', () => {
+      const first = getAllowedOrigins();
+      const second = getAllowedOrigins();
+      expect(first).toEqual(second);
+      expect(first).not.toBe(second);
+    });
+
+    it('does not leak mutations back to the cache', () => {
+      const origins = getAllowedOrigins();
+      origins.push('https://injected.com');
+      expect(getAllowedOrigins()).not.toContain('https://injected.com');
+    });
   });
 
   describe('isOriginAllowed', () => {

@@ -12,11 +12,11 @@ function parseOrigins(raw: string): string[] {
 }
 
 export function getAllowedOrigins(): string[] {
-  if (allowedOrigins !== null) return allowedOrigins;
+  if (allowedOrigins !== null) return [...allowedOrigins];
 
   const env = process.env.CORS_ORIGINS;
   allowedOrigins = env ? parseOrigins(env) : DEFAULT_ORIGINS;
-  return allowedOrigins;
+  return [...allowedOrigins];
 }
 
 export function resetAllowedOrigins(): void {
