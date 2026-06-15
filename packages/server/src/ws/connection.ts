@@ -13,6 +13,7 @@ import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, w
 import { runContentInitializor, getPersistence } from './persistence.js';
 import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
 import { createOriginValidator } from './origin.js';
+import { generatePreview } from '../preview.js';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -119,6 +120,8 @@ export function broadcastCustom(doc: WSSharedDoc, data: Uint8Array, excludeConn:
   });
 }
 
+const previewDebounces = new Map<string, ReturnType<typeof setTimeout>>();
+
 function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocket) {
   const { type, payload } = decodeCustomMessage(data);
 
@@ -158,6 +161,26 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       broadcastCustom(doc, encodeInnerPayload('restore', { versionId }));
       break;
     }
+    case 'preview_request': {
+      const api_url = typeof payload.api_url === 'string' ? payload.api_url : '';
+      const page = typeof payload.page === 'string' ? payload.page : '';
+
+      const key = `${doc.name}:${api_url}:${page}`;
+      const existing = previewDebounces.get(key);
+      if (existing) clearTimeout(existing);
+
+      previewDebounces.set(key, setTimeout(async () => {
+        previewDebounces.delete(key);
+        try {
+          const wikitext = doc.getText('wikitext').toString();
+          const { html } = await generatePreview(wikitext, api_url || null, page || null);
+          broadcastCustom(doc, encodeInnerPayload('preview_update', { html, api_url, page }));
+        } catch (err) {
+          console.error('WS preview generation failed:', err);
+        }
+      }, 500));
+      break;
+    }
   }
 }
 
@@ -190,6 +213,59 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
     console.error(err);
   }
 }
+
+// --- Connection rate limiting ---
+
+const wsConnectionCounts = new Map<string, number>();
+const wsConnectionRate = new Map<string, number[]>();
+
+function envInt(key: string, def: number): number {
+  const val = process.env[key];
+  if (val === undefined) return def;
+  const parsed = parseInt(val, 10);
+  return Number.isNaN(parsed) ? def : parsed;
+}
+
+function getWsIp(req: any): string {
+  const forwarded = req?.headers?.['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = req?.headers?.['x-real-ip'];
+  if (realIp) return realIp;
+  return req?.socket?.remoteAddress || 'unknown';
+}
+
+function checkWsRateLimit(ip: string): boolean {
+  const maxConcurrent = envInt('RATE_LIMIT_WS_CONCURRENT', 100);
+  const current = wsConnectionCounts.get(ip) || 0;
+  if (current >= maxConcurrent) return false;
+
+  const maxRate = envInt('RATE_LIMIT_WS_RATE_MAX', 100);
+  const windowMs = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
+  const now = Date.now();
+
+  let timestamps = wsConnectionRate.get(ip) || [];
+  timestamps = timestamps.filter((t) => now - t < windowMs);
+
+  if (timestamps.length >= maxRate) return false;
+
+  timestamps.push(now);
+  wsConnectionRate.set(ip, timestamps);
+  return true;
+}
+
+// Cleanup WS rate tracking periodically
+setInterval(() => {
+  const now = Date.now();
+  const windowMs = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
+  for (const [ip, timestamps] of wsConnectionRate) {
+    const filtered = timestamps.filter((t) => now - t < windowMs);
+    if (filtered.length === 0) {
+      wsConnectionRate.delete(ip);
+    } else {
+      wsConnectionRate.set(ip, filtered);
+    }
+  }
+}, 60000).unref();
 
 export async function setupWSConnection(conn: WebSocket, req: any, { docName, gc = true }: { docName?: string; gc?: boolean } = {}) {
   conn.binaryType = 'arraybuffer';
@@ -273,8 +349,37 @@ export function setupWebSocket(server: ServerType) {
       return;
     }
 
+    const ip = getWsIp(req);
+    if (!checkWsRateLimit(ip)) {
+      ws.close(1013, 'Too many connections');
+      return;
+    }
+
+    const current = wsConnectionCounts.get(ip) || 0;
+    wsConnectionCounts.set(ip, current + 1);
+
+    ws.on('close', () => {
+      const count = wsConnectionCounts.get(ip);
+      if (count !== undefined) {
+        if (count <= 1) {
+          wsConnectionCounts.delete(ip);
+        } else {
+          wsConnectionCounts.set(ip, count - 1);
+        }
+      }
+    });
+
     setupWSConnection(ws, req, { docName });
   });
 
   return wss;
+}
+
+export function resetWsRateLimiters(): void {
+  wsConnectionCounts.clear();
+  wsConnectionRate.clear();
+  for (const timer of previewDebounces.values()) {
+    clearTimeout(timer);
+  }
+  previewDebounces.clear();
 }
