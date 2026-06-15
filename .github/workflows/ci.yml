@@ -101,6 +101,4 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
-      - run: docker build -t ghcr.io/burnoutberni/wikicollab:sha-${{ github.sha }} -t ghcr.io/burnoutberni/wikicollab:latest .
-      - run: docker push ghcr.io/burnoutberni/wikicollab:sha-${{ github.sha }}
-      - run: docker push ghcr.io/burnoutberni/wikicollab:latest
+      - run: docker buildx build --push -t ghcr.io/burnoutberni/wikicollab:sha-${{ github.sha }} -t ghcr.io/burnoutberni/wikicollab:latest .
