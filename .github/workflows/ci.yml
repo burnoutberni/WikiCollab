@@ -135,12 +135,12 @@ jobs:
           gh release edit "${{ steps.version.outputs.version }}" \
             --notes "${NOTES}
 
----
+            ---
 
-**Docker image**
+            **Docker image**
 
-\`\`\`
-docker pull ghcr.io/burnoutberni/wikicollab:${{ steps.version.outputs.version }}
-\`\`\`"
+            \`\`\`
+            docker pull ghcr.io/burnoutberni/wikicollab:${{ steps.version.outputs.version }}
+            \`\`\`"
         env:
           GH_TOKEN: ${{ github.token }}
