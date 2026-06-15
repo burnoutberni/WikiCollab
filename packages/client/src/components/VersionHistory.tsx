@@ -9,11 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { History, RotateCcw, Star, Eye, X } from 'lucide-react';
 import { useVersions } from '@/hooks/useApi';
 
@@ -28,10 +24,18 @@ function PreviewContent({ content }: { content: string }) {
   const lines = content.endsWith('\n') ? content.slice(0, -1).split('\n') : content.split('\n');
   const gutterWidth = `${String(lines.length).length + 1}ch`;
   return (
-    <pre className="text-sm font-mono max-h-[200px] overflow-auto min-w-0 whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>
+    <pre
+      className="text-sm font-mono max-h-[200px] overflow-auto min-w-0 whitespace-pre-wrap"
+      style={{ overflowWrap: 'anywhere' }}
+    >
       {lines.map((line, i) => (
         <div key={i} className="flex">
-          <span className="select-none text-muted-foreground text-right pr-3 border-r border-border shrink-0" style={{ minWidth: gutterWidth }}>{i + 1}</span>
+          <span
+            className="select-none text-muted-foreground text-right pr-3 border-r border-border shrink-0"
+            style={{ minWidth: gutterWidth }}
+          >
+            {i + 1}
+          </span>
           <span className="pl-3 min-w-0">{line}</span>
         </div>
       ))}
@@ -39,12 +43,14 @@ function PreviewContent({ content }: { content: string }) {
   );
 }
 
-export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCustomMessage }: VersionHistoryProps) {
-  const { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview } = useVersions(
-    documentId,
-    sendCustomMessage,
-    onCustomMessage
-  );
+export function VersionHistory({
+  documentId,
+  onRestore,
+  sendCustomMessage,
+  onCustomMessage,
+}: VersionHistoryProps) {
+  const { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview } =
+    useVersions(documentId, sendCustomMessage, onCustomMessage);
   const [open, setOpen] = useState(false);
   const [previewingVersion, setPreviewingVersion] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
@@ -60,32 +66,41 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
     return new Date(dateStr).toLocaleString();
   };
 
-  const handleRestore = useCallback((versionId: string) => {
-    onRestore(versionId);
-    setOpen(false);
-  }, [onRestore]);
+  const handleRestore = useCallback(
+    (versionId: string) => {
+      onRestore(versionId);
+      setOpen(false);
+    },
+    [onRestore]
+  );
 
-  const handleStar = useCallback(async (versionId: string, starred: boolean) => {
-    if (starred) {
-      await unstarVersion(versionId);
-    } else {
-      await starVersion(versionId);
-    }
-  }, [starVersion, unstarVersion]);
+  const handleStar = useCallback(
+    async (versionId: string, starred: boolean) => {
+      if (starred) {
+        await unstarVersion(versionId);
+      } else {
+        await starVersion(versionId);
+      }
+    },
+    [starVersion, unstarVersion]
+  );
 
-  const handlePreview = useCallback(async (versionId: string) => {
-    if (previewingVersion === versionId) {
-      setPreviewingVersion(null);
-      setPreviewContent(null);
-      return;
-    }
+  const handlePreview = useCallback(
+    async (versionId: string) => {
+      if (previewingVersion === versionId) {
+        setPreviewingVersion(null);
+        setPreviewContent(null);
+        return;
+      }
 
-    setPreviewingVersion(versionId);
-    setPreviewLoading(true);
-    const content = await getVersionPreview(versionId);
-    setPreviewContent(content);
-    setPreviewLoading(false);
-  }, [previewingVersion, getVersionPreview]);
+      setPreviewingVersion(versionId);
+      setPreviewLoading(true);
+      const content = await getVersionPreview(versionId);
+      setPreviewContent(content);
+      setPreviewLoading(false);
+    },
+    [previewingVersion, getVersionPreview]
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -149,13 +164,17 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                         onClick={() => handleStar(version.id, version.starred)}
                         title={version.starred ? 'Unstar version' : 'Star version'}
                       >
-                        <Star className={`h-4 w-4 ${version.starred ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                        <Star
+                          className={`h-4 w-4 ${version.starred ? 'fill-yellow-500 text-yellow-500' : ''}`}
+                        />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handlePreview(version.id)}
-                        title={previewingVersion === version.id ? 'Close preview' : 'Preview version'}
+                        title={
+                          previewingVersion === version.id ? 'Close preview' : 'Preview version'
+                        }
                       >
                         {previewingVersion === version.id ? (
                           <X className="h-4 w-4" />
@@ -164,11 +183,7 @@ export function VersionHistory({ documentId, onRestore, sendCustomMessage, onCus
                         )}
                       </Button>
                       {index !== 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRestore(version.id)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleRestore(version.id)}>
                           <RotateCcw className="h-4 w-4 mr-2" />
                           Restore
                         </Button>

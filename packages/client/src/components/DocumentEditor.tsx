@@ -3,12 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -68,9 +63,15 @@ export function DocumentEditor() {
   const [title, setTitle] = useState('');
   const [wikiTitle, setWikiTitle] = useState('');
   const [content, setContentState] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split');
-  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('wikicollab-sidebarOpen') !== 'false');
-  const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(() => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false');
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split'
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => localStorage.getItem('wikicollab-sidebarOpen') !== 'false'
+  );
+  const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(
+    () => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false'
+  );
   const editorRef = useRef<WikitextEditorHandle | null>(null);
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -95,51 +96,66 @@ export function DocumentEditor() {
     editorRef.current?.scrollToPosition(pos);
   }, []);
 
-  useEffect(() => { localStorage.setItem('wikicollab-viewMode', viewMode); }, [viewMode]);
-  useEffect(() => { localStorage.setItem('wikicollab-sidebarOpen', String(sidebarOpen)); }, [sidebarOpen]);
-  useEffect(() => { localStorage.setItem('wikicollab-collaboratorsExpanded', String(collaboratorsExpanded)); }, [collaboratorsExpanded]);
+  useEffect(() => {
+    localStorage.setItem('wikicollab-viewMode', viewMode);
+  }, [viewMode]);
+  useEffect(() => {
+    localStorage.setItem('wikicollab-sidebarOpen', String(sidebarOpen));
+  }, [sidebarOpen]);
+  useEffect(() => {
+    localStorage.setItem('wikicollab-collaboratorsExpanded', String(collaboratorsExpanded));
+  }, [collaboratorsExpanded]);
 
   const handleRemoteChange = useCallback((newContent: string) => {
     setContentState(newContent);
   }, []);
 
-  const handleTitleChange = useCallback(async (newTitle: string) => {
-    setTitle(newTitle);
-    if (id) {
-      await fetch(`/api/docs/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle }),
-      });
-    }
-  }, [id]);
+  const handleTitleChange = useCallback(
+    async (newTitle: string) => {
+      setTitle(newTitle);
+      if (id) {
+        await fetch(`/api/docs/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: newTitle }),
+        });
+      }
+    },
+    [id]
+  );
 
-  const handleContentChange = useCallback((newContent: string) => {
-    setContentState(newContent);
-    if (ytext) {
-      const currentContent = ytext.toString();
-      if (currentContent !== newContent) {
-        setContent(newContent);
+  const handleContentChange = useCallback(
+    (newContent: string) => {
+      setContentState(newContent);
+      if (ytext) {
+        const currentContent = ytext.toString();
+        if (currentContent !== newContent) {
+          setContent(newContent);
+        }
       }
-    }
-  }, [ytext, setContent]);
+    },
+    [ytext, setContent]
+  );
 
-  const handleRestoreVersion = useCallback(async (versionId: string) => {
-    try {
-      const res = await fetch(`/api/docs/${id}/versions/${versionId}/restore`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (data.content !== undefined && ytext) {
-        setContent(data.content);
+  const handleRestoreVersion = useCallback(
+    async (versionId: string) => {
+      try {
+        const res = await fetch(`/api/docs/${id}/versions/${versionId}/restore`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        if (data.content !== undefined && ytext) {
+          setContent(data.content);
+        }
+        if (sendCustomMessage) {
+          sendCustomMessage('restore', { versionId, documentId: id! });
+        }
+      } catch (error) {
+        console.error('Failed to restore version:', error);
       }
-      if (sendCustomMessage) {
-        sendCustomMessage('restore', { versionId, documentId: id! });
-      }
-    } catch (error) {
-      console.error('Failed to restore version:', error);
-    }
-  }, [id, ytext, setContent, sendCustomMessage]);
+    },
+    [id, ytext, setContent, sendCustomMessage]
+  );
 
   if (loading) {
     return (
@@ -155,7 +171,7 @@ export function DocumentEditor() {
         <FileText className="h-12 w-12 text-muted-foreground" />
         <h2 className="text-xl font-semibold">Document not found</h2>
         <p className="text-muted-foreground">
-          This document may have been deleted or doesn't exist.
+          This document may have been deleted or doesn&apos;t exist.
         </p>
         <Button onClick={() => navigate('/')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -172,11 +188,7 @@ export function DocumentEditor() {
         <header className="border-b px-4 py-2 flex items-center gap-4">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/')}
-              >
+              <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -223,7 +235,6 @@ export function DocumentEditor() {
               </TooltipTrigger>
               <TooltipContent>Split View</TooltipContent>
             </Tooltip>
-
           </div>
 
           <Separator orientation="vertical" className="h-6" />
@@ -246,11 +257,7 @@ export function DocumentEditor() {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -283,7 +290,9 @@ export function DocumentEditor() {
                     <ChevronRight className="h-3 w-3" />
                   )}
                   <Users className="h-3.5 w-3.5" />
-                  <span>{peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}</span>
+                  <span>
+                    {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
+                  </span>
                 </button>
                 {collaboratorsExpanded && (
                   <CollaboratorList
@@ -392,7 +401,9 @@ export function DocumentEditor() {
                   {linkCopied ? 'Copied!' : id}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>{linkCopied ? 'Link copied!' : 'Copy link to clipboard'}</TooltipContent>
+              <TooltipContent>
+                {linkCopied ? 'Link copied!' : 'Copy link to clipboard'}
+              </TooltipContent>
             </Tooltip>
           </div>
         </footer>
@@ -404,17 +415,15 @@ export function DocumentEditor() {
           <DialogHeader>
             <DialogTitle>Session already open</DialogTitle>
             <DialogDescription>
-              This document is already open in another tab. Taking over will close
-              the other session.
+              This document is already open in another tab. Taking over will close the other
+              session.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => navigate('/')}>
               Go Back
             </Button>
-            <Button onClick={takeOver}>
-              Take Over
-            </Button>
+            <Button onClick={takeOver}>Take Over</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

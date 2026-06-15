@@ -73,7 +73,7 @@ describe('InstanceManager', () => {
 
     expect(defaultProps.createInstance).toHaveBeenCalledWith(
       'My Wiki',
-      'https://my.wiki/w/api.php',
+      'https://my.wiki/w/api.php'
     );
   });
 

@@ -20,11 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Server, Trash2, Plus, ExternalLink } from 'lucide-react';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
@@ -70,7 +66,9 @@ export function InstanceManager({
   const [apiUrl, setApiUrl] = useState('');
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
-  const [selectedPreset, setSelectedPreset] = useState<{ name: string; api_url: string } | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<{ name: string; api_url: string } | null>(
+    null
+  );
   const justSelectedRef = useRef(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -254,11 +252,7 @@ export function InstanceManager({
   );
 
   if (loading) {
-    return (
-      <div className="text-sm text-muted-foreground py-2">
-        Loading instances...
-      </div>
-    );
+    return <div className="text-sm text-muted-foreground py-2">Loading instances...</div>;
   }
 
   if (!instance) {
@@ -306,9 +300,7 @@ export function InstanceManager({
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>
-            <div className="text-xs text-muted-foreground truncate mt-0.5">
-              {instance.api_url}
-            </div>
+            <div className="text-xs text-muted-foreground truncate mt-0.5">{instance.api_url}</div>
           </div>
           <div className="flex items-center gap-1 ml-2">
             <Tooltip>
@@ -335,8 +327,7 @@ export function InstanceManager({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove instance?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will disconnect the MediaWiki instance. You can always add it
-              back later.
+              This will disconnect the MediaWiki instance. You can always add it back later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

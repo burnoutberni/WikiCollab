@@ -1,9 +1,37 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate, WidgetType, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
-import { EditorState, RangeSet, Range, EditorSelection } from '@codemirror/state';
+import type { DecorationSet, ViewUpdate } from '@codemirror/view';
+import {
+  EditorView,
+  Decoration,
+  ViewPlugin,
+  WidgetType,
+  highlightSpecialChars,
+  drawSelection,
+  dropCursor,
+  rectangularSelection,
+  crosshairCursor,
+  highlightActiveLine,
+  keymap,
+  lineNumbers,
+  highlightActiveLineGutter,
+} from '@codemirror/view';
+import type { Range } from '@codemirror/state';
+import { EditorState, RangeSet, EditorSelection } from '@codemirror/state';
 import { history, historyKeymap } from '@codemirror/commands';
-import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
-import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import {
+  bracketMatching,
+  indentOnInput,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+} from '@codemirror/language';
+import {
+  closeBrackets,
+  closeBracketsKeymap,
+  autocompletion,
+  completionKeymap,
+} from '@codemirror/autocomplete';
 import { searchKeymap } from '@codemirror/search';
 import { yCollab } from 'y-codemirror.next';
 import { registerMediaWiki } from '@bhsd/codemirror-mediawiki';
@@ -29,10 +57,15 @@ import {
   Ban,
 } from 'lucide-react';
 import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import type { WebsocketProvider } from 'y-websocket';
 
 class LocalCursorWidget extends WidgetType {
-  constructor(readonly color: string, readonly name: string) { super(); }
+  constructor(
+    readonly color: string,
+    readonly name: string
+  ) {
+    super();
+  }
   toDOM() {
     const span = document.createElement('span');
     span.className = 'cm-ySelectionCaret cm-yLocalCaret';
@@ -47,8 +80,12 @@ class LocalCursorWidget extends WidgetType {
     span.appendChild(info);
     return span;
   }
-  eq(other: LocalCursorWidget) { return this.color === other.color; }
-  compare(other: LocalCursorWidget) { return this.color === other.color; }
+  eq(other: LocalCursorWidget) {
+    return this.color === other.color;
+  }
+  compare(other: LocalCursorWidget) {
+    return this.color === other.color;
+  }
 }
 
 function localCursorPlugin(userName: string, userColor: string) {
@@ -66,28 +103,31 @@ function localCursorPlugin(userName: string, userColor: string) {
       class: 'cm-yLocalCursor',
       style: `--cm-y-selection: ${colorLight}`,
     }),
-    ViewPlugin.fromClass(class {
-      decorations: DecorationSet;
-      constructor(view: EditorView) {
-        this.decorations = this.buildDecorations(view);
-      }
-      update(update: ViewUpdate) {
-        if (update.selectionSet || update.docChanged) {
-          this.decorations = this.buildDecorations(update.view);
+    ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
+          this.decorations = this.buildDecorations(view);
         }
-      }
-      buildDecorations(view: EditorView): DecorationSet {
-        const decos: Range<Decoration>[] = [];
-        const sel = view.state.selection.main;
-        if (sel.from !== sel.to) {
-          decos.push(selDeco.range(sel.from, sel.to));
+        update(update: ViewUpdate) {
+          if (update.selectionSet || update.docChanged) {
+            this.decorations = this.buildDecorations(update.view);
+          }
         }
-        decos.push(cursorDeco.range(sel.to));
-        return RangeSet.of(decos);
+        buildDecorations(view: EditorView): DecorationSet {
+          const decos: Range<Decoration>[] = [];
+          const sel = view.state.selection.main;
+          if (sel.from !== sel.to) {
+            decos.push(selDeco.range(sel.from, sel.to));
+          }
+          decos.push(cursorDeco.range(sel.to));
+          return RangeSet.of(decos);
+        }
+      },
+      {
+        decorations: (v) => v.decorations,
       }
-    }, {
-      decorations: v => v.decorations,
-    }),
+    ),
   ];
 }
 
@@ -125,136 +165,149 @@ export interface WikitextEditorHandle {
   scrollToPosition: (pos: number) => void;
 }
 
-export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(function WikitextEditor({ content: _content, onChange: _onChange, ytext, provider, onRemoteChange, onCursorChange, userName, userColor }, ref) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<EditorView | null>(null);
-  const [undoRedo, setUndoRedo] = useState({ canUndo: false, canRedo: false });
-  const undoManagerRef = useRef<Y.UndoManager | null>(null);
+export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(
+  function WikitextEditor(
+    { ytext, provider, onRemoteChange, onCursorChange, userName, userColor },
+    ref
+  ) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [view, setView] = useState<EditorView | null>(null);
+    const [undoRedo, setUndoRedo] = useState({ canUndo: false, canRedo: false });
+    const undoManagerRef = useRef<Y.UndoManager | null>(null);
 
-  useImperativeHandle(ref, () => ({
-    jumpToPosition(anchor: number, head?: number) {
-      if (view) {
-        const h = head ?? anchor;
-        const sel = anchor === h
-          ? EditorSelection.cursor(anchor)
-          : EditorSelection.range(anchor, h);
-        view.dispatch({
-          selection: sel,
-          effects: EditorView.scrollIntoView(anchor),
-        });
-        view.focus();
-      }
-    },
-    scrollToPosition(pos: number) {
-      if (view) {
-        view.dispatch({
-          effects: EditorView.scrollIntoView(pos),
-        });
-      }
-    },
-  }), [view]);
-
-  useEffect(() => {
-    if (!containerRef.current || !ytext || !provider) return;
-
-    if (!registered) {
-      registerMediaWiki();
-      registered = true;
-    }
-
-    const getLang = languages.get('mediawiki');
-    const langExtension = getLang ? getLang(defaultMwConfig) : [];
-
-    const undoManager = new Y.UndoManager(ytext);
-    undoManagerRef.current = undoManager;
-
-    const checkUndoRedo = () => {
-      setUndoRedo({ canUndo: undoManager.canUndo(), canRedo: undoManager.canRedo() });
-    };
-
-    const state = EditorState.create({
-      doc: ytext.toString(),
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        highlightSpecialChars(),
-        history(),
-        foldGutter(),
-        drawSelection(),
-        dropCursor(),
-        EditorState.allowMultipleSelections.of(true),
-        indentOnInput(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        bracketMatching(),
-        closeBrackets(),
-        autocompletion(),
-        rectangularSelection(),
-        crosshairCursor(),
-        highlightActiveLine(),
-        keymap.of([
-          ...closeBracketsKeymap,
-          ...searchKeymap,
-          ...historyKeymap,
-          ...foldKeymap,
-          ...completionKeymap,
-        ]),
-        EditorView.lineWrapping,
-        langExtension,
-        ...(userName && userColor ? [localCursorPlugin(userName, userColor)] : []),
-        yCollab(ytext, provider.awareness, { undoManager }),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            const newValue = update.state.doc.toString();
-            onRemoteChange?.(newValue);
+    useImperativeHandle(
+      ref,
+      () => ({
+        jumpToPosition(anchor: number, head?: number) {
+          if (view) {
+            const h = head ?? anchor;
+            const sel =
+              anchor === h ? EditorSelection.cursor(anchor) : EditorSelection.range(anchor, h);
+            view.dispatch({
+              selection: sel,
+              effects: EditorView.scrollIntoView(anchor),
+            });
+            view.focus();
           }
-          if (update.selectionSet) {
-            const sel = update.state.selection.main;
-            onCursorChange?.({ anchor: sel.anchor, head: sel.head });
+        },
+        scrollToPosition(pos: number) {
+          if (view) {
+            view.dispatch({
+              effects: EditorView.scrollIntoView(pos),
+            });
           }
-          queueMicrotask(checkUndoRedo);
-        }),
-      ],
-    });
+        },
+      }),
+      [view]
+    );
 
-    const v = new EditorView({
-      state,
-      parent: containerRef.current,
-    });
+    useEffect(() => {
+      if (!containerRef.current || !ytext || !provider) return;
 
-    undoManager.on('stack-item-added', checkUndoRedo);
-    undoManager.on('stack-item-popped', checkUndoRedo);
-    undoManager.on('stack-cleared', checkUndoRedo);
-    undoManager.on('stack-item-updated', checkUndoRedo);
+      if (!registered) {
+        registerMediaWiki();
+        registered = true;
+      }
 
-    setView(v);
-    checkUndoRedo();
+      const getLang = languages.get('mediawiki');
+      const langExtension = getLang ? getLang(defaultMwConfig) : [];
 
-    return () => {
-      undoManager.off('stack-item-added', checkUndoRedo);
-      undoManager.off('stack-item-popped', checkUndoRedo);
-      undoManager.off('stack-cleared', checkUndoRedo);
-      undoManager.off('stack-item-updated', checkUndoRedo);
-      v.destroy();
-      setView(null);
-    };
-  }, [ytext, provider, userName, userColor]);
+      const undoManager = new Y.UndoManager(ytext);
+      undoManagerRef.current = undoManager;
 
-  return (
-    <div className="h-full w-full flex flex-col relative">
-      <style>{`.cm-yLocalCursor .cm-cursor { display: none !important; }
+      const checkUndoRedo = () => {
+        setUndoRedo({ canUndo: undoManager.canUndo(), canRedo: undoManager.canRedo() });
+      };
+
+      const state = EditorState.create({
+        doc: ytext.toString(),
+        extensions: [
+          lineNumbers(),
+          highlightActiveLineGutter(),
+          highlightSpecialChars(),
+          history(),
+          foldGutter(),
+          drawSelection(),
+          dropCursor(),
+          EditorState.allowMultipleSelections.of(true),
+          indentOnInput(),
+          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+          bracketMatching(),
+          closeBrackets(),
+          autocompletion(),
+          rectangularSelection(),
+          crosshairCursor(),
+          highlightActiveLine(),
+          keymap.of([
+            ...closeBracketsKeymap,
+            ...searchKeymap,
+            ...historyKeymap,
+            ...foldKeymap,
+            ...completionKeymap,
+          ]),
+          EditorView.lineWrapping,
+          langExtension,
+          ...(userName && userColor ? [localCursorPlugin(userName, userColor)] : []),
+          yCollab(ytext, provider.awareness, { undoManager }),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              const newValue = update.state.doc.toString();
+              onRemoteChange?.(newValue);
+            }
+            if (update.selectionSet) {
+              const sel = update.state.selection.main;
+              onCursorChange?.({ anchor: sel.anchor, head: sel.head });
+            }
+            queueMicrotask(checkUndoRedo);
+          }),
+        ],
+      });
+
+      const v = new EditorView({
+        state,
+        parent: containerRef.current,
+      });
+
+      undoManager.on('stack-item-added', checkUndoRedo);
+      undoManager.on('stack-item-popped', checkUndoRedo);
+      undoManager.on('stack-cleared', checkUndoRedo);
+      undoManager.on('stack-item-updated', checkUndoRedo);
+
+      setView(v);
+      checkUndoRedo();
+
+      return () => {
+        undoManager.off('stack-item-added', checkUndoRedo);
+        undoManager.off('stack-item-popped', checkUndoRedo);
+        undoManager.off('stack-cleared', checkUndoRedo);
+        undoManager.off('stack-item-updated', checkUndoRedo);
+        v.destroy();
+        setView(null);
+      };
+    }, [ytext, provider, userName, userColor]);
+
+    return (
+      <div className="h-full w-full flex flex-col relative">
+        <style>{`.cm-yLocalCursor .cm-cursor { display: none !important; }
 .cm-yLocalCursor .cm-selectionBackground { background-color: var(--cm-y-selection) !important; }
 .cm-yLocalCursor .cm-content ::selection { background-color: var(--cm-y-selection) !important; }
 .cm-ySelectionInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { display: none !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }`}</style>
-      <Toolbar view={view} undoManager={undoManagerRef.current} canUndo={undoRedo.canUndo} canRedo={undoRedo.canRedo} />
-      <div
-        ref={containerRef}
-        className="flex-1 w-full overflow-auto [&_.cm-editor]:h-full [&_.cm-editor]:font-mono [&_.cm-editor]:text-sm"
-      />
-    </div>
-  );
-});
+        <Toolbar
+          view={view}
+          undoManager={undoManagerRef.current}
+          canUndo={undoRedo.canUndo}
+          canRedo={undoRedo.canRedo}
+        />
+        <div
+          ref={containerRef}
+          className="flex-1 w-full overflow-auto [&_.cm-editor]:h-full [&_.cm-editor]:font-mono [&_.cm-editor]:text-sm"
+        />
+      </div>
+    );
+  }
+);
 
 interface TooltipState {
   text: string;
@@ -262,7 +315,17 @@ interface TooltipState {
   left: number;
 }
 
-function Toolbar({ view, undoManager, canUndo, canRedo }: { view: EditorView | null; undoManager: Y.UndoManager | null; canUndo: boolean; canRedo: boolean }) {
+function Toolbar({
+  view,
+  undoManager,
+  canUndo,
+  canRedo,
+}: {
+  view: EditorView | null;
+  undoManager: Y.UndoManager | null;
+  canUndo: boolean;
+  canRedo: boolean;
+}) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -285,7 +348,10 @@ function Toolbar({ view, undoManager, canUndo, canRedo }: { view: EditorView | n
     <button
       type="button"
       aria-disabled={disabled || undefined}
-      onClick={() => { if (!disabled && view) fn(view); view?.focus(); }}
+      onClick={() => {
+        if (!disabled && view) fn(view);
+        view?.focus();
+      }}
       onMouseEnter={(e) => showTip(tip, e)}
       onMouseLeave={hideTip}
       className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer aria-disabled:opacity-30"
@@ -303,34 +369,66 @@ function Toolbar({ view, undoManager, canUndo, canRedo }: { view: EditorView | n
         {b(<Redo2 className="h-3.5 w-3.5" />, 'Redo', () => undoManager?.redo(), !canRedo)}
         <Sep />
 
-        {b(<Bold className="h-3.5 w-3.5" />, "Bold — '''text'''", (v) => insertText(v, "'''", "'''", 'bold'))}
-        {b(<Italic className="h-3.5 w-3.5" />, "Italic — ''text''", (v) => insertText(v, "''", "''", 'italic'))}
+        {b(<Bold className="h-3.5 w-3.5" />, "Bold — '''text'''", (v) =>
+          insertText(v, "'''", "'''", 'bold')
+        )}
+        {b(<Italic className="h-3.5 w-3.5" />, "Italic — ''text''", (v) =>
+          insertText(v, "''", "''", 'italic')
+        )}
         <Sep />
 
-        {b(<Heading2 className="h-3.5 w-3.5" />, 'Heading 2 — == text ==', (v) => wrapLine(v, '== ', ' =='))}
-        {b(<Heading3 className="h-3.5 w-3.5" />, 'Heading 3 — === text ===', (v) => wrapLine(v, '=== ', ' ==='))}
-        {b(<Heading4 className="h-3.5 w-3.5" />, 'Heading 4 — ==== text ====', (v) => wrapLine(v, '==== ', ' ===='))}
+        {b(<Heading2 className="h-3.5 w-3.5" />, 'Heading 2 — == text ==', (v) =>
+          wrapLine(v, '== ', ' ==')
+        )}
+        {b(<Heading3 className="h-3.5 w-3.5" />, 'Heading 3 — === text ===', (v) =>
+          wrapLine(v, '=== ', ' ===')
+        )}
+        {b(<Heading4 className="h-3.5 w-3.5" />, 'Heading 4 — ==== text ====', (v) =>
+          wrapLine(v, '==== ', ' ====')
+        )}
         <Sep />
 
-        {b(<Link className="h-3.5 w-3.5" />, 'Internal link — [[Page name]]', (v) => insertText(v, '[[', ']]', 'Page name'))}
-        {b(<ExternalLink className="h-3.5 w-3.5" />, 'External link — [http:// label]', (v) => insertText(v, '[', ']', 'http://example.com label'))}
+        {b(<Link className="h-3.5 w-3.5" />, 'Internal link — [[Page name]]', (v) =>
+          insertText(v, '[[', ']]', 'Page name')
+        )}
+        {b(<ExternalLink className="h-3.5 w-3.5" />, 'External link — [http:// label]', (v) =>
+          insertText(v, '[', ']', 'http://example.com label')
+        )}
         <Sep />
 
-        {b(<FileCode className="h-3.5 w-3.5" />, 'Template — {{name}}', (v) => insertText(v, '{{', '}}', 'template name'))}
-        {b(<Tag className="h-3.5 w-3.5" />, 'Category — [[Category:Name]]', (v) => insertText(v, '[[Category:', ']]', 'Category name'))}
-        {b(<Image className="h-3.5 w-3.5" />, 'Image — [[File:Name.png|thumb]]', (v) => insertText(v, '[[File:', '|thumb|Caption]]', 'Example.png'))}
+        {b(<FileCode className="h-3.5 w-3.5" />, 'Template — {{name}}', (v) =>
+          insertText(v, '{{', '}}', 'template name')
+        )}
+        {b(<Tag className="h-3.5 w-3.5" />, 'Category — [[Category:Name]]', (v) =>
+          insertText(v, '[[Category:', ']]', 'Category name')
+        )}
+        {b(<Image className="h-3.5 w-3.5" />, 'Image — [[File:Name.png|thumb]]', (v) =>
+          insertText(v, '[[File:', '|thumb|Caption]]', 'Example.png')
+        )}
         <Sep />
 
-        {b(<Code2 className="h-3.5 w-3.5" />, 'Preformatted — <pre>text</pre>', (v) => insertText(v, '<pre>\n', '\n</pre>', 'preformatted text'))}
-        {b(<Ban className="h-3.5 w-3.5" />, 'Nowiki — <nowiki>text</nowiki>', (v) => insertText(v, '<nowiki>', '</nowiki>', 'literal text'))}
-        {b(<Minus className="h-3.5 w-3.5" />, 'Horizontal rule — ----', (v) => insertAtLine(v, '----\n'))}
+        {b(<Code2 className="h-3.5 w-3.5" />, 'Preformatted — <pre>text</pre>', (v) =>
+          insertText(v, '<pre>\n', '\n</pre>', 'preformatted text')
+        )}
+        {b(<Ban className="h-3.5 w-3.5" />, 'Nowiki — <nowiki>text</nowiki>', (v) =>
+          insertText(v, '<nowiki>', '</nowiki>', 'literal text')
+        )}
+        {b(<Minus className="h-3.5 w-3.5" />, 'Horizontal rule — ----', (v) =>
+          insertAtLine(v, '----\n')
+        )}
         <Sep />
 
-        {b(<Table className="h-3.5 w-3.5" />, 'Table — {| class="wikitable" ... |}', (v) => insertText(v, '{| class="wikitable"\n|-\n| cell1 || cell2\n|}', ''))}
+        {b(<Table className="h-3.5 w-3.5" />, 'Table — {| class="wikitable" ... |}', (v) =>
+          insertText(v, '{| class="wikitable"\n|-\n| cell1 || cell2\n|}', '')
+        )}
         <Sep />
 
-        {b(<Route className="h-3.5 w-3.5" />, 'Redirect — #REDIRECT [[Page]]', (v) => insertAtLine(v, '#REDIRECT [['))}
-        {b(<Quote className="h-3.5 w-3.5" />, 'Reference — <ref>text</ref>', (v) => insertText(v, '<ref>', '</ref>', 'reference text'))}
+        {b(<Route className="h-3.5 w-3.5" />, 'Redirect — #REDIRECT [[Page]]', (v) =>
+          insertAtLine(v, '#REDIRECT [[')
+        )}
+        {b(<Quote className="h-3.5 w-3.5" />, 'Reference — <ref>text</ref>', (v) =>
+          insertText(v, '<ref>', '</ref>', 'reference text')
+        )}
       </div>
 
       {tooltip && (
@@ -375,7 +473,11 @@ function wrapLine(view: EditorView, prefix: string, suffix: string) {
   const text = line.text;
   if (text.startsWith(prefix) && text.endsWith(suffix)) {
     view.dispatch({
-      changes: { from: line.from, to: line.to, insert: text.slice(prefix.length, text.length - suffix.length) },
+      changes: {
+        from: line.from,
+        to: line.to,
+        insert: text.slice(prefix.length, text.length - suffix.length),
+      },
     });
   } else {
     view.dispatch({

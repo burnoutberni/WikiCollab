@@ -21,11 +21,14 @@ app.notFound((c) => {
 });
 
 // getAllowedOrigins() is evaluated once at startup; restart the server to apply CORS_ORIGINS changes.
-app.use('*', cors({
-  origin: getAllowedOrigins(),
-  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowHeaders: ['Content-Type'],
-}));
+app.use(
+  '*',
+  cors({
+    origin: getAllowedOrigins(),
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowHeaders: ['Content-Type'],
+  })
+);
 
 app.use('/api/*', securityHeaders());
 
@@ -47,12 +50,15 @@ if (process.env.NODE_ENV === 'production') {
 
 const port = parseInt(process.env.PORT || '3000', 10);
 
-const server = serve({
-  fetch: app.fetch,
-  port,
-}, (info) => {
-  console.log(`Server running on http://localhost:${info.port}`);
-  console.log(`WebSocket available on ws://localhost:${info.port}/ws`);
-});
+const server = serve(
+  {
+    fetch: app.fetch,
+    port,
+  },
+  (info) => {
+    console.log(`Server running on http://localhost:${info.port}`);
+    console.log(`WebSocket available on ws://localhost:${info.port}/ws`);
+  }
+);
 
 setupWebSocket(server);

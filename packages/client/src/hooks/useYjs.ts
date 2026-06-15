@@ -37,9 +37,18 @@ function generateUserName(): string {
 }
 
 export const COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
-  '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-  '#BB8FCE', '#85C1E9', '#82E0AA', '#F8C471',
+  '#FF6B6B',
+  '#4ECDC4',
+  '#45B7D1',
+  '#96CEB4',
+  '#FFEAA7',
+  '#DDA0DD',
+  '#98D8C8',
+  '#F7DC6F',
+  '#BB8FCE',
+  '#85C1E9',
+  '#82E0AA',
+  '#F8C471',
 ];
 
 function generateColor(): string {
@@ -159,12 +168,7 @@ export function useYjs(docId: string | null) {
 
     awareness.on('change', updatePeers);
 
-    wsProvider.messageHandlers[messageCustom] = (
-      _encoder: any,
-      decoder: any,
-      _provider: WebsocketProvider,
-      _inc: boolean
-    ) => {
+    wsProvider.messageHandlers[messageCustom] = (_encoder: any, decoder: any) => {
       const customData = decoding.readVarUint8Array(decoder);
       const { type, payload } = decodeCustomMessage(customData);
       const handlers = customHandlersRef.current.get(type);
@@ -190,22 +194,26 @@ export function useYjs(docId: string | null) {
     });
   }, [provider, userName, userColor]);
 
-
-
   const getContent = useCallback(() => {
     if (!ytext) return '';
     return ytext.toString();
   }, [ytext]);
 
-  const setContent = useCallback((content: string) => {
-    if (!ytext) return;
-    replaceYText(ytext, content);
-  }, [ytext]);
+  const setContent = useCallback(
+    (content: string) => {
+      if (!ytext) return;
+      replaceYText(ytext, content);
+    },
+    [ytext]
+  );
 
-  const sendCustomMessage = useCallback((type: string, payload: Record<string, string | boolean>) => {
-    if (!provider?.ws || provider.ws.readyState !== WebSocket.OPEN) return;
-    provider.ws.send(encodeCustomMessage(type, payload) as BufferSource);
-  }, [provider]);
+  const sendCustomMessage = useCallback(
+    (type: string, payload: Record<string, string | boolean>) => {
+      if (!provider?.ws || provider.ws.readyState !== WebSocket.OPEN) return;
+      provider.ws.send(encodeCustomMessage(type, payload) as BufferSource);
+    },
+    [provider]
+  );
 
   const onCustomMessage = useCallback((type: string, handler: CustomMessageHandler) => {
     if (!customHandlersRef.current.has(type)) {

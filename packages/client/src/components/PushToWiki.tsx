@@ -22,19 +22,29 @@ interface PushToWikiProps {
   instance: MediaWikiInstance | null;
 }
 
-export function PushToWiki({ documentId, title, wikiTitle, onWikiTitleChange, content, instance }: PushToWikiProps) {
+export function PushToWiki({
+  documentId,
+  title,
+  wikiTitle,
+  onWikiTitleChange,
+  content,
+  instance,
+}: PushToWikiProps) {
   const [open, setOpen] = useState(false);
   const [summary, setSummary] = useState('');
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  const handleOpenChange = useCallback((nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (nextOpen) {
-      onWikiTitleChange(title);
-      setSummary('');
-      setResult(null);
-    }
-  }, [title, onWikiTitleChange]);
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (nextOpen) {
+        onWikiTitleChange(title);
+        setSummary('');
+        setResult(null);
+      }
+    },
+    [title, onWikiTitleChange]
+  );
 
   const handlePush = useCallback(async () => {
     if (!instance || !wikiTitle) return;
@@ -101,8 +111,8 @@ export function PushToWiki({ documentId, title, wikiTitle, onWikiTitleChange, co
 
           <div className="space-y-4">
             <div className="rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300">
-              Push to Wiki is not yet implemented. Authentication with MediaWiki bot
-              passwords needs to be built first.
+              Push to Wiki is not yet implemented. Authentication with MediaWiki bot passwords needs
+              to be built first.
             </div>
 
             <div className="rounded-md bg-muted px-3 py-2 text-sm">
@@ -147,11 +157,7 @@ export function PushToWiki({ documentId, title, wikiTitle, onWikiTitleChange, co
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handlePush}
-              disabled={true}
-              title="Not yet implemented"
-            >
+            <Button onClick={handlePush} disabled={true} title="Not yet implemented">
               Push to Wiki
             </Button>
           </DialogFooter>

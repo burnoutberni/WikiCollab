@@ -2,14 +2,10 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RefreshCw } from 'lucide-react';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import type * as Y from 'yjs';
+import type { WebsocketProvider } from 'y-websocket';
 import defaultCss from '@/styles/wikipedia.css?inline';
 
 interface SplitPaneEditorProps {
@@ -45,7 +41,12 @@ function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): 
   for (const el of doc.querySelectorAll('a[href], img[src]')) {
     if (el instanceof HTMLAnchorElement) {
       const href = el.getAttribute('href');
-      if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('javascript:')) {
+      if (
+        href &&
+        !href.startsWith('http') &&
+        !href.startsWith('//') &&
+        !href.startsWith('javascript:')
+      ) {
         if (href.startsWith('#')) {
           el.setAttribute('href', baseUrl + '/wiki/' + encodeURIComponent(pageTitle) + href);
         } else {
@@ -63,7 +64,21 @@ function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): 
   return doc.body.innerHTML;
 }
 
-export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss, ytext, provider, userName, userColor, editorRef, onCursorChange, sendCustomMessage, onCustomMessage }: SplitPaneEditorProps) {
+export function SplitPaneEditor({
+  content,
+  onChange,
+  apiUrl,
+  title,
+  instanceCss,
+  ytext,
+  provider,
+  userName,
+  userColor,
+  editorRef,
+  onCursorChange,
+  sendCustomMessage,
+  onCustomMessage,
+}: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
@@ -88,18 +103,25 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
 
   useEffect(() => {
     if (!onCustomMessage) return;
-    const unsubscribe = onCustomMessage('preview_update', (payload: { html: string; api_url: string; page: string }) => {
-      const currentApiUrl = apiUrlRef.current || '';
-      const currentTitle = titleRef.current || '';
-      if (payload.api_url === currentApiUrl && payload.page === currentTitle) {
-        let html = payload.html;
-        if (currentApiUrl) {
-          html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl), currentTitle || 'Untitled');
+    const unsubscribe = onCustomMessage(
+      'preview_update',
+      (payload: { html: string; api_url: string; page: string }) => {
+        const currentApiUrl = apiUrlRef.current || '';
+        const currentTitle = titleRef.current || '';
+        if (payload.api_url === currentApiUrl && payload.page === currentTitle) {
+          let html = payload.html;
+          if (currentApiUrl) {
+            html = rewriteRelativeUrls(
+              html,
+              getWikiBaseUrl(currentApiUrl),
+              currentTitle || 'Untitled'
+            );
+          }
+          setPreviewHtml(html);
+          setLoading(false);
         }
-        setPreviewHtml(html);
-        setLoading(false);
       }
-    });
+    );
     return unsubscribe;
   }, [onCustomMessage]);
 
@@ -130,7 +152,9 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
       }
     } catch (err) {
       console.error('Failed to fetch preview:', err);
-      setPreviewHtml('<p class="text-red-500">Preview requires a configured MediaWiki instance</p>');
+      setPreviewHtml(
+        '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
+      );
     } finally {
       setLoading(false);
     }
@@ -214,7 +238,9 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
       <PreviewLinkModal
         url={linkModalUrl || ''}
         open={linkModalUrl !== null}
-        onOpenChange={(open) => { if (!open) setLinkModalUrl(null); }}
+        onOpenChange={(open) => {
+          if (!open) setLinkModalUrl(null);
+        }}
       />
     </div>
   );

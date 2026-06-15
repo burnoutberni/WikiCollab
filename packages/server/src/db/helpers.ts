@@ -10,5 +10,9 @@ export function getDocumentById(id: string): DocumentRow | undefined {
 }
 
 export function getVersionById(vId: string): VersionRow | undefined {
-  return db.select().from(schema.documentRevisions).where(eq(schema.documentRevisions.id, vId)).get();
+  return db
+    .select()
+    .from(schema.documentRevisions)
+    .where(eq(schema.documentRevisions.id, vId))
+    .get();
 }

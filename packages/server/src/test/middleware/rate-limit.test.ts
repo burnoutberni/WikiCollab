@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { createRateLimiter, resetRateLimiters } from '../../middleware/rate-limit.js';
 

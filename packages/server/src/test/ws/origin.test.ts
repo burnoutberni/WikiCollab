@@ -111,7 +111,7 @@ describe('WebSocket origin validation', () => {
       const validator = createOriginValidator();
       const cb = vi.fn();
 
-      validator({ origin: '' as any, req: mockReq(), secure: true }, cb);
+      validator({ origin: '', req: mockReq(), secure: true }, cb);
 
       expect(cb).toHaveBeenCalledWith(true);
     });
@@ -121,7 +121,7 @@ describe('WebSocket origin validation', () => {
       const validator = createOriginValidator();
       const cb = vi.fn();
 
-      validator({ origin: '' as any, req: mockReq(), secure: true }, cb);
+      validator({ origin: '', req: mockReq(), secure: true }, cb);
 
       expect(cb).toHaveBeenCalledWith(false, 403, 'Forbidden: origin not allowed');
     });

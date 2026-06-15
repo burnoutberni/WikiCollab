@@ -30,7 +30,10 @@ export const PushToWikiSchema = z.object({
 
 export const PreviewSchema = z.object({
   wikitext: z.string().optional(),
-  api_url: z.string().url({ protocol: /^https?$/ }).optional(),
+  api_url: z
+    .string()
+    .url({ protocol: /^https?$/ })
+    .optional(),
   page: z.string().max(200).optional(),
 });
 

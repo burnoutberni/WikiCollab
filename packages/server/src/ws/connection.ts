@@ -9,7 +9,14 @@ import { getVersionById } from '../db/helpers.js';
 import { eq } from 'drizzle-orm';
 import type { ServerType } from '@hono/node-server';
 import type { Server } from 'http';
-import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, wsReadyStateOpen, pingTimeout } from './constants.js';
+import {
+  messageSync,
+  messageAwareness,
+  messageCustom,
+  wsReadyStateConnecting,
+  wsReadyStateOpen,
+  pingTimeout,
+} from './constants.js';
 import { runContentInitializor, getPersistence } from './persistence.js';
 import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
 import { createOriginValidator } from './origin.js';
@@ -29,32 +36,38 @@ export class WSSharedDoc extends Y.Doc {
     this.awareness = new awarenessProtocol.Awareness(this);
     this.awareness.setLocalState(null);
 
-    this.awareness.on('update', ({ added, updated, removed }: { added: number[], updated: number[], removed: number[] }, conn: WebSocket | null) => {
-      const changedClients = added.concat(updated, removed);
-      if (conn !== null) {
-        const connControlledIDs = this.conns.get(conn);
-        if (connControlledIDs !== undefined) {
-          added.forEach((clientID: number) => connControlledIDs.add(clientID));
-          removed.forEach((clientID: number) => connControlledIDs.delete(clientID));
+    this.awareness.on(
+      'update',
+      (
+        { added, updated, removed }: { added: number[]; updated: number[]; removed: number[] },
+        conn: WebSocket | null
+      ) => {
+        const changedClients = added.concat(updated, removed);
+        if (conn !== null) {
+          const connControlledIDs = this.conns.get(conn);
+          if (connControlledIDs !== undefined) {
+            added.forEach((clientID: number) => connControlledIDs.add(clientID));
+            removed.forEach((clientID: number) => connControlledIDs.delete(clientID));
+          }
         }
+        const encoder = encoding.createEncoder();
+        encoding.writeVarUint(encoder, messageAwareness);
+        encoding.writeVarUint8Array(
+          encoder,
+          awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients)
+        );
+        const buff = encoding.toUint8Array(encoder);
+        this.conns.forEach((_, c) => send(this, c, buff));
       }
-      const encoder = encoding.createEncoder();
-      encoding.writeVarUint(encoder, messageAwareness);
-      encoding.writeVarUint8Array(
-        encoder,
-        awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients)
-      );
-      const buff = encoding.toUint8Array(encoder);
-      this.conns.forEach((_, c) => send(this, c, buff));
-    });
+    );
 
-    this.on('update', ((update: Uint8Array, _origin: any, doc: WSSharedDoc) => {
+    this.on('update', ((update: Uint8Array, _origin: unknown, doc: WSSharedDoc) => {
       const encoder = encoding.createEncoder();
       encoding.writeVarUint(encoder, messageSync);
       syncProtocol.writeUpdate(encoder, update);
       const message = encoding.toUint8Array(encoder);
       doc.conns.forEach((_, conn) => send(doc, conn, message));
-    }) as any);
+    }) as unknown as (eventName: string, ...args: unknown[]) => void);
 
     this.initialized = runContentInitializor(this);
   }
@@ -89,7 +102,7 @@ function send(doc: WSSharedDoc, conn: WebSocket, m: Uint8Array) {
     conn.send(m, (err) => {
       if (err) closeConn(doc, conn);
     });
-  } catch (_e) {
+  } catch {
     closeConn(doc, conn);
   }
 }
@@ -112,7 +125,11 @@ function closeConn(doc: WSSharedDoc, conn: WebSocket) {
   conn.close();
 }
 
-export function broadcastCustom(doc: WSSharedDoc, data: Uint8Array, excludeConn: WebSocket | null = null) {
+export function broadcastCustom(
+  doc: WSSharedDoc,
+  data: Uint8Array,
+  excludeConn: WebSocket | null = null
+) {
   const message = wrapCustomMessage(data);
   doc.conns.forEach((_, conn) => {
     if (conn !== excludeConn) {
@@ -135,7 +152,7 @@ function evictPreviewDebounce(): void {
   }
 }
 
-function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocket) {
+function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
   const { type, payload } = decodeCustomMessage(data);
 
   switch (type) {
@@ -185,16 +202,19 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       if (!existing) {
         evictPreviewDebounce();
       }
-      previewDebounces.set(key, setTimeout(async () => {
-        previewDebounces.delete(key);
-        try {
-          const wikitext = doc.getText('wikitext').toString();
-          const { html } = await generatePreview(wikitext, api_url || null, page || null);
-          broadcastCustom(doc, encodeInnerPayload('preview_update', { html, api_url, page }));
-        } catch (err) {
-          console.error('WS preview generation failed:', err);
-        }
-      }, 500));
+      previewDebounces.set(
+        key,
+        setTimeout(async () => {
+          previewDebounces.delete(key);
+          try {
+            const wikitext = doc.getText('wikitext').toString();
+            const { html } = await generatePreview(wikitext, api_url || null, page || null);
+            broadcastCustom(doc, encodeInnerPayload('preview_update', { html, api_url, page }));
+          } catch (err) {
+            console.error('WS preview generation failed:', err);
+          }
+        }, 500)
+      );
       break;
     }
   }
@@ -220,10 +240,11 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
           conn
         );
         break;
-      case messageCustom:
+      case messageCustom: {
         const customData = decoding.readVarUint8Array(decoder);
-        handleCustomMessage(doc, customData, conn);
+        handleCustomMessage(doc, customData);
         break;
+      }
     }
   } catch (err) {
     console.error(err);
@@ -239,7 +260,10 @@ const WS_RATE_WINDOW_MS = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
 const wsConnectionCounts = new Map<string, number>();
 const wsConnectionRate = new Map<string, number[]>();
 
-function getWsIp(req: any): string {
+function getWsIp(req: {
+  headers?: Record<string, string | undefined>;
+  socket?: { remoteAddress?: string };
+}): string {
   const forwarded = req?.headers?.['x-forwarded-for'];
   if (forwarded) return forwarded.split(',')[0].trim();
   const realIp = req?.headers?.['x-real-ip'];
@@ -275,7 +299,11 @@ setInterval(() => {
   }
 }, 60000).unref();
 
-export async function setupWSConnection(conn: WebSocket, req: any, { docName, gc = true }: { docName?: string; gc?: boolean } = {}) {
+export async function setupWSConnection(
+  conn: WebSocket,
+  req: { url?: string },
+  { docName, gc = true }: { docName?: string; gc?: boolean } = {}
+) {
   conn.binaryType = 'arraybuffer';
   const name = docName || (req.url || '').slice(1).split('?')[0];
   const doc = getYDoc(name, gc);
@@ -307,7 +335,7 @@ export async function setupWSConnection(conn: WebSocket, req: any, { docName, gc
       pongReceived = false;
       try {
         conn.ping();
-      } catch (_e) {
+      } catch {
         closeConn(doc, conn);
         clearInterval(pingInterval);
       }
@@ -348,37 +376,47 @@ export function setupWebSocket(server: ServerType) {
     verifyClient: createOriginValidator(),
   });
 
-  wss.on('connection', (ws: WebSocket, req: any) => {
-    const url = new URL(req.url!, `http://${req.headers.host}`);
-    const docName = url.pathname.split('/').pop();
-
-    if (!docName) {
-      ws.close(1008, 'Missing document ID');
-      return;
-    }
-
-    const ip = getWsIp(req);
-    if (!checkWsRateLimit(ip)) {
-      ws.close(1013, 'Too many connections');
-      return;
-    }
-
-    const current = wsConnectionCounts.get(ip) || 0;
-    wsConnectionCounts.set(ip, current + 1);
-
-    ws.on('close', () => {
-      const count = wsConnectionCounts.get(ip);
-      if (count !== undefined) {
-        if (count <= 1) {
-          wsConnectionCounts.delete(ip);
-        } else {
-          wsConnectionCounts.set(ip, count - 1);
-        }
+  wss.on(
+    'connection',
+    (
+      ws: WebSocket,
+      req: {
+        url?: string;
+        headers?: Record<string, string | undefined>;
+        socket?: { remoteAddress?: string };
       }
-    });
+    ) => {
+      const url = new URL(req.url!, `http://${req.headers.host}`);
+      const docName = url.pathname.split('/').pop();
 
-    setupWSConnection(ws, req, { docName });
-  });
+      if (!docName) {
+        ws.close(1008, 'Missing document ID');
+        return;
+      }
+
+      const ip = getWsIp(req);
+      if (!checkWsRateLimit(ip)) {
+        ws.close(1013, 'Too many connections');
+        return;
+      }
+
+      const current = wsConnectionCounts.get(ip) || 0;
+      wsConnectionCounts.set(ip, current + 1);
+
+      ws.on('close', () => {
+        const count = wsConnectionCounts.get(ip);
+        if (count !== undefined) {
+          if (count <= 1) {
+            wsConnectionCounts.delete(ip);
+          } else {
+            wsConnectionCounts.set(ip, count - 1);
+          }
+        }
+      });
+
+      setupWSConnection(ws, req, { docName });
+    }
+  );
 
   return wss;
 }

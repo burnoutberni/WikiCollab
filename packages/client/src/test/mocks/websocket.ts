@@ -1,7 +1,9 @@
 import { vi } from 'vitest';
 import type { WebsocketProvider } from 'y-websocket';
 
-export function createMockWebsocketProvider(overrides?: Partial<WebsocketProvider>): WebsocketProvider {
+export function createMockWebsocketProvider(
+  overrides?: Partial<WebsocketProvider>
+): WebsocketProvider {
   const { awareness: awarenessOverrides, ...restOverrides } = overrides ?? {};
 
   const defaultAwareness = {

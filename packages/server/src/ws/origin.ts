@@ -33,9 +33,7 @@ export function logRejectedOrigin(req: IncomingMessage, origin: string | undefin
   const socketIp = req.socket.remoteAddress;
   const forwardedFor = req.headers['x-forwarded-for'];
   const ip = forwardedFor ? `${socketIp} (forwarded: ${forwardedFor})` : socketIp;
-  console.warn(
-    `[WS REJECTED] origin=${origin ?? 'none'} ip=${ip} url=${req.url}`
-  );
+  console.warn(`[WS REJECTED] origin=${origin ?? 'none'} ip=${ip} url=${req.url}`);
 }
 
 export function createOriginValidator() {

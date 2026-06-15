@@ -3,8 +3,12 @@ import { vi } from 'vitest';
 vi.mock('yjs', () => {
   class MockText {
     private _content = '';
-    get length() { return this._content.length; }
-    toString() { return this._content; }
+    get length() {
+      return this._content.length;
+    }
+    toString() {
+      return this._content;
+    }
     insert(pos: number, text: string) {
       this._content = this._content.slice(0, pos) + text + this._content.slice(pos);
     }
@@ -25,7 +29,9 @@ vi.mock('yjs', () => {
     }
     on() {}
     off() {}
-    transact(fn: () => void) { fn(); }
+    transact(fn: () => void) {
+      fn();
+    }
     destroy() {}
   }
 

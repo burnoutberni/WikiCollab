@@ -18,9 +18,10 @@ export async function runContentInitializor(ydoc: Y.Doc): Promise<void> {
 
 export function initContentInitializor() {
   setContentInitializor(async (ydoc: Y.Doc) => {
-    const docName = (ydoc as any).name;
+    const docName = (ydoc as unknown as { name: string }).name;
 
-    const latestRevision = db.select()
+    const latestRevision = db
+      .select()
       .from(schema.documentRevisions)
       .where(eq(schema.documentRevisions.document_id, docName))
       .all()
@@ -30,7 +31,8 @@ export function initContentInitializor() {
       const state = Buffer.from(latestRevision.yjs_state, 'base64');
       Y.applyUpdate(ydoc, state);
     } else {
-      const existingDoc = db.select()
+      const existingDoc = db
+        .select()
         .from(schema.documents)
         .where(eq(schema.documents.id, docName))
         .get();
@@ -47,10 +49,7 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
   const ytext = doc.getText('wikitext');
   const content = ytext.toString();
 
-  const existing = db.select()
-    .from(schema.documents)
-    .where(eq(schema.documents.id, docName))
-    .get();
+  const existing = db.select().from(schema.documents).where(eq(schema.documents.id, docName)).get();
 
   if (!existing) return;
 
@@ -68,12 +67,14 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
     const revisionId = nanoid(7);
     const state = Y.encodeStateAsUpdate(doc);
 
-    db.insert(schema.documentRevisions).values({
-      id: revisionId,
-      document_id: docName,
-      yjs_state: Buffer.from(state).toString('base64'),
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: revisionId,
+        document_id: docName,
+        yjs_state: Buffer.from(state).toString('base64'),
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
     const responseEncoder = encoding.createEncoder();
     encoding.writeVarString(responseEncoder, 'new_version');
@@ -88,10 +89,13 @@ export function saveDocDebounced(docName: string, doc: WSSharedDoc) {
   if (saveTimers.has(docName)) {
     clearTimeout(saveTimers.get(docName)!);
   }
-  saveTimers.set(docName, setTimeout(() => {
-    saveDoc(docName, doc);
-    saveTimers.delete(docName);
-  }, 1000));
+  saveTimers.set(
+    docName,
+    setTimeout(() => {
+      saveDoc(docName, doc);
+      saveTimers.delete(docName);
+    }, 1000)
+  );
 }
 
 export function flushSaveTimers(docName: string, doc: WSSharedDoc) {
@@ -103,9 +107,9 @@ export function flushSaveTimers(docName: string, doc: WSSharedDoc) {
 }
 
 export interface Persistence {
-  provider: any;
+  provider: unknown;
   bindState: (docName: string, doc: WSSharedDoc) => void;
-  writeState: (docName: string, doc: WSSharedDoc) => Promise<any>;
+  writeState: (docName: string, doc: WSSharedDoc) => Promise<unknown>;
 }
 
 let persistence: Persistence | null = null;
@@ -122,7 +126,7 @@ export function initPersistence() {
   setPersistence({
     provider: null,
     bindState: (docName: string, doc: WSSharedDoc) => {
-      doc.on('update', (_update: Uint8Array) => {
+      doc.on('update', () => {
         saveDocDebounced(docName, doc);
       });
     },

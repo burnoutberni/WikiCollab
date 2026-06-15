@@ -14,7 +14,10 @@ const valueTypeBoolean = 1;
  * @param payload - Key-value map; strings and booleans supported
  * @returns Encoded inner payload bytes
  */
-export function encodeInnerPayload(type: string, payload: Record<string, string | boolean>): Uint8Array {
+export function encodeInnerPayload(
+  type: string,
+  payload: Record<string, string | boolean>
+): Uint8Array {
   const encoder = encoding.createEncoder();
   encoding.writeVarString(encoder, type);
   for (const [key, value] of Object.entries(payload)) {
@@ -40,7 +43,10 @@ export function encodeInnerPayload(type: string, payload: Record<string, string 
  * @param payload - Key-value map; strings and booleans supported
  * @returns Encoded message ready to send over WebSocket
  */
-export function encodeCustomMessage(type: string, payload: Record<string, string | boolean>): Uint8Array {
+export function encodeCustomMessage(
+  type: string,
+  payload: Record<string, string | boolean>
+): Uint8Array {
   return wrapCustomMessage(encodeInnerPayload(type, payload));
 }
 
@@ -50,7 +56,10 @@ export function encodeCustomMessage(type: string, payload: Record<string, string
  * @param data - Raw inner payload (after message type has been stripped)
  * @returns The message type and decoded key-value payload
  */
-export function decodeCustomMessage(data: Uint8Array): { type: string; payload: Record<string, string | boolean> } {
+export function decodeCustomMessage(data: Uint8Array): {
+  type: string;
+  payload: Record<string, string | boolean>;
+} {
   try {
     const decoder = decoding.createDecoder(data);
     const type = decoding.readVarString(decoder);
@@ -71,7 +80,10 @@ export function decodeCustomMessage(data: Uint8Array): { type: string; payload: 
 
     return { type, payload };
   } catch (err) {
-    throw new Error(`Failed to decode custom message: ${err instanceof Error ? err.message : err}`);
+    throw new Error(
+      `Failed to decode custom message: ${err instanceof Error ? err.message : err}`,
+      { cause: err }
+    );
   }
 }
 

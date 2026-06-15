@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import { replaceYText } from './yjs';
-import { encodeCustomMessage, decodeCustomMessage, wrapCustomMessage, messageCustom } from './protocol';
-import * as encoding from 'lib0/encoding';
+import {
+  encodeCustomMessage,
+  decodeCustomMessage,
+  wrapCustomMessage,
+  messageCustom,
+} from './protocol';
 import * as decoding from 'lib0/decoding';
 
 import type {
@@ -10,9 +14,6 @@ import type {
   MediaWikiInstance,
   DocumentRevision,
   CreateDocumentRequest,
-  UpdateDocumentRequest,
-  CreateInstanceRequest,
-  PushToWikiRequest,
   ViewMode,
   CursorPresence,
   PreviewResponse,

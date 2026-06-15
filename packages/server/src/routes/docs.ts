@@ -79,10 +79,12 @@ docs.patch('/:id', async (c) => {
   const updates: Record<string, unknown> = { updated_at: now };
 
   if (body.title !== undefined) updates.title = body.title;
-  if (body.mediawiki_instance_id !== undefined) updates.mediawiki_instance_id = body.mediawiki_instance_id;
+  if (body.mediawiki_instance_id !== undefined)
+    updates.mediawiki_instance_id = body.mediawiki_instance_id;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
 
-  const updateResult = db.update(schema.documents)
+  const updateResult = db
+    .update(schema.documents)
     .set(updates)
     .where(eq(schema.documents.id, id))
     .run();
@@ -97,7 +99,8 @@ docs.patch('/:id', async (c) => {
 
 docs.get('/:id/versions', (c) => {
   const id = c.req.param('id');
-  const versions = db.select()
+  const versions = db
+    .select()
     .from(schema.documentRevisions)
     .where(eq(schema.documentRevisions.document_id, id))
     .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
@@ -232,7 +235,10 @@ docs.post('/:id/push', pushLimiter, async (c) => {
       body: formData.toString(),
     });
 
-    const result = await response.json() as { edit?: { result: string }; error?: { info: string } };
+    const result = (await response.json()) as {
+      edit?: { result: string };
+      error?: { info: string };
+    };
 
     if (result.error) {
       return c.json({ error: result.error.info }, 500);

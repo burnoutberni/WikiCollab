@@ -1,5 +1,6 @@
 import { serverFetch, SsrfError } from 'server-fetch';
 import sanitizeHtml from 'sanitize-html';
+import type wikiparser from 'wikiparser-node';
 
 interface SourceMapEntry {
   sourceLine: number;
@@ -16,34 +17,84 @@ function sanitizeStyle(value: string): string {
 function sanitize(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'p', 'br', 'hr', 'pre', 'blockquote',
-      'ul', 'ol', 'li', 'dl', 'dt', 'dd',
-      'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
-      'a', 'img',
-      'b', 'i', 'u', 'strong', 'em', 'small', 'big', 'sub', 'sup', 's', 'del', 'ins', 'mark', 'span', 'abbr', 'cite', 'code', 'kbd', 'var', 'samp',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'p',
+      'br',
+      'hr',
+      'pre',
+      'blockquote',
+      'ul',
+      'ol',
+      'li',
+      'dl',
+      'dt',
+      'dd',
+      'table',
+      'thead',
+      'tbody',
+      'tfoot',
+      'tr',
+      'th',
+      'td',
+      'caption',
+      'colgroup',
+      'col',
+      'a',
+      'img',
+      'b',
+      'i',
+      'u',
+      'strong',
+      'em',
+      'small',
+      'big',
+      'sub',
+      'sup',
+      's',
+      'del',
+      'ins',
+      'mark',
+      'span',
+      'abbr',
+      'cite',
+      'code',
+      'kbd',
+      'var',
+      'samp',
       'div',
-      'ref', 'gallery', 'math', 'score', 'nowiki', 'syntaxhighlight',
-      'choose', 'when', 'otherwise',
+      'ref',
+      'gallery',
+      'math',
+      'score',
+      'nowiki',
+      'syntaxhighlight',
+      'choose',
+      'when',
+      'otherwise',
     ],
     allowedAttributes: {
       '*': ['class', 'id', 'style', 'title', 'lang', 'dir'],
-      'a': ['href', 'target', 'rel'],
-      'img': ['src', 'alt', 'width', 'height'],
-      'td': ['colspan', 'rowspan', 'valign', 'align', 'width', 'height', 'scope', 'abbr'],
-      'th': ['colspan', 'rowspan', 'valign', 'align', 'width', 'height', 'scope', 'abbr'],
-      'col': ['span', 'width'],
-      'colgroup': ['span'],
-      'div': ['data-mw-fallback'],
-      'ol': ['start', 'type', 'reversed'],
-      'li': ['value'],
+      a: ['href', 'target', 'rel'],
+      img: ['src', 'alt', 'width', 'height'],
+      td: ['colspan', 'rowspan', 'valign', 'align', 'width', 'height', 'scope', 'abbr'],
+      th: ['colspan', 'rowspan', 'valign', 'align', 'width', 'height', 'scope', 'abbr'],
+      col: ['span', 'width'],
+      colgroup: ['span'],
+      div: ['data-mw-fallback'],
+      ol: ['start', 'type', 'reversed'],
+      li: ['value'],
     },
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedSchemesByTag: {
       img: ['http', 'https', 'data'],
     },
     transformTags: {
-      'a': (tagName, attribs) => {
+      a: (tagName, attribs) => {
         if (attribs.target === '_blank') {
           return { tagName, attribs: { ...attribs, rel: 'noopener noreferrer' } };
         }
@@ -60,7 +111,9 @@ function sanitize(html: string): string {
   });
 }
 
-function generateSourceMap(root: ReturnType<Awaited<typeof import('wikiparser-node')['default']['parse']>>): SourceMapEntry[] {
+type ParserRoot = ReturnType<Awaited<ReturnType<typeof wikiparser.default.parse>>>;
+
+function generateSourceMap(root: ParserRoot): SourceMapEntry[] {
   const sourceMap: SourceMapEntry[] = [];
   let blockIndex = 0;
 
@@ -86,7 +139,11 @@ export interface PreviewResult {
   sourceMap: SourceMapEntry[];
 }
 
-export async function generatePreview(wikitext?: string | null, api_url?: string | null, page?: string | null): Promise<PreviewResult> {
+export async function generatePreview(
+  wikitext?: string | null,
+  api_url?: string | null,
+  page?: string | null
+): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
   const root = Parser.parse(wikitext || '', page || 'API');
   const sourceMap = generateSourceMap(root);
@@ -109,7 +166,7 @@ export async function generatePreview(wikitext?: string | null, api_url?: string
         body: formData.toString(),
       });
 
-      const data = await res.json() as {
+      const data = (await res.json()) as {
         parse?: { text?: { '*': string } };
         error?: { info: string };
       };

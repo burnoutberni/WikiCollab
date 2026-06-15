@@ -8,7 +8,8 @@
     "dev:client": "pnpm --filter client dev",
     "build": "pnpm --filter shared build && pnpm --filter server build && pnpm --filter client build",
     "start": "pnpm --filter server start",
-    "lint": "pnpm --filter client lint && pnpm --filter server lint",
+    "lint": "pnpm -r run lint",
+    "lint:fix": "pnpm -r run lint:fix",
     "test": "pnpm -r run test",
     "test:watch": "pnpm -r run test:watch",
     "test:coverage": "pnpm -r run test:coverage"
@@ -19,9 +20,16 @@
     }
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@vitest/coverage-v8": "^4.1.8",
     "concurrently": "^10.0.3",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.8.4",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0",
     "vitest": "^4.1.8"
   }
 }
