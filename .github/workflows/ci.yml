@@ -129,3 +129,18 @@ jobs:
             -t ghcr.io/burnoutberni/wikicollab:${{ steps.version.outputs.version }} \
             -t ghcr.io/burnoutberni/wikicollab:latest \
             .
+      - name: Update release with Docker image link
+        run: |
+          NOTES=$(gh release view "${{ steps.version.outputs.version }}" --json body --jq '.body')
+          gh release edit "${{ steps.version.outputs.version }}" \
+            --notes "${NOTES}
+
+---
+
+**Docker image**
+
+\`\`\`
+docker pull ghcr.io/burnoutberni/wikicollab:${{ steps.version.outputs.version }}
+\`\`\`"
+        env:
+          GH_TOKEN: ${{ github.token }}
