@@ -285,9 +285,10 @@ export function useVersions(
         sendCustomMessage('star', { versionId, starred: true });
       } else {
         try {
-          await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+          const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
             method: 'POST',
           });
+          if (!res.ok) throw new Error('Failed to star version');
           setVersions((prev) =>
             prev.map((v) => (v.id === versionId ? { ...v, starred: true } : v))
           );
@@ -307,9 +308,10 @@ export function useVersions(
         sendCustomMessage('star', { versionId, starred: false });
       } else {
         try {
-          await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+          const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
             method: 'DELETE',
           });
+          if (!res.ok) throw new Error('Failed to unstar version');
           setVersions((prev) =>
             prev.map((v) => (v.id === versionId ? { ...v, starred: false } : v))
           );
