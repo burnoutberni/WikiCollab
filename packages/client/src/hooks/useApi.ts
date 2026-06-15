@@ -184,10 +184,10 @@ export function useInstances() {
         configured_at: new Date().toISOString(),
         css: null,
       };
-      persist([instance]);
+      persist([...instances, instance]);
       return instance;
     },
-    [persist]
+    [instances, persist]
   );
 
   const deleteInstance = useCallback(
