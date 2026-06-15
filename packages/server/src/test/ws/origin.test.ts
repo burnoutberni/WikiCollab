@@ -21,6 +21,7 @@ describe('WebSocket origin validation', () => {
   beforeEach(() => {
     resetAllowedOrigins();
     delete process.env.CORS_ORIGINS;
+    delete process.env.TRUSTED_PROXIES;
   });
 
   describe('getAllowedOrigins', () => {

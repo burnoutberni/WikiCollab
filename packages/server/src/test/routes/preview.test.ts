@@ -393,6 +393,21 @@ describe('Preview route sanitization', () => {
       expect(data.html).toContain('Styled');
     });
 
+    it('strips non-hex-escaped javascript: in style attributes (\\java\\script:)', async () => {
+      mockParser.toHtml.mockReturnValue('<div style="\\java\\script:alert(1)">Styled</div>');
+
+      const res = await app.request('/api/instances/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\j');
+      expect(data.html).toContain('Styled');
+    });
+
     it('strips unicode-escaped javascript: in style attributes (\\00006a\\000061vascript:)', async () => {
       mockParser.toHtml.mockReturnValue(
         '<div style="background:\\00006a\\000061vascript:alert(1)">Styled</div>'

@@ -107,7 +107,11 @@ export function getClientIp(
       .map((s) => s.trim())
       .filter(Boolean);
     if (ips && ips.length > 0) {
-      return ips[0];
+      for (let i = ips.length - 1; i >= 0; i--) {
+        if (!isTrustedProxy(ips[i], trustedProxies)) {
+          return ips[i];
+        }
+      }
     }
     if (xRealIp) return xRealIp;
   }

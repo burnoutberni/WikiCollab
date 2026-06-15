@@ -53,6 +53,7 @@ Without this, **all traffic is treated as coming from the proxy IP** and rate li
 ## Project Structure
 
 ```
+shared/      — Shared types and utilities
 packages/
   client/    — React SPA
   server/    — Hono API + WebSocket server
