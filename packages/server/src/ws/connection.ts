@@ -182,7 +182,9 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       const existing = previewDebounces.get(key);
       if (existing) clearTimeout(existing);
 
-      evictPreviewDebounce();
+      if (!existing) {
+        evictPreviewDebounce();
+      }
       previewDebounces.set(key, setTimeout(async () => {
         previewDebounces.delete(key);
         try {

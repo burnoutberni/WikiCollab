@@ -67,7 +67,6 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
-  const hasMounted = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -152,16 +151,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
   }, [refreshPreview]);
 
   useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      refreshPreview();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (hasMounted.current) {
-      refreshPreview();
-    }
+    refreshPreview();
   }, [apiUrl, title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
