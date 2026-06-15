@@ -8,14 +8,16 @@ interface SourceMapEntry {
 }
 
 function decodeCssEscape(value: string): string {
-  return value.replace(/\\([0-9a-fA-F]{1,6})\s?|\\(.)/g, (_match, hex, char) => {
-    if (hex !== undefined) {
-      const cp = Number.parseInt(hex, 16);
-      if (cp > 0 && cp <= 0x10ffff) return String.fromCodePoint(cp);
-      return '';
-    }
-    return char;
-  });
+  return value
+    .replace(/\\(?:\r\n|[\n\r\f])/g, '')
+    .replace(/\\([0-9a-fA-F]{1,6})\s?|\\(.)/g, (_match, hex, char) => {
+      if (hex !== undefined) {
+        const cp = Number.parseInt(hex, 16);
+        if (cp > 0 && cp <= 0x10ffff) return String.fromCodePoint(cp);
+        return '';
+      }
+      return char;
+    });
 }
 
 function sanitizeStyle(value: string): string {
