@@ -1,27 +1,28 @@
-import * as Y from 'yjs';
-import * as syncProtocol from 'y-protocols/sync';
-import * as awarenessProtocol from 'y-protocols/awareness';
-import * as encoding from 'lib0/encoding';
-import * as decoding from 'lib0/decoding';
-import { WebSocketServer, type WebSocket } from 'ws';
-import { db, schema } from '../db/index.js';
-import { getVersionById } from '../db/helpers.js';
-import { eq } from 'drizzle-orm';
 import type { ServerType } from '@hono/node-server';
+import { eq } from 'drizzle-orm';
 import type { Server } from 'http';
-import {
-  messageSync,
-  messageAwareness,
-  messageCustom,
-  wsReadyStateConnecting,
-  wsReadyStateOpen,
-  pingTimeout,
-} from './constants.js';
-import { runContentInitializor, getPersistence } from './persistence.js';
+import * as decoding from 'lib0/decoding';
+import * as encoding from 'lib0/encoding';
 import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
-import { createOriginValidator } from './origin.js';
+import { type WebSocket, WebSocketServer } from 'ws';
+import * as awarenessProtocol from 'y-protocols/awareness';
+import * as syncProtocol from 'y-protocols/sync';
+import * as Y from 'yjs';
+
+import { getVersionById } from '../db/helpers.js';
+import { db, schema } from '../db/index.js';
 import { generatePreview } from '../preview.js';
 import { envInt } from '../utils/env.js';
+import {
+  messageAwareness,
+  messageCustom,
+  messageSync,
+  pingTimeout,
+  wsReadyStateConnecting,
+  wsReadyStateOpen,
+} from './constants.js';
+import { createOriginValidator } from './origin.js';
+import { getPersistence, runContentInitializor } from './persistence.js';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -387,7 +388,11 @@ export function setupWebSocket(server: ServerType) {
       }
     ) => {
       const host = req.headers?.host ?? 'localhost';
-      const url = new URL(req.url!, `http://${host}`);
+      if (!req.url) {
+        ws.close(1008, 'Missing request URL');
+        return;
+      }
+      const url = new URL(req.url, `http://${host}`);
       const docName = url.pathname.split('/').pop();
 
       if (!docName) {
