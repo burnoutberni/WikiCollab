@@ -205,8 +205,8 @@ export function CollaboratorList({
                     const newColor = e.target.value;
                     onUserColorChange(newColor);
                     if (!COLORS.includes(newColor)) {
-                      setCustomColors(() => {
-                        const next = [newColor];
+                      setCustomColors((prev) => {
+                        const next = [...prev, newColor];
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
                         return next;
                       });
