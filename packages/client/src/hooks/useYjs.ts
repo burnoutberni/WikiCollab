@@ -1,6 +1,6 @@
 import * as decoding from 'lib0/decoding';
 import type * as encoding from 'lib0/encoding';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { decodeCustomMessage, encodeCustomMessage, messageCustom, replaceYText } from 'shared';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import { WebsocketProvider } from 'y-websocket';
@@ -69,6 +69,8 @@ export function useYjs(docId: string | null) {
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
   const [connected, setConnected] = useState(false);
   const [peers, setPeers] = useState<Presence[]>([]);
+  const [wsUrl, setWsUrl] = useState('');
+  const [lastConnected, setLastConnected] = useState<number | null>(null);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
   const [userId] = useState(() => {
     const stored = localStorage.getItem('wikicollab-user-id');
@@ -111,8 +113,9 @@ export function useYjs(docId: string | null) {
     if (!docId) return;
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    const wsProvider = new WebsocketProvider(wsUrl, docId, ydoc, {
+    const resolvedWsUrl = `${wsProtocol}//${window.location.host}/ws`;
+    setWsUrl(resolvedWsUrl);
+    const wsProvider = new WebsocketProvider(resolvedWsUrl, docId, ydoc, {
       connect: true,
     });
 
@@ -120,6 +123,9 @@ export function useYjs(docId: string | null) {
 
     wsProvider.on('status', ({ status }: { status: string }) => {
       setConnected(status === 'connected');
+      if (status === 'connected') {
+        setLastConnected(Date.now());
+      }
     });
 
     wsProvider.awareness.setLocalStateField('cursor', null);
@@ -234,11 +240,19 @@ export function useYjs(docId: string | null) {
     };
   }, []);
 
+  const connectionDuration = useMemo(() => {
+    if (!connected || !lastConnected) return null;
+    return Date.now() - lastConnected;
+  }, [connected, lastConnected]);
+
   return {
     ydoc,
     ytext,
     provider,
     connected,
+    wsUrl,
+    lastConnected,
+    connectionDuration,
     peers,
     userId,
     userName,

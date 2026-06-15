@@ -10,8 +10,6 @@ import {
   Settings,
   Share2,
   Users,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -34,6 +32,7 @@ import { useEditorLock } from '@/hooks/useEditorLock';
 import { useYjs } from '@/hooks/useYjs';
 
 import { CollaboratorList } from './CollaboratorList';
+import { ConnectionStatePopover } from './ConnectionStatePopover';
 import { InstanceManager } from './InstanceManager';
 import { PushToWiki } from './PushToWiki';
 import { SplitPaneEditor } from './SplitPaneEditor';
@@ -60,6 +59,9 @@ export function DocumentEditor() {
     setContent,
     sendCustomMessage,
     onCustomMessage,
+    wsUrl,
+    lastConnected,
+    connectionDuration,
   } = useYjs(id || null);
 
   const [title, setTitle] = useState('');
@@ -356,14 +358,14 @@ export function DocumentEditor() {
               <Save className="h-3 w-3" />
               Saved
             </span>
-            <span className="flex items-center gap-1">
-              {connected ? (
-                <Wifi className="h-3 w-3 text-green-500" />
-              ) : (
-                <WifiOff className="h-3 w-3 text-red-500" />
-              )}
-              {connected ? 'Connected' : 'Disconnected'}
-            </span>
+            <ConnectionStatePopover
+              connected={connected}
+              wsUrl={wsUrl}
+              lastConnected={lastConnected}
+              connectionDuration={connectionDuration}
+              peerCount={peers.length}
+              docId={id || ''}
+            />
           </div>
           <div className="flex items-center gap-4">
             <Tooltip>
