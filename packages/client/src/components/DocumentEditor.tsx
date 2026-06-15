@@ -322,12 +322,15 @@ export function DocumentEditor() {
                 documentId={id!}
                 title={wikiTitle}
                 apiUrl={instances[0]?.api_url}
+                instanceCss={instances[0]?.css}
                 ytext={ytext}
                 provider={provider}
                 userName={userName}
                 userColor={userColor}
                 editorRef={editorRef}
                 onCursorChange={handleCursorChange}
+                sendCustomMessage={sendCustomMessage}
+                onCustomMessage={onCustomMessage}
               />
             )}
           </main>

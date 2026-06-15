@@ -13,6 +13,8 @@ import { messageSync, messageAwareness, messageCustom, wsReadyStateConnecting, w
 import { runContentInitializor, getPersistence } from './persistence.js';
 import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
 import { createOriginValidator } from './origin.js';
+import { generatePreview } from '../preview.js';
+import { envInt } from '../utils/env.js';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -119,6 +121,20 @@ export function broadcastCustom(doc: WSSharedDoc, data: Uint8Array, excludeConn:
   });
 }
 
+const previewDebounces = new Map<string, ReturnType<typeof setTimeout>>();
+const MAX_PREVIEW_DEBOUNCE_KEYS = 100;
+
+function evictPreviewDebounce(): void {
+  if (previewDebounces.size >= MAX_PREVIEW_DEBOUNCE_KEYS) {
+    const oldest = previewDebounces.keys().next().value;
+    if (oldest !== undefined) {
+      const timer = previewDebounces.get(oldest);
+      if (timer) clearTimeout(timer);
+      previewDebounces.delete(oldest);
+    }
+  }
+}
+
 function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocket) {
   const { type, payload } = decodeCustomMessage(data);
 
@@ -158,6 +174,29 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       broadcastCustom(doc, encodeInnerPayload('restore', { versionId }));
       break;
     }
+    case 'preview_request': {
+      const api_url = typeof payload.api_url === 'string' ? payload.api_url : '';
+      const page = typeof payload.page === 'string' ? payload.page : '';
+
+      const key = `${doc.name}:${api_url}:${page}`;
+      const existing = previewDebounces.get(key);
+      if (existing) clearTimeout(existing);
+
+      if (!existing) {
+        evictPreviewDebounce();
+      }
+      previewDebounces.set(key, setTimeout(async () => {
+        previewDebounces.delete(key);
+        try {
+          const wikitext = doc.getText('wikitext').toString();
+          const { html } = await generatePreview(wikitext, api_url || null, page || null);
+          broadcastCustom(doc, encodeInnerPayload('preview_update', { html, api_url, page }));
+        } catch (err) {
+          console.error('WS preview generation failed:', err);
+        }
+      }, 500));
+      break;
+    }
   }
 }
 
@@ -190,6 +229,51 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
     console.error(err);
   }
 }
+
+// --- Connection rate limiting ---
+
+const WS_CONCURRENT = envInt('RATE_LIMIT_WS_CONCURRENT', 100);
+const WS_RATE_MAX = envInt('RATE_LIMIT_WS_RATE_MAX', 100);
+const WS_RATE_WINDOW_MS = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
+
+const wsConnectionCounts = new Map<string, number>();
+const wsConnectionRate = new Map<string, number[]>();
+
+function getWsIp(req: any): string {
+  const forwarded = req?.headers?.['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = req?.headers?.['x-real-ip'];
+  if (realIp) return realIp;
+  return req?.socket?.remoteAddress || 'unknown';
+}
+
+function checkWsRateLimit(ip: string): boolean {
+  const current = wsConnectionCounts.get(ip) || 0;
+  if (current >= WS_CONCURRENT) return false;
+
+  const now = Date.now();
+  let timestamps = wsConnectionRate.get(ip) || [];
+  timestamps = timestamps.filter((t) => now - t < WS_RATE_WINDOW_MS);
+
+  if (timestamps.length >= WS_RATE_MAX) return false;
+
+  timestamps.push(now);
+  wsConnectionRate.set(ip, timestamps);
+  return true;
+}
+
+// Cleanup WS rate tracking periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, timestamps] of wsConnectionRate) {
+    const filtered = timestamps.filter((t) => now - t < WS_RATE_WINDOW_MS);
+    if (filtered.length === 0) {
+      wsConnectionRate.delete(ip);
+    } else {
+      wsConnectionRate.set(ip, filtered);
+    }
+  }
+}, 60000).unref();
 
 export async function setupWSConnection(conn: WebSocket, req: any, { docName, gc = true }: { docName?: string; gc?: boolean } = {}) {
   conn.binaryType = 'arraybuffer';
@@ -273,8 +357,37 @@ export function setupWebSocket(server: ServerType) {
       return;
     }
 
+    const ip = getWsIp(req);
+    if (!checkWsRateLimit(ip)) {
+      ws.close(1013, 'Too many connections');
+      return;
+    }
+
+    const current = wsConnectionCounts.get(ip) || 0;
+    wsConnectionCounts.set(ip, current + 1);
+
+    ws.on('close', () => {
+      const count = wsConnectionCounts.get(ip);
+      if (count !== undefined) {
+        if (count <= 1) {
+          wsConnectionCounts.delete(ip);
+        } else {
+          wsConnectionCounts.set(ip, count - 1);
+        }
+      }
+    });
+
     setupWSConnection(ws, req, { docName });
   });
 
   return wss;
+}
+
+export function resetWsRateLimiters(): void {
+  wsConnectionCounts.clear();
+  wsConnectionRate.clear();
+  for (const timer of previewDebounces.values()) {
+    clearTimeout(timer);
+  }
+  previewDebounces.clear();
 }

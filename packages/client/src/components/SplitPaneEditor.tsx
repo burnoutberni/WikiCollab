@@ -18,12 +18,15 @@ interface SplitPaneEditorProps {
   documentId: string;
   title?: string;
   apiUrl?: string | null;
+  instanceCss?: string | null;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
   userName?: string;
   userColor?: string;
   editorRef?: React.RefObject<WikitextEditorHandle | null>;
   onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
+  sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
+  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
 }
 
 function getWikiBaseUrl(apiUrl: string): string {
@@ -60,13 +63,45 @@ function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): 
   return doc.body.innerHTML;
 }
 
-export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provider, userName, userColor, editorRef, onCursorChange }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss, ytext, provider, userName, userColor, editorRef, onCursorChange, sendCustomMessage, onCustomMessage }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
-  const [previewCss, setPreviewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+
+  const apiUrlRef = useRef(apiUrl);
+  apiUrlRef.current = apiUrl;
+  const titleRef = useRef(title);
+  titleRef.current = title;
+
+  const previewCss = instanceCss || defaultCss;
+
+  const requestPreview = useCallback(() => {
+    if (sendCustomMessage) {
+      sendCustomMessage('preview_request', {
+        api_url: apiUrl || '',
+        page: title || '',
+      });
+    }
+  }, [sendCustomMessage, apiUrl, title]);
+
+  useEffect(() => {
+    if (!onCustomMessage) return;
+    const unsubscribe = onCustomMessage('preview_update', (payload: { html: string; api_url: string; page: string }) => {
+      const currentApiUrl = apiUrlRef.current || '';
+      const currentTitle = titleRef.current || '';
+      if (payload.api_url === currentApiUrl && payload.page === currentTitle) {
+        let html = payload.html;
+        if (currentApiUrl) {
+          html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl), currentTitle || 'Untitled');
+        }
+        setPreviewHtml(html);
+        setLoading(false);
+      }
+    });
+    return unsubscribe;
+  }, [onCustomMessage]);
 
   const fetchPreview = useCallback(async () => {
     const wikitext = ytext ? ytext.toString() : content;
@@ -90,7 +125,6 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
           html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl), title || 'Untitled');
         }
         setPreviewHtml(html);
-        setPreviewCss(data.css || defaultCss);
       } else {
         setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
       }
@@ -102,22 +136,23 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
     }
   }, [ytext, apiUrl, title]);
 
+  const refreshPreview = useCallback(() => {
+    if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
+      setLoading(true);
+      requestPreview();
+    } else {
+      fetchPreview();
+    }
+  }, [sendCustomMessage, provider, requestPreview, fetchPreview]);
+
   const debouncedPreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(fetchPreview, 500);
-  }, [fetchPreview]);
+    timerRef.current = setTimeout(refreshPreview, 500);
+  }, [refreshPreview]);
 
   useEffect(() => {
-    fetchPreview();
-  }, []);
-
-  useEffect(() => {
-    fetchPreview();
-  }, [apiUrl]);
-
-  useEffect(() => {
-    fetchPreview();
-  }, [title]);
+    refreshPreview();
+  }, [apiUrl, title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!ytext) return;
@@ -168,7 +203,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
         <div className="absolute bottom-3 right-3">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="secondary" size="sm" onClick={fetchPreview} disabled={loading}>
+              <Button variant="secondary" size="sm" onClick={refreshPreview} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </TooltipTrigger>
