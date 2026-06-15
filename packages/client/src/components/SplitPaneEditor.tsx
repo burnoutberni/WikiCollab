@@ -93,7 +93,11 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
       const currentApiUrl = apiUrlRef.current || '';
       const currentTitle = titleRef.current || '';
       if (payload.api_url === currentApiUrl && payload.page === currentTitle) {
-        setPreviewHtml(payload.html);
+        let html = payload.html;
+        if (currentApiUrl) {
+          html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl), currentTitle || 'Untitled');
+        }
+        setPreviewHtml(html);
         setLoading(false);
       }
     });
@@ -135,6 +139,7 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
 
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage) {
+      setLoading(true);
       requestPreview();
     } else {
       fetchPreview();
