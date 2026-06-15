@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Hono } from 'hono';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import * as schema from '../../db/schema.js';
 import { createTestDb } from '../setup.js';
 
 const { mockDbModule } = vi.hoisted(() => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   mockDbModule: { db: null as any, schema: null as any },
 }));
 vi.mock('../../db/index.js', () => mockDbModule);
@@ -67,9 +69,7 @@ describe('Input validation', () => {
       const data = await res.json();
       expect(data.error).toBe('Validation failed');
       expect(data.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ field: 'slug' }),
-        ])
+        expect.arrayContaining([expect.objectContaining({ field: 'slug' })])
       );
     });
 
@@ -194,9 +194,7 @@ describe('Input validation', () => {
       const data = await res.json();
       expect(data.error).toBe('Validation failed');
       expect(data.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ field: 'api_url' }),
-        ])
+        expect.arrayContaining([expect.objectContaining({ field: 'api_url' })])
       );
     });
 
@@ -219,9 +217,7 @@ describe('Input validation', () => {
       const data = await res.json();
       expect(data.error).toBe('Validation failed');
       expect(data.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ field: 'token' }),
-        ])
+        expect.arrayContaining([expect.objectContaining({ field: 'token' })])
       );
     });
 
@@ -338,9 +334,7 @@ describe('Input validation', () => {
       const data = await res.json();
       expect(data.error).toBe('Validation failed');
       expect(data.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ field: 'api_url' }),
-        ])
+        expect.arrayContaining([expect.objectContaining({ field: 'api_url' })])
       );
     });
 

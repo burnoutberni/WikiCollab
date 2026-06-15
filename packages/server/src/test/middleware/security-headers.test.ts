@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Hono } from 'hono';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { securityHeaders } from '../../middleware/security-headers.js';
 
 function createTestApp() {
@@ -70,6 +71,7 @@ describe('Security Headers middleware', () => {
 
   it('sets HSTS in production over HTTPS by default', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('TRUST_PROXY', 'true');
     const app = createTestApp();
     const res = await app.request('/api/test', {
       headers: { 'x-forwarded-proto': 'https' },
@@ -100,6 +102,7 @@ describe('Security Headers middleware', () => {
 
   it('allows custom HSTS value via string option', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('TRUST_PROXY', 'true');
     const app = new Hono();
     app.use('/api/*', securityHeaders({ strictTransportSecurity: 'max-age=3600' }));
     app.get('/api/test', (c) => c.json({ ok: true }));

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Document, MediaWikiInstance, Version } from 'shared';
 
 export type { Document, MediaWikiInstance, Version };
@@ -93,7 +93,16 @@ export function useDocuments() {
     return doc;
   }, []);
 
-  return { documents, loading, pendingCount: pendingDocs.length, loadPending, createDocument, deleteDocument, updateDocument, refetch: fetchDocuments };
+  return {
+    documents,
+    loading,
+    pendingCount: pendingDocs.length,
+    loadPending,
+    createDocument,
+    deleteDocument,
+    updateDocument,
+    refetch: fetchDocuments,
+  };
 }
 
 export function useDocument(id: string | null) {
@@ -159,36 +168,57 @@ export function useInstances() {
     return () => window.removeEventListener('storage', handler);
   }, []);
 
-  const persist = useCallback((next: MediaWikiInstance[]) => {
-    setInstances(next);
-    localStorage.setItem('wikicollab-instances', JSON.stringify(next));
-  }, []);
+  const persist = useCallback(
+    (nextOrUpdater: MediaWikiInstance[] | ((prev: MediaWikiInstance[]) => MediaWikiInstance[])) => {
+      setInstances((prev) => {
+        const next = typeof nextOrUpdater === 'function' ? nextOrUpdater(prev) : nextOrUpdater;
+        localStorage.setItem('wikicollab-instances', JSON.stringify(next));
+        return next;
+      });
+    },
+    []
+  );
 
-  const createInstance = useCallback(async (name: string, apiUrl: string, token?: string) => {
-    const id = crypto.randomUUID().slice(0, 7);
-    const instance: MediaWikiInstance = {
-      id,
-      name,
-      api_url: apiUrl,
-      token: token || null,
-      configured_at: new Date().toISOString(),
-      css: null,
-    };
-    persist([instance]);
-    return instance;
-  }, [persist]);
+  const createInstance = useCallback(
+    async (name: string, apiUrl: string, token?: string) => {
+      const id = crypto.randomUUID().slice(0, 7);
+      const instance: MediaWikiInstance = {
+        id,
+        name,
+        api_url: apiUrl,
+        token: token || null,
+        configured_at: new Date().toISOString(),
+        css: null,
+      };
+      persist((prev) => [...prev, instance]);
+      return instance;
+    },
+    [persist]
+  );
 
-  const deleteInstance = useCallback(async (id: string) => {
-    persist(instances.filter((i) => i.id !== id));
-  }, [instances, persist]);
+  const deleteInstance = useCallback(
+    async (id: string) => {
+      persist((prev) => prev.filter((i) => i.id !== id));
+    },
+    [persist]
+  );
 
-  const updateInstance = useCallback(async (id: string, updates: { name?: string; api_url?: string; token?: string }) => {
-    const next = instances.map((i) =>
-      i.id === id ? { ...i, ...updates } : i
-    );
-    persist(next);
-    return next.find((i) => i.id === id)!;
-  }, [instances, persist]);
+  const updateInstance = useCallback(
+    async (id: string, updates: { name?: string; api_url?: string; token?: string }) => {
+      let updated: MediaWikiInstance | undefined;
+      persist((prev) => {
+        const next = prev.map((i) => {
+          if (i.id !== id) return i;
+          updated = { ...i, ...updates };
+          return updated;
+        });
+        return next;
+      });
+      if (!updated) throw new Error('Instance not found');
+      return updated;
+    },
+    [persist]
+  );
 
   return { instances, loading, createInstance, deleteInstance, updateInstance };
 }
@@ -235,67 +265,81 @@ export function useVersions(
   useEffect(() => {
     if (!onCustomMessage) return;
 
-    const unsubscribe = onCustomMessage('star', (payload: { versionId: string; starred: boolean }) => {
-      setVersions((prev) =>
-        prev.map((v) => (v.id === payload.versionId ? { ...v, starred: payload.starred } : v))
-      );
-    });
+    const unsubscribe = onCustomMessage(
+      'star',
+      (payload: { versionId: string; starred: boolean }) => {
+        setVersions((prev) =>
+          prev.map((v) => (v.id === payload.versionId ? { ...v, starred: payload.starred } : v))
+        );
+      }
+    );
 
     return unsubscribe;
   }, [onCustomMessage]);
 
-  const starVersion = useCallback(async (versionId: string) => {
-    if (!documentId) return;
+  const starVersion = useCallback(
+    async (versionId: string) => {
+      if (!documentId) return;
 
-    if (sendCustomMessage) {
-      sendCustomMessage('star', { versionId, starred: true });
-    } else {
+      if (sendCustomMessage) {
+        sendCustomMessage('star', { versionId, starred: true });
+      } else {
+        try {
+          const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+            method: 'POST',
+          });
+          if (!res.ok) throw new Error('Failed to star version');
+          setVersions((prev) =>
+            prev.map((v) => (v.id === versionId ? { ...v, starred: true } : v))
+          );
+        } catch (error) {
+          console.error('Failed to star version:', error);
+        }
+      }
+    },
+    [documentId, sendCustomMessage]
+  );
+
+  const unstarVersion = useCallback(
+    async (versionId: string) => {
+      if (!documentId) return;
+
+      if (sendCustomMessage) {
+        sendCustomMessage('star', { versionId, starred: false });
+      } else {
+        try {
+          const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+            method: 'DELETE',
+          });
+          if (!res.ok) throw new Error('Failed to unstar version');
+          setVersions((prev) =>
+            prev.map((v) => (v.id === versionId ? { ...v, starred: false } : v))
+          );
+        } catch (error) {
+          console.error('Failed to unstar version:', error);
+        }
+      }
+    },
+    [documentId, sendCustomMessage]
+  );
+
+  const getVersionPreview = useCallback(
+    async (versionId: string): Promise<string | null> => {
+      if (!documentId) return null;
+
       try {
-        await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
-          method: 'POST',
-        });
-        setVersions((prev) =>
-          prev.map((v) => (v.id === versionId ? { ...v, starred: true } : v))
-        );
+        const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/preview`);
+        if (res.ok) {
+          const data = await res.json();
+          return data.content || null;
+        }
       } catch (error) {
-        console.error('Failed to star version:', error);
+        console.error('Failed to fetch version preview:', error);
       }
-    }
-  }, [documentId, sendCustomMessage]);
-
-  const unstarVersion = useCallback(async (versionId: string) => {
-    if (!documentId) return;
-
-    if (sendCustomMessage) {
-      sendCustomMessage('star', { versionId, starred: false });
-    } else {
-      try {
-        await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
-          method: 'DELETE',
-        });
-        setVersions((prev) =>
-          prev.map((v) => (v.id === versionId ? { ...v, starred: false } : v))
-        );
-      } catch (error) {
-        console.error('Failed to unstar version:', error);
-      }
-    }
-  }, [documentId, sendCustomMessage]);
-
-  const getVersionPreview = useCallback(async (versionId: string): Promise<string | null> => {
-    if (!documentId) return null;
-
-    try {
-      const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/preview`);
-      if (res.ok) {
-        const data = await res.json();
-        return data.content || null;
-      }
-    } catch (error) {
-      console.error('Failed to fetch version preview:', error);
-    }
-    return null;
-  }, [documentId]);
+      return null;
+    },
+    [documentId]
+  );
 
   return { versions, loading, fetchVersions, starVersion, unstarVersion, getVersionPreview };
 }

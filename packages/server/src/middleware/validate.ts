@@ -1,7 +1,10 @@
 import type { Context } from 'hono';
-import { z } from 'zod';
+import type { z } from 'zod';
 
-function formatZodError(error: z.ZodError): { error: string; details: Array<{ field: string; message: string }> } {
+function formatZodError(error: z.ZodError): {
+  error: string;
+  details: Array<{ field: string; message: string }>;
+} {
   return {
     error: 'Validation failed',
     details: error.issues.map((issue) => ({
@@ -11,10 +14,10 @@ function formatZodError(error: z.ZodError): { error: string; details: Array<{ fi
   };
 }
 
-export async function parseAndValidate<T extends z.ZodType>(c: Context, schema: T): Promise<
-  | { success: true; data: z.output<T> }
-  | { success: false; response: Response }
-> {
+export async function parseAndValidate<T extends z.ZodType>(
+  c: Context,
+  schema: T
+): Promise<{ success: true; data: z.output<T> } | { success: false; response: Response }> {
   let body: unknown;
   try {
     body = await c.req.json();

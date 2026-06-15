@@ -1,13 +1,14 @@
+import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
-import { db, schema } from '../db/index.js';
-import { getDocumentById, getVersionById } from '../db/helpers.js';
-import { eq, desc } from 'drizzle-orm';
-import * as Y from 'yjs';
 import { serverFetch, SsrfError } from 'server-fetch';
-import { CreateDocumentSchema, UpdateDocumentSchema, PushToWikiSchema } from 'shared';
-import { parseAndValidate } from '../middleware/validate.js';
+import { CreateDocumentSchema, PushToWikiSchema, UpdateDocumentSchema } from 'shared';
+import * as Y from 'yjs';
+
+import { getDocumentById, getVersionById } from '../db/helpers.js';
+import { db, schema } from '../db/index.js';
 import { pushLimiter } from '../middleware/rate-limit.js';
+import { parseAndValidate } from '../middleware/validate.js';
 
 const docs = new Hono();
 
@@ -79,10 +80,12 @@ docs.patch('/:id', async (c) => {
   const updates: Record<string, unknown> = { updated_at: now };
 
   if (body.title !== undefined) updates.title = body.title;
-  if (body.mediawiki_instance_id !== undefined) updates.mediawiki_instance_id = body.mediawiki_instance_id;
+  if (body.mediawiki_instance_id !== undefined)
+    updates.mediawiki_instance_id = body.mediawiki_instance_id;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
 
-  const updateResult = db.update(schema.documents)
+  const updateResult = db
+    .update(schema.documents)
     .set(updates)
     .where(eq(schema.documents.id, id))
     .run();
@@ -97,7 +100,8 @@ docs.patch('/:id', async (c) => {
 
 docs.get('/:id/versions', (c) => {
   const id = c.req.param('id');
-  const versions = db.select()
+  const versions = db
+    .select()
     .from(schema.documentRevisions)
     .where(eq(schema.documentRevisions.document_id, id))
     .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
@@ -232,7 +236,10 @@ docs.post('/:id/push', pushLimiter, async (c) => {
       body: formData.toString(),
     });
 
-    const result = await response.json() as { edit?: { result: string }; error?: { info: string } };
+    const result = (await response.json()) as {
+      edit?: { result: string };
+      error?: { info: string };
+    };
 
     if (result.error) {
       return c.json({ error: result.error.info }, 500);

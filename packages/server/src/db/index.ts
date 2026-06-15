@@ -1,8 +1,9 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import * as schema from './schema.js';
 import { mkdirSync } from 'fs';
 import { dirname } from 'path';
+
+import * as schema from './schema.js';
 
 const dbPath = process.env.DATABASE_PATH || 'wikicollab.db';
 mkdirSync(dirname(dbPath), { recursive: true });
@@ -50,21 +51,21 @@ sqlite.exec(`
 // Migration: add css column to existing mediawiki_instances tables
 try {
   sqlite.exec(`ALTER TABLE mediawiki_instances ADD COLUMN css TEXT`);
-} catch (_err) {
+} catch {
   // Column already exists - expected on subsequent startups
 }
 
 // Migration: add starred column to existing document_revisions tables
 try {
   sqlite.exec(`ALTER TABLE document_revisions ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`);
-} catch (_err) {
+} catch {
   // Column already exists - expected on subsequent startups
 }
 
 // Migration: add restored_version_id column to existing documents tables
 try {
   sqlite.exec(`ALTER TABLE documents ADD COLUMN restored_version_id TEXT`);
-} catch (_err) {
+} catch {
   // Column already exists - expected on subsequent startups
 }
 

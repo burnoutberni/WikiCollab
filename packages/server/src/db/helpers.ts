@@ -1,6 +1,7 @@
-import { db, schema } from './index.js';
 import { eq } from 'drizzle-orm';
-import type { documents, documentRevisions } from './schema.js';
+
+import { db, schema } from './index.js';
+import type { documentRevisions, documents } from './schema.js';
 
 type DocumentRow = typeof documents.$inferSelect;
 type VersionRow = typeof documentRevisions.$inferSelect;
@@ -10,5 +11,9 @@ export function getDocumentById(id: string): DocumentRow | undefined {
 }
 
 export function getVersionById(vId: string): VersionRow | undefined {
-  return db.select().from(schema.documentRevisions).where(eq(schema.documentRevisions.id, vId)).get();
+  return db
+    .select()
+    .from(schema.documentRevisions)
+    .where(eq(schema.documentRevisions.id, vId))
+    .get();
 }

@@ -1,10 +1,11 @@
-import * as Y from 'yjs';
-import { db, schema } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
+import * as encoding from 'lib0/encoding';
 import { nanoid } from 'nanoid';
+import * as Y from 'yjs';
+
+import { db, schema } from '../db/index.js';
 import type { WSSharedDoc } from './connection.js';
 import { broadcastCustom } from './connection.js';
-import * as encoding from 'lib0/encoding';
 
 let contentInitializor: (ydoc: Y.Doc) => Promise<void> = () => Promise.resolve();
 
@@ -18,19 +19,21 @@ export async function runContentInitializor(ydoc: Y.Doc): Promise<void> {
 
 export function initContentInitializor() {
   setContentInitializor(async (ydoc: Y.Doc) => {
-    const docName = (ydoc as any).name;
+    const docName = (ydoc as unknown as { name: string }).name;
 
-    const latestRevision = db.select()
+    const latestRevision = db
+      .select()
       .from(schema.documentRevisions)
       .where(eq(schema.documentRevisions.document_id, docName))
-      .all()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+      .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
+      .get();
 
     if (latestRevision?.yjs_state) {
       const state = Buffer.from(latestRevision.yjs_state, 'base64');
       Y.applyUpdate(ydoc, state);
     } else {
-      const existingDoc = db.select()
+      const existingDoc = db
+        .select()
         .from(schema.documents)
         .where(eq(schema.documents.id, docName))
         .get();
@@ -47,10 +50,7 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
   const ytext = doc.getText('wikitext');
   const content = ytext.toString();
 
-  const existing = db.select()
-    .from(schema.documents)
-    .where(eq(schema.documents.id, docName))
-    .get();
+  const existing = db.select().from(schema.documents).where(eq(schema.documents.id, docName)).get();
 
   if (!existing) return;
 
@@ -68,12 +68,14 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
     const revisionId = nanoid(7);
     const state = Y.encodeStateAsUpdate(doc);
 
-    db.insert(schema.documentRevisions).values({
-      id: revisionId,
-      document_id: docName,
-      yjs_state: Buffer.from(state).toString('base64'),
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: revisionId,
+        document_id: docName,
+        yjs_state: Buffer.from(state).toString('base64'),
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
     const responseEncoder = encoding.createEncoder();
     encoding.writeVarString(responseEncoder, 'new_version');
@@ -88,10 +90,13 @@ export function saveDocDebounced(docName: string, doc: WSSharedDoc) {
   if (saveTimers.has(docName)) {
     clearTimeout(saveTimers.get(docName)!);
   }
-  saveTimers.set(docName, setTimeout(() => {
-    saveDoc(docName, doc);
-    saveTimers.delete(docName);
-  }, 1000));
+  saveTimers.set(
+    docName,
+    setTimeout(() => {
+      saveDoc(docName, doc);
+      saveTimers.delete(docName);
+    }, 1000)
+  );
 }
 
 export function flushSaveTimers(docName: string, doc: WSSharedDoc) {
@@ -103,9 +108,9 @@ export function flushSaveTimers(docName: string, doc: WSSharedDoc) {
 }
 
 export interface Persistence {
-  provider: any;
+  provider: unknown;
   bindState: (docName: string, doc: WSSharedDoc) => void;
-  writeState: (docName: string, doc: WSSharedDoc) => Promise<any>;
+  writeState: (docName: string, doc: WSSharedDoc) => Promise<unknown>;
 }
 
 let persistence: Persistence | null = null;
@@ -122,7 +127,7 @@ export function initPersistence() {
   setPersistence({
     provider: null,
     bindState: (docName: string, doc: WSSharedDoc) => {
-      doc.on('update', (_update: Uint8Array) => {
+      doc.on('update', () => {
         saveDocDebounced(docName, doc);
       });
     },

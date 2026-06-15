@@ -1,9 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { InstanceManager } from './InstanceManager';
 import type { MediaWikiInstance } from '@/hooks/useApi';
+
+import { InstanceManager } from './InstanceManager';
 
 const mockInstance: MediaWikiInstance = {
   id: 'test123',
@@ -73,7 +75,7 @@ describe('InstanceManager', () => {
 
     expect(defaultProps.createInstance).toHaveBeenCalledWith(
       'My Wiki',
-      'https://my.wiki/w/api.php',
+      'https://my.wiki/w/api.php'
     );
   });
 

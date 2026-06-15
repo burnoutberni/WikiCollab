@@ -1,4 +1,5 @@
 import type { Context, Next } from 'hono';
+
 import { envInt, envWindow } from '../utils/env.js';
 
 interface RateLimitEntry {
@@ -11,7 +12,9 @@ interface RateLimiterOptions {
   message?: string;
 }
 
-export type RateLimiterHandler = ((c: Context, next: Next) => Promise<Response | void>) & { reset: () => void };
+export type RateLimiterHandler = ((c: Context, next: Next) => Promise<Response | void>) & {
+  reset: () => void;
+};
 
 function getIp(c: Context): string {
   const forwarded = c.req.header('x-forwarded-for');

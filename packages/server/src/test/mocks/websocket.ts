@@ -1,5 +1,7 @@
 import { vi } from 'vitest';
 
+type EventHandler = (...args: unknown[]) => void;
+
 interface MockWebSocket {
   readyState: number;
   binaryType: string;
@@ -8,13 +10,13 @@ interface MockWebSocket {
   ping: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
   off: ReturnType<typeof vi.fn>;
-  emit: (event: string, ...args: any[]) => void;
+  emit: (event: string, ...args: unknown[]) => void;
   addEventListener: ReturnType<typeof vi.fn>;
   removeEventListener: ReturnType<typeof vi.fn>;
 }
 
 export function createMockWebSocket(): MockWebSocket {
-  const listeners: Record<string, Function[]> = {};
+  const listeners: Record<string, EventHandler[]> = {};
 
   return {
     readyState: 1,
@@ -22,25 +24,25 @@ export function createMockWebSocket(): MockWebSocket {
     send: vi.fn(),
     close: vi.fn(),
     ping: vi.fn(),
-    on: vi.fn((event: string, handler: Function) => {
+    on: vi.fn((event: string, handler: EventHandler) => {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(handler);
     }),
-    off: vi.fn((event: string, handler: Function) => {
+    off: vi.fn((event: string, handler: EventHandler) => {
       if (listeners[event]) {
         listeners[event] = listeners[event].filter((h) => h !== handler);
       }
     }),
-    emit(event: string, ...args: any[]) {
+    emit(event: string, ...args: unknown[]) {
       if (listeners[event]) {
         listeners[event].forEach((handler) => handler(...args));
       }
     },
-    addEventListener: vi.fn((event: string, handler: Function) => {
+    addEventListener: vi.fn((event: string, handler: EventHandler) => {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(handler);
     }),
-    removeEventListener: vi.fn((event: string, handler: Function) => {
+    removeEventListener: vi.fn((event: string, handler: EventHandler) => {
       if (listeners[event]) {
         listeners[event] = listeners[event].filter((h) => h !== handler);
       }

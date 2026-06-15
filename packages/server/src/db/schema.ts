@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const documents = sqliteTable('documents', {
   id: text('id').primaryKey(),
@@ -22,7 +22,9 @@ export const mediawikiInstances = sqliteTable('mediawiki_instances', {
 
 export const documentRevisions = sqliteTable('document_revisions', {
   id: text('id').primaryKey(),
-  document_id: text('document_id').notNull().references(() => documents.id),
+  document_id: text('document_id')
+    .notNull()
+    .references(() => documents.id),
   yjs_state: text('yjs_state'),
   starred: integer('starred', { mode: 'boolean' }).notNull().default(false),
   created_at: text('created_at').notNull().default(new Date().toISOString()),
@@ -30,7 +32,9 @@ export const documentRevisions = sqliteTable('document_revisions', {
 
 export const templateCache = sqliteTable('template_cache', {
   id: text('id').primaryKey(),
-  instance_id: text('instance_id').notNull().references(() => mediawikiInstances.id),
+  instance_id: text('instance_id')
+    .notNull()
+    .references(() => mediawikiInstances.id),
   template_name: text('template_name').notNull(),
   template_data: text('template_data').notNull(),
   fetched_at: text('fetched_at').notNull().default(new Date().toISOString()),

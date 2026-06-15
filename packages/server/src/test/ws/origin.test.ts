@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { IncomingMessage } from 'http';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
+  createOriginValidator,
   getAllowedOrigins,
   isOriginAllowed,
-  resetAllowedOrigins,
-  createOriginValidator,
   logRejectedOrigin,
+  resetAllowedOrigins,
 } from '../../ws/origin.js';
 
 function mockReq(url = '/ws'): IncomingMessage {
@@ -111,7 +112,7 @@ describe('WebSocket origin validation', () => {
       const validator = createOriginValidator();
       const cb = vi.fn();
 
-      validator({ origin: '' as any, req: mockReq(), secure: true }, cb);
+      validator({ origin: '', req: mockReq(), secure: true }, cb);
 
       expect(cb).toHaveBeenCalledWith(true);
     });
@@ -121,7 +122,7 @@ describe('WebSocket origin validation', () => {
       const validator = createOriginValidator();
       const cb = vi.fn();
 
-      validator({ origin: '' as any, req: mockReq(), secure: true }, cb);
+      validator({ origin: '', req: mockReq(), secure: true }, cb);
 
       expect(cb).toHaveBeenCalledWith(false, 403, 'Forbidden: origin not allowed');
     });

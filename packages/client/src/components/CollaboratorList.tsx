@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { MousePointer2 } from 'lucide-react';
-import { COLORS } from '@/hooks/useYjs';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+
 import type { Presence } from '@/hooks/useYjs';
+import { COLORS } from '@/hooks/useYjs';
 
 interface CollaboratorListProps {
   peers: Presence[];
@@ -22,7 +23,10 @@ function posToLineCol(content: string, pos: number): { line: number; col: number
   return { line: lines.length, col: lines[lines.length - 1].length + 1 };
 }
 
-function formatCursor(content: string, cursor: { anchor: number; head: number } | null): string | null {
+function formatCursor(
+  content: string,
+  cursor: { anchor: number; head: number } | null
+): string | null {
   if (!cursor) return null;
   if (cursor.anchor === cursor.head) {
     const { line, col } = posToLineCol(content, cursor.anchor);
@@ -55,7 +59,17 @@ function loadCustomColors(): string[] {
   }
 }
 
-export function CollaboratorList({ peers, userName, userColor, content, localCursor, onUserNameChange, onUserColorChange, onJumpToCursor, onScrollToCursor }: CollaboratorListProps) {
+export function CollaboratorList({
+  peers,
+  userName,
+  userColor,
+  content,
+  localCursor,
+  onUserNameChange,
+  onUserColorChange,
+  onJumpToCursor,
+  onScrollToCursor,
+}: CollaboratorListProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(userName);
   const [showColors, setShowColors] = useState(false);
@@ -84,7 +98,7 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
       const PICKER_W = 144;
       const GAP = 4;
       let left = rect.left;
-      let top = rect.bottom + GAP;
+      const top = rect.bottom + GAP;
       if (left + PICKER_W > window.innerWidth - 8) {
         left = window.innerWidth - 8 - PICKER_W;
       }
@@ -118,8 +132,10 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
 
     const handleClickOutside = (e: MouseEvent) => {
       if (
-        pickerRef.current && !pickerRef.current.contains(e.target as Node) &&
-        colorTriggerRef.current && !colorTriggerRef.current.contains(e.target as Node)
+        pickerRef.current &&
+        !pickerRef.current.contains(e.target as Node) &&
+        colorTriggerRef.current &&
+        !colorTriggerRef.current.contains(e.target as Node)
       ) {
         setShowColors(false);
         setPickerPos(null);
@@ -146,63 +162,65 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
         >
           {userName.charAt(0)}
         </button>
-        {showColors && pickerPos && createPortal(
-          <div
-            ref={pickerRef}
-            className="p-2 bg-popover border rounded-md shadow-md z-50 grid grid-cols-5 gap-1.5"
-            style={{ position: 'fixed', top: pickerPos.top, left: pickerPos.left }}
-          >
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
-                style={{ backgroundColor: c }}
-                onClick={() => {
-                  onUserColorChange(c);
-                  setShowColors(false);
-                  setPickerPos(null);
-                }}
-              />
-            ))}
-            {customColors.map((c) => (
-              <button
-                key={c}
-                className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
-                style={{ backgroundColor: c }}
-                onClick={() => {
-                  onUserColorChange(c);
-                  setShowColors(false);
-                  setPickerPos(null);
-                }}
-              />
-            ))}
-            <label
-              className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform flex items-center justify-center relative overflow-hidden"
-              title="Custom color"
+        {showColors &&
+          pickerPos &&
+          createPortal(
+            <div
+              ref={pickerRef}
+              className="p-2 bg-popover border rounded-md shadow-md z-50 grid grid-cols-5 gap-1.5"
+              style={{ position: 'fixed', top: pickerPos.top, left: pickerPos.left }}
             >
-              <input
-                type="color"
-                value={userColor}
-                onChange={(e) => {
-                  const newColor = e.target.value;
-                  onUserColorChange(newColor);
-                  if (!COLORS.includes(newColor)) {
-                    setCustomColors(() => {
-                      const next = [newColor];
-                      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-                      return next;
-                    });
-                  }
-                  setShowColors(false);
-                  setPickerPos(null);
-                }}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <span className="text-[10px] leading-none text-muted-foreground">+</span>
-            </label>
-          </div>,
-          document.body,
-        )}
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: c }}
+                  onClick={() => {
+                    onUserColorChange(c);
+                    setShowColors(false);
+                    setPickerPos(null);
+                  }}
+                />
+              ))}
+              {customColors.map((c) => (
+                <button
+                  key={c}
+                  className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: c }}
+                  onClick={() => {
+                    onUserColorChange(c);
+                    setShowColors(false);
+                    setPickerPos(null);
+                  }}
+                />
+              ))}
+              <label
+                className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform flex items-center justify-center relative overflow-hidden"
+                title="Custom color"
+              >
+                <input
+                  type="color"
+                  value={userColor}
+                  onChange={(e) => {
+                    const newColor = e.target.value;
+                    onUserColorChange(newColor);
+                    if (!COLORS.includes(newColor)) {
+                      setCustomColors((prev) => {
+                        const next = [...prev, newColor];
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                        return next;
+                      });
+                    }
+                    setShowColors(false);
+                    setPickerPos(null);
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+                <span className="text-[10px] leading-none text-muted-foreground">+</span>
+              </label>
+            </div>,
+            document.body
+          )}
         <div className="flex-1 min-w-0">
           {editing ? (
             <input
@@ -246,7 +264,10 @@ export function CollaboratorList({ peers, userName, userColor, content, localCur
 
       {/* Remote peers */}
       {peers.map((peer) => (
-        <div key={peer.clientId} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50">
+        <div
+          key={peer.clientId}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50"
+        >
           <div
             className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0"
             style={{ backgroundColor: peer.color, color: textColor(peer.color) }}

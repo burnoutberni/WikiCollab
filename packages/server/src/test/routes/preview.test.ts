@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Hono } from 'hono';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockServerFetch } = vi.hoisted(() => ({
   mockServerFetch: vi.fn(),
@@ -133,7 +133,9 @@ describe('Preview route sanitization', () => {
     });
 
     it('strips <form> tags', async () => {
-      mockParser.toHtml.mockReturnValue('<form action="https://evil.com"><input type="submit"></form>');
+      mockParser.toHtml.mockReturnValue(
+        '<form action="https://evil.com"><input type="submit"></form>'
+      );
 
       const res = await app.request('/api/instances/preview', {
         method: 'POST',
@@ -192,7 +194,9 @@ describe('Preview route sanitization', () => {
     });
 
     it('preserves safe images', async () => {
-      mockParser.toHtml.mockReturnValue('<img src="https://example.com/img.png" alt="Photo" width="100" height="200">');
+      mockParser.toHtml.mockReturnValue(
+        '<img src="https://example.com/img.png" alt="Photo" width="100" height="200">'
+      );
 
       const res = await app.request('/api/instances/preview', {
         method: 'POST',
@@ -254,7 +258,9 @@ describe('Preview route sanitization', () => {
     });
 
     it('preserves formatting tags', async () => {
-      mockParser.toHtml.mockReturnValue('<b>Bold</b> <i>Italic</i> <strong>Strong</strong> <em>Emphasis</em>');
+      mockParser.toHtml.mockReturnValue(
+        '<b>Bold</b> <i>Italic</i> <strong>Strong</strong> <em>Emphasis</em>'
+      );
 
       const res = await app.request('/api/instances/preview', {
         method: 'POST',
@@ -272,9 +278,9 @@ describe('Preview route sanitization', () => {
     it('preserves MediaWiki-specific tags', async () => {
       mockParser.toHtml.mockReturnValue(
         '<ref>Reference</ref>' +
-        '<gallery>Image1.png</gallery>' +
-        '<math>x^2</math>' +
-        '<syntaxhighlight lang="javascript">var x = 1;</syntaxhighlight>'
+          '<gallery>Image1.png</gallery>' +
+          '<math>x^2</math>' +
+          '<syntaxhighlight lang="javascript">var x = 1;</syntaxhighlight>'
       );
 
       const res = await app.request('/api/instances/preview', {
@@ -293,7 +299,9 @@ describe('Preview route sanitization', () => {
 
   describe('dangerous CSS stripped', () => {
     it('strips javascript: from style attributes', async () => {
-      mockParser.toHtml.mockReturnValue('<div style="background:url(javascript:alert(1))">Styled</div>');
+      mockParser.toHtml.mockReturnValue(
+        '<div style="background:url(javascript:alert(1))">Styled</div>'
+      );
 
       const res = await app.request('/api/instances/preview', {
         method: 'POST',
@@ -352,7 +360,8 @@ describe('Preview route sanitization', () => {
 
     it('sanitizes HTML from remote MediaWiki API path', async () => {
       mockServerFetch.mockResolvedValue({
-        json: () => Promise.resolve({ parse: { text: { '*': '<p>Content</p><script>hack()</script>' } } }),
+        json: () =>
+          Promise.resolve({ parse: { text: { '*': '<p>Content</p><script>hack()</script>' } } }),
       });
 
       const res = await app.request('/api/instances/preview', {

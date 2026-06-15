@@ -1,7 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { createTestDb } from './setup.js';
-import * as schema from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import * as schema from '../db/schema.js';
+import { createTestDb } from './setup.js';
 
 describe('Database schema', () => {
   let cleanup: (() => void) | undefined;
@@ -15,13 +16,15 @@ describe('Database schema', () => {
     const { db, close } = createTestDb();
     cleanup = close;
 
-    db.insert(schema.documents).values({
-      id: 'test1',
-      title: 'Test Document',
-      content: 'Hello world',
-      created_at: '2025-01-01T00:00:00Z',
-      updated_at: '2025-01-01T00:00:00Z',
-    }).run();
+    db.insert(schema.documents)
+      .values({
+        id: 'test1',
+        title: 'Test Document',
+        content: 'Hello world',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
 
     const result = db.select().from(schema.documents).where(eq(schema.documents.id, 'test1')).get();
     expect(result).toBeDefined();
@@ -33,15 +36,20 @@ describe('Database schema', () => {
     const { db, close } = createTestDb();
     cleanup = close;
 
-    db.insert(schema.mediawikiInstances).values({
-      id: 'inst1',
-      name: 'Wikipedia',
-      api_url: 'https://en.wikipedia.org/w/api.php',
-      configured_at: '2025-01-01T00:00:00Z',
-    }).run();
+    db.insert(schema.mediawikiInstances)
+      .values({
+        id: 'inst1',
+        name: 'Wikipedia',
+        api_url: 'https://en.wikipedia.org/w/api.php',
+        configured_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
 
-    const result = db.select().from(schema.mediawikiInstances)
-      .where(eq(schema.mediawikiInstances.id, 'inst1')).get();
+    const result = db
+      .select()
+      .from(schema.mediawikiInstances)
+      .where(eq(schema.mediawikiInstances.id, 'inst1'))
+      .get();
     expect(result).toBeDefined();
     expect(result!.name).toBe('Wikipedia');
   });
@@ -50,24 +58,31 @@ describe('Database schema', () => {
     const { db, close } = createTestDb();
     cleanup = close;
 
-    db.insert(schema.documents).values({
-      id: 'doc1',
-      title: 'Parent Doc',
-      content: 'content',
-      created_at: '2025-01-01T00:00:00Z',
-      updated_at: '2025-01-01T00:00:00Z',
-    }).run();
+    db.insert(schema.documents)
+      .values({
+        id: 'doc1',
+        title: 'Parent Doc',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
 
-    db.insert(schema.documentRevisions).values({
-      id: 'rev1',
-      document_id: 'doc1',
-      yjs_state: 'base64data',
-      starred: false,
-      created_at: '2025-01-01T00:00:00Z',
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev1',
+        document_id: 'doc1',
+        yjs_state: 'base64data',
+        starred: false,
+        created_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
 
-    const result = db.select().from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.id, 'rev1')).get();
+    const result = db
+      .select()
+      .from(schema.documentRevisions)
+      .where(eq(schema.documentRevisions.id, 'rev1'))
+      .get();
     expect(result).toBeDefined();
     expect(result!.document_id).toBe('doc1');
     expect(result!.starred).toBe(false);
@@ -78,12 +93,14 @@ describe('Database schema', () => {
     cleanup = close;
 
     expect(() => {
-      db.insert(schema.documentRevisions).values({
-        id: 'rev2',
-        document_id: 'nonexistent',
-        starred: false,
-        created_at: '2025-01-01T00:00:00Z',
-      }).run();
+      db.insert(schema.documentRevisions)
+        .values({
+          id: 'rev2',
+          document_id: 'nonexistent',
+          starred: false,
+          created_at: '2025-01-01T00:00:00Z',
+        })
+        .run();
     }).toThrow();
   });
 
@@ -92,13 +109,15 @@ describe('Database schema', () => {
     cleanup = close;
 
     expect(() => {
-      db.insert(schema.templateCache).values({
-        id: 'tc1',
-        instance_id: 'nonexistent',
-        template_name: 'Infobox',
-        template_data: '{}',
-        fetched_at: '2025-01-01T00:00:00Z',
-      }).run();
+      db.insert(schema.templateCache)
+        .values({
+          id: 'tc1',
+          instance_id: 'nonexistent',
+          template_name: 'Infobox',
+          template_data: '{}',
+          fetched_at: '2025-01-01T00:00:00Z',
+        })
+        .run();
     }).toThrow();
   });
 });

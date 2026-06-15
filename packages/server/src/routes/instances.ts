@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { serverFetch, SsrfError } from 'server-fetch';
-import { PreviewSchema, CssSchema } from 'shared';
+import { CssSchema, PreviewSchema } from 'shared';
+
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 
@@ -16,7 +17,10 @@ instances.post('/preview', async (c) => {
     return c.json({ html, sourceMap });
   } catch (err) {
     console.error('Preview generation failed:', err);
-    return c.json({ html: '<p class="text-red-500">Failed to generate preview</p>', sourceMap: [] });
+    return c.json({
+      html: '<p class="text-red-500">Failed to generate preview</p>',
+      sourceMap: [],
+    });
   }
 });
 
@@ -28,7 +32,7 @@ instances.post('/css', async (c) => {
   try {
     const siteInfoUrl = `${api_url}?action=query&meta=siteinfo&siprop=skins&format=json`;
     const siteInfoRes = await serverFetch(siteInfoUrl);
-    const siteInfoData = await siteInfoRes.json() as {
+    const siteInfoData = (await siteInfoRes.json()) as {
       query?: { skins?: Array<{ code: string; name: string; default?: boolean }> };
     };
 
@@ -42,7 +46,7 @@ instances.post('/css', async (c) => {
       try {
         const url = `${api_url}?action=query&prop=revisions&rvprop=content&titles=${encodeURIComponent(page)}&format=json`;
         const res = await serverFetch(url);
-        const data = await res.json() as {
+        const data = (await res.json()) as {
           query?: { pages?: Record<string, { revisions?: Array<{ '*': string }> }> };
         };
 

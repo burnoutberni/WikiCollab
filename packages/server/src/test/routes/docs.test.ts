@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Hono } from 'hono';
-import * as schema from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { Hono } from 'hono';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
+
+import * as schema from '../../db/schema.js';
 import { createTestDb } from '../setup.js';
 
 // Mock db/index.js so the production router uses our in-memory test DB.
 // vi.hoisted runs before vi.mock factories; no imports are available inside.
 const { mockDbModule } = vi.hoisted(() => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   mockDbModule: { db: null as any, schema: null as any },
 }));
 vi.mock('../../db/index.js', () => mockDbModule);
@@ -309,20 +311,25 @@ describe('Docs routes', () => {
     });
     const created = await createRes.json();
 
-    db.insert(schema.documentRevisions).values({
-      id: 'rev-star-1',
-      document_id: created.id,
-      starred: false,
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-star-1',
+        document_id: created.id,
+        starred: false,
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
     const res = await app.request(`/api/docs/${created.id}/versions/rev-star-1/star`, {
       method: 'POST',
     });
     expect(res.status).toBe(200);
 
-    const version = db.select().from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.id, 'rev-star-1')).get();
+    const version = db
+      .select()
+      .from(schema.documentRevisions)
+      .where(eq(schema.documentRevisions.id, 'rev-star-1'))
+      .get();
     expect(version!.starred).toBe(true);
   });
 
@@ -336,20 +343,25 @@ describe('Docs routes', () => {
     });
     const created = await createRes.json();
 
-    db.insert(schema.documentRevisions).values({
-      id: 'rev-unstar-1',
-      document_id: created.id,
-      starred: true,
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-unstar-1',
+        document_id: created.id,
+        starred: true,
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
     const res = await app.request(`/api/docs/${created.id}/versions/rev-unstar-1/star`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
 
-    const version = db.select().from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.id, 'rev-unstar-1')).get();
+    const version = db
+      .select()
+      .from(schema.documentRevisions)
+      .where(eq(schema.documentRevisions.id, 'rev-unstar-1'))
+      .get();
     expect(version!.starred).toBe(false);
   });
 
@@ -369,13 +381,15 @@ describe('Docs routes', () => {
     const base64State = Buffer.from(state).toString('base64');
     doc.destroy();
 
-    db.insert(schema.documentRevisions).values({
-      id: 'rev-preview-1',
-      document_id: created.id,
-      yjs_state: base64State,
-      starred: false,
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-preview-1',
+        document_id: created.id,
+        yjs_state: base64State,
+        starred: false,
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
     const res = await app.request(`/api/docs/${created.id}/versions/rev-preview-1/preview`);
     expect(res.status).toBe(200);
@@ -393,13 +407,15 @@ describe('Docs routes', () => {
     });
     const created = await createRes.json();
 
-    db.insert(schema.documentRevisions).values({
-      id: 'rev-corrupt-1',
-      document_id: created.id,
-      yjs_state: '!!!not-valid-base64-or-yjs-data!!!',
-      starred: false,
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-corrupt-1',
+        document_id: created.id,
+        yjs_state: '!!!not-valid-base64-or-yjs-data!!!',
+        starred: false,
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
     const res = await app.request(`/api/docs/${created.id}/versions/rev-corrupt-1/preview`);
     expect(res.status).toBe(200);
@@ -423,13 +439,15 @@ describe('Docs routes', () => {
     const base64State = Buffer.from(state).toString('base64');
     doc.destroy();
 
-    db.insert(schema.documentRevisions).values({
-      id: 'rev-restore-1',
-      document_id: created.id,
-      yjs_state: base64State,
-      starred: false,
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-restore-1',
+        document_id: created.id,
+        yjs_state: base64State,
+        starred: false,
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
     const res = await app.request(`/api/docs/${created.id}/versions/rev-restore-1/restore`, {
       method: 'POST',
@@ -450,17 +468,22 @@ describe('Docs routes', () => {
     });
     const created = await createRes.json();
 
-    db.insert(schema.documentRevisions).values({
-      id: 'rev-corrupt-restore-1',
-      document_id: created.id,
-      yjs_state: '!!!not-valid-base64-or-yjs-data!!!',
-      starred: false,
-      created_at: new Date().toISOString(),
-    }).run();
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-corrupt-restore-1',
+        document_id: created.id,
+        yjs_state: '!!!not-valid-base64-or-yjs-data!!!',
+        starred: false,
+        created_at: new Date().toISOString(),
+      })
+      .run();
 
-    const res = await app.request(`/api/docs/${created.id}/versions/rev-corrupt-restore-1/restore`, {
-      method: 'POST',
-    });
+    const res = await app.request(
+      `/api/docs/${created.id}/versions/rev-corrupt-restore-1/restore`,
+      {
+        method: 'POST',
+      }
+    );
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);

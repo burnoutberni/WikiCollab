@@ -1,3 +1,6 @@
+import { ExternalLink } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -6,8 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
 
 interface PreviewLinkModalProps {
   url: string;
@@ -29,13 +30,9 @@ export function PreviewLinkModal({ url, open, onOpenChange }: PreviewLinkModalPr
             <ExternalLink className="h-4 w-4" />
             Follow Link
           </DialogTitle>
-          <DialogDescription>
-            Do you want to open this link in a new tab?
-          </DialogDescription>
+          <DialogDescription>Do you want to open this link in a new tab?</DialogDescription>
         </DialogHeader>
-        <div className="rounded-md bg-muted px-3 py-2 text-sm break-all font-mono">
-          {url}
-        </div>
+        <div className="rounded-md bg-muted px-3 py-2 text-sm break-all font-mono">{url}</div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

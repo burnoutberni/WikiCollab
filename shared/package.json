@@ -13,11 +13,13 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "tsc --noEmit",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "eslint-plugin-simple-import-sort": "^13.0.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },
