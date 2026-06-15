@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ConnectionStatePopoverProps {
   connected: boolean;
@@ -48,16 +49,20 @@ export function ConnectionStatePopover({ connected, lastConnected }: ConnectionS
   const connectedSinceText = connected && lastConnected ? formatTime(lastConnected) : null;
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          className="flex items-center gap-1 cursor-pointer hover:opacity-80"
-          data-testid="connection-state-trigger"
-        >
-          {statusIcon}
-          <span className="hidden sm:inline">{statusText}</span>
-        </button>
-      </PopoverTrigger>
+    <Tooltip>
+      <Popover>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <button
+              className="flex items-center gap-1 cursor-pointer hover:opacity-80"
+              data-testid="connection-state-trigger"
+            >
+              {statusIcon}
+              <span className="hidden sm:inline">{statusText}</span>
+            </button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Connection details</TooltipContent>
       <PopoverContent
         side="top"
         align="start"
@@ -92,6 +97,7 @@ export function ConnectionStatePopover({ connected, lastConnected }: ConnectionS
           )}
         </div>
       </PopoverContent>
-    </Popover>
+      </Popover>
+    </Tooltip>
   );
 }
