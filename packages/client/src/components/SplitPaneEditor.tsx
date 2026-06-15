@@ -137,13 +137,13 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss,
   }, [ytext, apiUrl, title]);
 
   const refreshPreview = useCallback(() => {
-    if (sendCustomMessage) {
+    if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
       setLoading(true);
       requestPreview();
     } else {
       fetchPreview();
     }
-  }, [sendCustomMessage, requestPreview, fetchPreview]);
+  }, [sendCustomMessage, provider, requestPreview, fetchPreview]);
 
   const debouncedPreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
