@@ -18,6 +18,7 @@ interface SplitPaneEditorProps {
   documentId: string;
   title?: string;
   apiUrl?: string | null;
+  instanceCss?: string | null;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
   userName?: string;
@@ -62,11 +63,11 @@ function rewriteRelativeUrls(html: string, baseUrl: string, pageTitle: string): 
   return doc.body.innerHTML;
 }
 
-export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provider, userName, userColor, editorRef, onCursorChange, sendCustomMessage, onCustomMessage }: SplitPaneEditorProps) {
+export function SplitPaneEditor({ content, onChange, apiUrl, title, instanceCss, ytext, provider, userName, userColor, editorRef, onCursorChange, sendCustomMessage, onCustomMessage }: SplitPaneEditorProps) {
   const [previewHtml, setPreviewHtml] = useState('');
-  const [previewCss] = useState(defaultCss);
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
+  const hasMounted = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +75,8 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
   apiUrlRef.current = apiUrl;
   const titleRef = useRef(title);
   titleRef.current = title;
+
+  const previewCss = instanceCss || defaultCss;
 
   const requestPreview = useCallback(() => {
     if (sendCustomMessage) {
@@ -143,9 +146,18 @@ export function SplitPaneEditor({ content, onChange, apiUrl, title, ytext, provi
     timerRef.current = setTimeout(refreshPreview, 500);
   }, [refreshPreview]);
 
-  useEffect(() => { refreshPreview(); }, []);
-  useEffect(() => { refreshPreview(); }, [apiUrl]);
-  useEffect(() => { refreshPreview(); }, [title]);
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      refreshPreview();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (hasMounted.current) {
+      refreshPreview();
+    }
+  }, [apiUrl, title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!ytext) return;
