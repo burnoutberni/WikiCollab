@@ -14,6 +14,7 @@ import { runContentInitializor, getPersistence } from './persistence.js';
 import { decodeCustomMessage, encodeInnerPayload, wrapCustomMessage } from 'shared';
 import { createOriginValidator } from './origin.js';
 import { generatePreview } from '../preview.js';
+import { envInt } from '../utils/env.js';
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -216,15 +217,12 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
 
 // --- Connection rate limiting ---
 
+const WS_CONCURRENT = envInt('RATE_LIMIT_WS_CONCURRENT', 100);
+const WS_RATE_MAX = envInt('RATE_LIMIT_WS_RATE_MAX', 100);
+const WS_RATE_WINDOW_MS = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
+
 const wsConnectionCounts = new Map<string, number>();
 const wsConnectionRate = new Map<string, number[]>();
-
-function envInt(key: string, def: number): number {
-  const val = process.env[key];
-  if (val === undefined) return def;
-  const parsed = parseInt(val, 10);
-  return Number.isNaN(parsed) ? def : parsed;
-}
 
 function getWsIp(req: any): string {
   const forwarded = req?.headers?.['x-forwarded-for'];
@@ -235,18 +233,14 @@ function getWsIp(req: any): string {
 }
 
 function checkWsRateLimit(ip: string): boolean {
-  const maxConcurrent = envInt('RATE_LIMIT_WS_CONCURRENT', 100);
   const current = wsConnectionCounts.get(ip) || 0;
-  if (current >= maxConcurrent) return false;
+  if (current >= WS_CONCURRENT) return false;
 
-  const maxRate = envInt('RATE_LIMIT_WS_RATE_MAX', 100);
-  const windowMs = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
   const now = Date.now();
-
   let timestamps = wsConnectionRate.get(ip) || [];
-  timestamps = timestamps.filter((t) => now - t < windowMs);
+  timestamps = timestamps.filter((t) => now - t < WS_RATE_WINDOW_MS);
 
-  if (timestamps.length >= maxRate) return false;
+  if (timestamps.length >= WS_RATE_MAX) return false;
 
   timestamps.push(now);
   wsConnectionRate.set(ip, timestamps);
@@ -256,9 +250,8 @@ function checkWsRateLimit(ip: string): boolean {
 // Cleanup WS rate tracking periodically
 setInterval(() => {
   const now = Date.now();
-  const windowMs = envInt('RATE_LIMIT_WS_RATE_WINDOW', 60) * 1000;
   for (const [ip, timestamps] of wsConnectionRate) {
-    const filtered = timestamps.filter((t) => now - t < windowMs);
+    const filtered = timestamps.filter((t) => now - t < WS_RATE_WINDOW_MS);
     if (filtered.length === 0) {
       wsConnectionRate.delete(ip);
     } else {
