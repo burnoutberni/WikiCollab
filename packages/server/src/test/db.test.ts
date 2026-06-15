@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import * as schema from '../db/schema.js';
@@ -119,5 +119,161 @@ describe('Database schema', () => {
         })
         .run();
     }).toThrow();
+  });
+
+  it('cascades delete from documents to document_revisions', () => {
+    const { db, close } = createTestDb();
+    cleanup = close;
+
+    db.insert(schema.documents)
+      .values({
+        id: 'doc-cascade',
+        title: 'Cascade Test',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
+
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-cascade-1',
+        document_id: 'doc-cascade',
+        yjs_state: 'base64data',
+        starred: false,
+        created_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
+
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-cascade-2',
+        document_id: 'doc-cascade',
+        yjs_state: 'base64data',
+        starred: true,
+        created_at: '2025-01-01T00:00:01Z',
+      })
+      .run();
+
+    db.delete(schema.documents).where(eq(schema.documents.id, 'doc-cascade')).run();
+
+    const remainingRevisions = db
+      .select()
+      .from(schema.documentRevisions)
+      .where(eq(schema.documentRevisions.document_id, 'doc-cascade'))
+      .all();
+    expect(remainingRevisions).toHaveLength(0);
+  });
+
+  it('cascade does not delete unrelated documents', () => {
+    const { db, close } = createTestDb();
+    cleanup = close;
+
+    db.insert(schema.documents)
+      .values({
+        id: 'to-delete',
+        title: 'To Delete',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
+
+    db.insert(schema.documents)
+      .values({
+        id: 'to-keep',
+        title: 'To Keep',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
+
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-keep',
+        document_id: 'to-keep',
+        yjs_state: 'base64data',
+        starred: false,
+        created_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
+
+    db.delete(schema.documents).where(eq(schema.documents.id, 'to-delete')).run();
+
+    const remaining = db
+      .select()
+      .from(schema.documentRevisions)
+      .where(eq(schema.documentRevisions.document_id, 'to-keep'))
+      .all();
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].id).toBe('rev-keep');
+  });
+
+  it('handles document expiry field', () => {
+    const { db, close } = createTestDb();
+    cleanup = close;
+
+    db.insert(schema.documents)
+      .values({
+        id: 'expired-doc',
+        title: 'Expired',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        expiry: '2020-01-01T00:00:00Z',
+      })
+      .run();
+
+    db.insert(schema.documents)
+      .values({
+        id: 'active-doc',
+        title: 'Active',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        expiry: '2030-01-01T00:00:00Z',
+      })
+      .run();
+
+    db.insert(schema.documents)
+      .values({
+        id: 'no-expiry-doc',
+        title: 'No Expiry',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        expiry: null,
+      })
+      .run();
+
+    const expiredDocs = db
+      .select()
+      .from(schema.documents)
+      .where(sql`expiry IS NOT NULL AND expiry < datetime('now')`)
+      .all();
+    expect(expiredDocs).toHaveLength(1);
+    expect(expiredDocs[0].id).toBe('expired-doc');
+  });
+
+  it('handles concurrent reads', () => {
+    const { db, close } = createTestDb();
+    cleanup = close;
+
+    db.insert(schema.documents)
+      .values({
+        id: 'concurrent-doc',
+        title: 'Concurrent Test',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      })
+      .run();
+
+    const results = Array.from({ length: 10 }, () =>
+      db.select().from(schema.documents).where(eq(schema.documents.id, 'concurrent-doc')).get()
+    );
+    expect(results).toHaveLength(10);
+    results.forEach((r) => expect(r!.id).toBe('concurrent-doc'));
   });
 });
