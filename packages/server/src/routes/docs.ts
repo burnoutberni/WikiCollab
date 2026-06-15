@@ -199,6 +199,10 @@ docs.get('/:id/versions/:v/preview', (c) => {
   }
 });
 
+// Push endpoint is double-limited: first by crudLimiter (100/min, app-level),
+// then by pushLimiter (10/min) here. This is intentional — push is the most
+// sensitive operation (outbound HTTP POST to external wikis) and warrants a
+// much stricter cap than general CRUD.
 docs.post('/:id/push', pushLimiter, async (c) => {
   const id = c.req.param('id')!;
   const result = await parseAndValidate(c, PushToWikiSchema);
