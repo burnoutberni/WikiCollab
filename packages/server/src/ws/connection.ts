@@ -392,8 +392,14 @@ export function setupWebSocket(server: ServerType) {
         ws.close(1008, 'Missing request URL');
         return;
       }
-      const url = new URL(req.url, `http://${host}`);
-      const docName = url.pathname.split('/').pop();
+      let docName: string | undefined;
+      try {
+        const url = new URL(req.url, `http://${host}`);
+        docName = url.pathname.split('/').pop();
+      } catch {
+        ws.close(1008, 'Invalid request URL');
+        return;
+      }
 
       if (!docName) {
         ws.close(1008, 'Missing document ID');
@@ -420,7 +426,14 @@ export function setupWebSocket(server: ServerType) {
         }
       });
 
-      setupWSConnection(ws, req, { docName });
+      setupWSConnection(ws, req, { docName }).catch((err) => {
+        console.error('WS setup failed:', err);
+        try {
+          ws.close(1011, 'Internal server error');
+        } catch {
+          /* ignore */
+        }
+      });
     }
   );
 
