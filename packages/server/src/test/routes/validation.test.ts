@@ -101,7 +101,9 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Test' }),
       });
+      expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.id).toBeDefined();
 
       const res = await app.request(`/api/docs/${created.id}`, {
         method: 'PATCH',
@@ -119,7 +121,9 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Test' }),
       });
+      expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.id).toBeDefined();
 
       const res = await app.request(`/api/docs/${created.id}`, {
         method: 'PATCH',
@@ -137,7 +141,9 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Test' }),
       });
+      expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.id).toBeDefined();
 
       const res = await app.request(`/api/docs/${created.id}`, {
         method: 'PATCH',
@@ -155,7 +161,9 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Test' }),
       });
+      expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.id).toBeDefined();
 
       const res = await app.request(`/api/docs/${created.id}/push`, {
         method: 'POST',
@@ -173,7 +181,9 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Test' }),
       });
+      expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.id).toBeDefined();
 
       const res = await app.request(`/api/docs/${created.id}/push`, {
         method: 'POST',
@@ -196,7 +206,9 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Test' }),
       });
+      expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.id).toBeDefined();
 
       const res = await app.request(`/api/docs/${created.id}/push`, {
         method: 'POST',
@@ -219,7 +231,9 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Test' }),
       });
+      expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.id).toBeDefined();
 
       const res = await app.request(`/api/docs/${created.id}/push`, {
         method: 'POST',
@@ -232,28 +246,30 @@ describe('Input validation', () => {
     });
   });
 
+  let instancesApp: Hono;
+  let closeInstancesDb: (() => void) | undefined;
+
+  function setupInstancesApp() {
+    vi.clearAllMocks();
+    const testDb = createTestDb();
+    mockDbModule.db = testDb.db;
+    mockDbModule.schema = schema;
+    closeInstancesDb = testDb.close;
+
+    instancesApp = new Hono();
+    instancesApp.route('/api/instances', instancesRoutes);
+  }
+
   describe('POST /api/instances/preview', () => {
-    let app: Hono;
-    let closeDb: (() => void) | undefined;
-
-    beforeEach(() => {
-      vi.clearAllMocks();
-      const testDb = createTestDb();
-      mockDbModule.db = testDb.db;
-      mockDbModule.schema = schema;
-      closeDb = testDb.close;
-
-      app = new Hono();
-      app.route('/api/instances', instancesRoutes);
-    });
+    beforeEach(setupInstancesApp);
 
     afterEach(() => {
-      closeDb?.();
-      closeDb = undefined;
+      closeInstancesDb?.();
+      closeInstancesDb = undefined;
     });
 
     it('rejects invalid JSON body', async () => {
-      const res = await app.request('/api/instances/preview', {
+      const res = await instancesApp.request('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not valid json{{{',
@@ -264,7 +280,7 @@ describe('Input validation', () => {
     });
 
     it('rejects invalid api_url format', async () => {
-      const res = await app.request('/api/instances/preview', {
+      const res = await instancesApp.request('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ api_url: 'not-a-url' }),
@@ -275,7 +291,7 @@ describe('Input validation', () => {
     });
 
     it('accepts empty body (all fields optional)', async () => {
-      const res = await app.request('/api/instances/preview', {
+      const res = await instancesApp.request('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -284,7 +300,7 @@ describe('Input validation', () => {
     });
 
     it('accepts valid body', async () => {
-      const res = await app.request('/api/instances/preview', {
+      const res = await instancesApp.request('/api/instances/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'Hello', page: 'Test' }),
@@ -294,27 +310,15 @@ describe('Input validation', () => {
   });
 
   describe('POST /api/instances/css', () => {
-    let app: Hono;
-    let closeDb: (() => void) | undefined;
-
-    beforeEach(() => {
-      vi.clearAllMocks();
-      const testDb = createTestDb();
-      mockDbModule.db = testDb.db;
-      mockDbModule.schema = schema;
-      closeDb = testDb.close;
-
-      app = new Hono();
-      app.route('/api/instances', instancesRoutes);
-    });
+    beforeEach(setupInstancesApp);
 
     afterEach(() => {
-      closeDb?.();
-      closeDb = undefined;
+      closeInstancesDb?.();
+      closeInstancesDb = undefined;
     });
 
     it('rejects invalid JSON body', async () => {
-      const res = await app.request('/api/instances/css', {
+      const res = await instancesApp.request('/api/instances/css', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not valid json{{{',
@@ -325,7 +329,7 @@ describe('Input validation', () => {
     });
 
     it('rejects missing api_url', async () => {
-      const res = await app.request('/api/instances/css', {
+      const res = await instancesApp.request('/api/instances/css', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -341,7 +345,7 @@ describe('Input validation', () => {
     });
 
     it('rejects invalid api_url format', async () => {
-      const res = await app.request('/api/instances/css', {
+      const res = await instancesApp.request('/api/instances/css', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ api_url: 'not-a-url' }),
@@ -373,7 +377,7 @@ describe('Input validation', () => {
           }),
         });
 
-      const res = await app.request('/api/instances/css', {
+      const res = await instancesApp.request('/api/instances/css', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ api_url: 'https://example.com/w/api.php' }),
