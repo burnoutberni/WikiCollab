@@ -57,6 +57,7 @@ describe('SplitPaneEditor', () => {
     mockWikitextEditor.mockReset();
     mockPreviewLinkModal.mockReset();
     global.fetch = vi.fn();
+    HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
   it('renders source editor and preview panes', () => {
@@ -110,11 +111,12 @@ describe('SplitPaneEditor', () => {
 
   it('internal anchor link does not open modal', async () => {
     const user = userEvent.setup();
+    const scrollIntoViewMock = vi.mocked(HTMLElement.prototype.scrollIntoView);
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        html: '<a href="#section1">go to section 1</a>',
+        html: '<a href="#section1">go to section 1</a><div id="section1">Section 1 Content</div>',
       }),
     });
 
@@ -127,6 +129,10 @@ describe('SplitPaneEditor', () => {
     await user.click(screen.getByText('go to section 1'));
 
     expect(screen.queryByTestId('preview-link-modal')).not.toBeInTheDocument();
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    });
   });
 
   it('refresh preview button calls fetch preview', async () => {
