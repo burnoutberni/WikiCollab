@@ -122,6 +122,18 @@ export function broadcastCustom(doc: WSSharedDoc, data: Uint8Array, excludeConn:
 }
 
 const previewDebounces = new Map<string, ReturnType<typeof setTimeout>>();
+const MAX_PREVIEW_DEBOUNCE_KEYS = 100;
+
+function evictPreviewDebounce(): void {
+  if (previewDebounces.size >= MAX_PREVIEW_DEBOUNCE_KEYS) {
+    const oldest = previewDebounces.keys().next().value;
+    if (oldest !== undefined) {
+      const timer = previewDebounces.get(oldest);
+      if (timer) clearTimeout(timer);
+      previewDebounces.delete(oldest);
+    }
+  }
+}
 
 function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocket) {
   const { type, payload } = decodeCustomMessage(data);
@@ -170,6 +182,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array, _conn: WebSocke
       const existing = previewDebounces.get(key);
       if (existing) clearTimeout(existing);
 
+      evictPreviewDebounce();
       previewDebounces.set(key, setTimeout(async () => {
         previewDebounces.delete(key);
         try {
