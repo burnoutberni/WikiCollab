@@ -13,6 +13,11 @@
     "test:watch": "pnpm -r run test:watch",
     "test:coverage": "pnpm -r run test:coverage"
   },
+  "pnpm": {
+    "overrides": {
+      "esbuild": "0.28.1"
+    }
+  },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.8",
     "concurrently": "^10.0.3",
