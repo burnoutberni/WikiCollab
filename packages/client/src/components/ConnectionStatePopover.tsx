@@ -58,6 +58,8 @@ export function ConnectionStatePopover({
 }: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
   const [retrying, setRetrying] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [tooltipOpen, setTooltipOpen] = useState(false);
 
   useEffect(() => {
     if (connected) {
@@ -97,8 +99,20 @@ export function ConnectionStatePopover({
   }, [onReconnect]);
 
   return (
-    <Tooltip>
-      <Popover>
+    <Tooltip
+      open={tooltipOpen}
+      onOpenChange={(open) => {
+        if (popoverOpen) return;
+        setTooltipOpen(open);
+      }}
+    >
+      <Popover
+        open={popoverOpen}
+        onOpenChange={(open) => {
+          setPopoverOpen(open);
+          if (open) setTooltipOpen(false);
+        }}
+      >
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
             <button
