@@ -79,7 +79,7 @@ export function DocumentEditor() {
     () => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split'
   );
   const [sidebarOpen, setSidebarOpen] = useState(
-    () => localStorage.getItem('wikicollab-sidebarOpen') !== 'false'
+    () => localStorage.getItem('wikicollab-sidebarOpen') === 'true'
   );
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(
     () => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false'
@@ -387,6 +387,7 @@ export function DocumentEditor() {
                 onCursorChange={handleCursorChange}
                 sendCustomMessage={sendCustomMessage}
                 onCustomMessage={onCustomMessage}
+                initialMobileTab={isMobile ? 'preview' : 'source'}
               />
             )}
           </main>
@@ -399,7 +400,6 @@ export function DocumentEditor() {
             onViewModeChange={setViewMode}
             onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             sidebarOpen={sidebarOpen}
-            collaboratorCount={collaboratorCount}
           />
         )}
 

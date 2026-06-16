@@ -4,7 +4,6 @@ import type { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import defaultCss from '@/styles/wikipedia.css?inline';
@@ -27,6 +26,7 @@ interface SplitPaneEditorProps {
   onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
   onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
+  initialMobileTab?: 'source' | 'preview';
 }
 
 function getWikiBaseUrl(apiUrl: string): string {
@@ -79,9 +79,9 @@ export function SplitPaneEditor({
   onCursorChange,
   sendCustomMessage,
   onCustomMessage,
+  initialMobileTab = 'source',
 }: SplitPaneEditorProps) {
   const isMobile = useIsMobile();
-  const [mobileTab, setMobileTab] = useState<'source' | 'preview'>('source');
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
@@ -188,10 +188,10 @@ export function SplitPaneEditor({
   }, [ytext, debouncedPreview]);
 
   useEffect(() => {
-    if (isMobile && mobileTab === 'preview') {
+    if (isMobile && initialMobileTab === 'preview') {
       refreshPreview();
     }
-  }, [isMobile, mobileTab, refreshPreview]);
+  }, [isMobile, initialMobileTab, refreshPreview]);
 
   const handlePreviewClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -216,23 +216,8 @@ export function SplitPaneEditor({
   if (isMobile) {
     return (
       <div className="h-full flex flex-col">
-        <Tabs
-          value={mobileTab}
-          onValueChange={(v) => setMobileTab(v as 'source' | 'preview')}
-          className="shrink-0"
-        >
-          <TabsList className="w-full h-9 rounded-none border-b">
-            <TabsTrigger value="source" className="flex-1 text-xs">
-              Source
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="flex-1 text-xs">
-              Preview
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         <div className="flex-1 overflow-hidden">
-          {mobileTab === 'source' && (
+          {initialMobileTab === 'source' && (
             <WikitextEditor
               ref={editorRef}
               content={content}
@@ -244,7 +229,7 @@ export function SplitPaneEditor({
               onCursorChange={onCursorChange}
             />
           )}
-          {mobileTab === 'preview' && (
+          {initialMobileTab === 'preview' && (
             <div className="h-full relative">
               <div className="h-full overflow-auto overscroll-contain">
                 <style>{previewCss}</style>
@@ -273,14 +258,6 @@ export function SplitPaneEditor({
             </div>
           )}
         </div>
-
-        <PreviewLinkModal
-          url={linkModalUrl || ''}
-          open={linkModalUrl !== null}
-          onOpenChange={(open) => {
-            if (!open) setLinkModalUrl(null);
-          }}
-        />
       </div>
     );
   }

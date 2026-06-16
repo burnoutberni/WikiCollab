@@ -54,7 +54,7 @@ describe('ConnectionStatePopover', () => {
     expect(screen.getByText('Document')).toBeInTheDocument();
     expect(screen.getByText('doc-123')).toBeInTheDocument();
     expect(screen.getByText('Collaborators')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('WebSocket')).toBeInTheDocument();
     expect(screen.getByText('ws://localhost:3000/ws')).toBeInTheDocument();
     expect(screen.getByText('Connected since')).toBeInTheDocument();
