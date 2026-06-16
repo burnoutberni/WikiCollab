@@ -5,6 +5,10 @@ export type { Document, MediaWikiInstance, Version };
 
 const API_BASE = '/api';
 
+/**
+ * Loads the document list and keeps a separate queue of newly discovered documents until accepted.
+ * Polls the API every 5 seconds after the initial load.
+ */
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +109,7 @@ export function useDocuments() {
   };
 }
 
+/** Loads a single document by id and exposes local state for optimistic updates. */
 export function useDocument(id: string | null) {
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
@@ -135,6 +140,9 @@ export function useDocument(id: string | null) {
   return { document, loading, setDocument };
 }
 
+/**
+ * Persists MediaWiki instances in `localStorage` and keeps tabs in sync via the `storage` event.
+ */
 export function useInstances() {
   const [instances, setInstances] = useState<MediaWikiInstance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,10 +230,13 @@ export function useInstances() {
   return { instances, loading, createInstance, deleteInstance, updateInstance };
 }
 
+/**
+ * Fetches version metadata and optionally mirrors star/version updates over collaborative messages.
+ */
 export function useVersions(
   documentId: string | null,
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void,
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void
+  onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void
 ) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);

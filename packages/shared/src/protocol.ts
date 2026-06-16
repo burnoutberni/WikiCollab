@@ -1,6 +1,7 @@
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 
+/** Outer WS message type used for WikiCollab-specific application events. */
 export const messageCustom = 2;
 
 const valueTypeString = 0;

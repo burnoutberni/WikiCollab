@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
 
+/** Optional overrides for the default response hardening headers. */
 export interface SecurityHeadersOptions {
   contentSecurityPolicy?: string;
   strictTransportSecurity?: boolean | string;
@@ -26,6 +27,10 @@ const DEFAULT_CSP = [
 
 const DEFAULT_PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()';
 
+/**
+ * Applies a baseline set of browser security headers.
+ * HSTS is only emitted in production when the request is determined to be HTTPS.
+ */
 export function securityHeaders(options: SecurityHeadersOptions = {}): MiddlewareHandler {
   const isProduction = process.env.NODE_ENV === 'production';
 

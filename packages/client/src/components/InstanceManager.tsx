@@ -47,6 +47,7 @@ const WIKI_PRESETS: { name: string; api_url: string }[] = [
   { name: 'Commons', api_url: 'https://commons.wikimedia.org/w/api.php' },
 ];
 
+/** Props for managing the locally stored MediaWiki instance list. */
 interface InstanceManagerProps {
   instances: MediaWikiInstance[];
   loading: boolean;
@@ -54,6 +55,9 @@ interface InstanceManagerProps {
   deleteInstance: (id: string) => Promise<void>;
 }
 
+/**
+ * Manages a single active MediaWiki instance backed by the `useInstances` local store.
+ */
 export function InstanceManager({
   instances,
   loading,

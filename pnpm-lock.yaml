@@ -142,7 +142,7 @@ importers:
         version: 7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       shared:
         specifier: workspace:*
-        version: link:../../shared
+        version: link:../shared
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -236,7 +236,7 @@ importers:
         version: 1.0.10(undici@8.4.1)
       shared:
         specifier: workspace:*
-        version: link:../../shared
+        version: link:../shared
       wikiparser-node:
         specifier: ^1.44.0
         version: 1.44.0(stylelint-config-recommended@18.0.0(stylelint@17.13.0(typescript@6.0.3)))(stylelint@17.13.0(typescript@6.0.3))
@@ -281,7 +281,7 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@types/node@25.9.3)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  shared:
+  packages/shared:
     dependencies:
       lib0:
         specifier: ^0.2.117

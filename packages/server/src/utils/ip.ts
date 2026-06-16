@@ -1,5 +1,6 @@
 import { isIPv4, isIPv6 } from 'node:net';
 
+/** Normalizes IPv4-mapped IPv6 addresses so downstream comparisons stay consistent. */
 function normalizeIp(ip: string): string {
   const v4mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
   if (v4mapped) return v4mapped[1];
@@ -45,6 +46,7 @@ function ipToBytes(ip: string): number[] {
   return hexToBytes(expandIPv6(ip));
 }
 
+/** Checks whether an IP address falls within a literal address or CIDR range. */
 export function cidrMatch(ip: string, cidr: string): boolean {
   const normalizedIp = normalizeIp(ip);
   const [range, bitsStr] = cidr.split('/');
@@ -70,6 +72,7 @@ export function cidrMatch(ip: string, cidr: string): boolean {
   return ipB.every((b, i) => (b & mask[i]) === (rangeB[i] & mask[i]));
 }
 
+/** Parses trusted proxy entries used to decide whether forwarding headers are honored. */
 export function parseTrustedProxies(): string[] {
   const raw = process.env.TRUSTED_PROXIES;
   if (!raw) return [];
@@ -79,6 +82,7 @@ export function parseTrustedProxies(): string[] {
     .filter(Boolean);
 }
 
+/** Matches a proxy IP against exact entries or CIDR ranges. */
 export function isTrustedProxy(ip: string, trustedProxies: string[]): boolean {
   const normalizedIp = normalizeIp(ip);
   return trustedProxies.some((entry) => {
@@ -87,6 +91,10 @@ export function isTrustedProxy(ip: string, trustedProxies: string[]): boolean {
   });
 }
 
+/**
+ * Resolves the originating client IP from socket and forwarding headers.
+ * When trusted proxies are configured, the rightmost untrusted forwarded hop wins.
+ */
 export function getClientIp(
   xForwardedFor: string | undefined,
   xRealIp: string | undefined,

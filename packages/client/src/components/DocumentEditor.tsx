@@ -10,10 +10,8 @@ import {
   Settings,
   Share2,
   Users,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -34,14 +32,25 @@ import { useEditorLock } from '@/hooks/useEditorLock';
 import { useYjs } from '@/hooks/useYjs';
 
 import { CollaboratorList } from './CollaboratorList';
-import { InstanceManager } from './InstanceManager';
-import { PushToWiki } from './PushToWiki';
+import { ConnectionStatePopover } from './ConnectionStatePopover';
+import { LoadingSpinner } from './LoadingSpinner';
 import { SplitPaneEditor } from './SplitPaneEditor';
-import { VersionHistory } from './VersionHistory';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
+
+const InstanceManager = lazy(() =>
+  import('./InstanceManager').then((mod) => ({ default: mod.InstanceManager }))
+);
+const PushToWiki = lazy(() => import('./PushToWiki').then((mod) => ({ default: mod.PushToWiki })));
+const VersionHistory = lazy(() =>
+  import('./VersionHistory').then((mod) => ({ default: mod.VersionHistory }))
+);
 
 type ViewMode = 'source' | 'split';
 
+/**
+ * Main editing screen that wires together collaboration, preview, version history, and local UI state.
+ * Persists view preferences in `localStorage` and can take over a lock from another tab.
+ */
 export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -60,6 +69,7 @@ export function DocumentEditor() {
     setContent,
     sendCustomMessage,
     onCustomMessage,
+    lastConnected,
   } = useYjs(id || null);
 
   const [title, setTitle] = useState('');
@@ -77,6 +87,8 @@ export function DocumentEditor() {
   const editorRef = useRef<WikitextEditorHandle | null>(null);
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const collaboratorCount = peers.length + 1;
+  const websocketServerUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
   useEffect(() => {
     if (doc) {
@@ -243,21 +255,25 @@ export function DocumentEditor() {
 
           <Separator orientation="vertical" className="h-6" />
 
-          <VersionHistory
-            documentId={id!}
-            onRestore={handleRestoreVersion}
-            sendCustomMessage={sendCustomMessage}
-            onCustomMessage={onCustomMessage}
-          />
+          <Suspense fallback={<LoadingSpinner label="Loading history..." className="py-0" />}>
+            <VersionHistory
+              documentId={id!}
+              onRestore={handleRestoreVersion}
+              sendCustomMessage={sendCustomMessage}
+              onCustomMessage={onCustomMessage}
+            />
+          </Suspense>
 
-          <PushToWiki
-            documentId={id!}
-            title={title}
-            wikiTitle={wikiTitle}
-            onWikiTitleChange={setWikiTitle}
-            content={content}
-            instance={instances[0] || null}
-          />
+          <Suspense fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}>
+            <PushToWiki
+              documentId={id!}
+              title={title}
+              wikiTitle={wikiTitle}
+              onWikiTitleChange={setWikiTitle}
+              content={content}
+              instance={instances[0] || null}
+            />
+          </Suspense>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -275,12 +291,14 @@ export function DocumentEditor() {
           {sidebarOpen && (
             <aside className="w-64 border-r flex flex-col">
               <div className="p-4 border-b">
-                <InstanceManager
-                  instances={instances}
-                  loading={instancesLoading}
-                  createInstance={createInstance}
-                  deleteInstance={deleteInstance}
-                />
+                <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
+                  <InstanceManager
+                    instances={instances}
+                    loading={instancesLoading}
+                    createInstance={createInstance}
+                    deleteInstance={deleteInstance}
+                  />
+                </Suspense>
               </div>
 
               <div className="p-4 mt-auto border-t">
@@ -295,7 +313,7 @@ export function DocumentEditor() {
                   )}
                   <Users className="h-3.5 w-3.5" />
                   <span>
-                    {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
+                    {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
                   </span>
                 </button>
                 {collaboratorsExpanded && (
@@ -356,14 +374,14 @@ export function DocumentEditor() {
               <Save className="h-3 w-3" />
               Saved
             </span>
-            <span className="flex items-center gap-1">
-              {connected ? (
-                <Wifi className="h-3 w-3 text-green-500" />
-              ) : (
-                <WifiOff className="h-3 w-3 text-red-500" />
-              )}
-              {connected ? 'Connected' : 'Disconnected'}
-            </span>
+            <ConnectionStatePopover
+              connected={connected}
+              lastConnected={lastConnected}
+              documentId={id!}
+              collaboratorCount={collaboratorCount}
+              websocketServerUrl={websocketServerUrl}
+              onReconnect={provider ? () => provider.connect() : undefined}
+            />
           </div>
           <div className="flex items-center gap-4">
             <Tooltip>
@@ -371,7 +389,7 @@ export function DocumentEditor() {
                 <TooltipTrigger asChild>
                   <PopoverTrigger asChild>
                     <button className="hover:underline cursor-pointer">
-                      {peers.length + 1} collaborator{peers.length + 1 !== 1 ? 's' : ''}
+                      {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
                     </button>
                   </PopoverTrigger>
                 </TooltipTrigger>

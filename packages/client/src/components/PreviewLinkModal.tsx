@@ -10,12 +10,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+/** Props for confirming external links opened from rendered preview content. */
 interface PreviewLinkModalProps {
   url: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/** Opens preview links in a new tab and closes the dialog after launch. */
 export function PreviewLinkModal({ url, open, onOpenChange }: PreviewLinkModalProps) {
   const handleFollow = () => {
     window.open(url, '_blank', 'noopener,noreferrer');

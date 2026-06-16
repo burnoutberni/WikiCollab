@@ -7,6 +7,7 @@ interface SourceMapEntry {
   blockIndex: number;
 }
 
+/** Decodes CSS escapes before filtering so obfuscated javascript URLs are still caught. */
 function decodeCssEscape(value: string): string {
   return value
     .replace(/\\(?:\r\n|[\n\r\f])/g, '')
@@ -20,6 +21,7 @@ function decodeCssEscape(value: string): string {
     });
 }
 
+/** Strips the most common script execution vectors from inline style attributes. */
 function sanitizeStyle(value: string): string {
   const normalized = decodeCssEscape(value);
   return normalized
@@ -28,6 +30,7 @@ function sanitizeStyle(value: string): string {
     .replace(/url\s*\(\s*['"]?\s*javascript\s*:/gi, 'url(');
 }
 
+/** Sanitizes parser HTML while preserving MediaWiki markup needed by the preview UI. */
 function sanitize(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
@@ -127,6 +130,7 @@ function sanitize(html: string): string {
 
 type ParserRoot = Awaited<ReturnType<typeof wikiparser.default.parse>>;
 
+/** Maps rendered parser blocks back to source lines, skipping empty or zero-height nodes. */
 function generateSourceMap(root: ParserRoot): SourceMapEntry[] {
   const sourceMap: SourceMapEntry[] = [];
   let blockIndex = 0;
@@ -148,11 +152,16 @@ function generateSourceMap(root: ParserRoot): SourceMapEntry[] {
   return sourceMap;
 }
 
+/** Preview payload returned to HTTP and WebSocket callers. */
 export interface PreviewResult {
   html: string;
   sourceMap: SourceMapEntry[];
 }
 
+/**
+ * Generates sanitized preview HTML and a coarse source map.
+ * Falls back to local parsing when the remote MediaWiki parse request fails.
+ */
 export async function generatePreview(
   wikitext?: string | null,
   api_url?: string | null,

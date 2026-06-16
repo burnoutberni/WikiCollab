@@ -365,6 +365,52 @@ describe('Docs routes', () => {
     expect(version!.starred).toBe(false);
   });
 
+  it('POST /:id/versions/:v/star rejects cross-document star', async () => {
+    const db = mockDbModule.db;
+
+    const createRes1 = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Doc A' }),
+    });
+    const docA = await createRes1.json();
+
+    const createRes2 = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Doc B' }),
+    });
+    const docB = await createRes2.json();
+
+    db.insert(schema.documentRevisions)
+      .values({
+        id: 'rev-cross-1',
+        document_id: docA.id,
+        starred: false,
+        created_at: new Date().toISOString(),
+      })
+      .run();
+
+    const res = await app.request(`/api/docs/${docB.id}/versions/rev-cross-1/star`, {
+      method: 'POST',
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('POST /:id/versions/:v/star returns 404 for non-existent version', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Star Missing' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}/versions/nonexistent/star`, {
+      method: 'POST',
+    });
+    expect(res.status).toBe(404);
+  });
+
   it('GET /:id/versions/:v/preview returns content from yjs state', async () => {
     const db = mockDbModule.db;
 
