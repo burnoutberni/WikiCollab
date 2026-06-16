@@ -515,6 +515,35 @@ export function DocumentEditor() {
 
           <Separator />
 
+          <div>
+            <button
+              className="flex items-center gap-2 text-sm w-full text-left px-2 py-2 rounded-md hover:bg-muted transition-colors"
+              onClick={async () => {
+                const url = window.location.href;
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ title, url });
+                  } catch {
+                    // user cancelled
+                  }
+                } else {
+                  await navigator.clipboard.writeText(url);
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                }
+              }}
+            >
+              {linkCopied ? (
+                <Check className="h-4 w-4 text-green-500" />
+              ) : (
+                <Share2 className="h-4 w-4" />
+              )}
+              {linkCopied ? 'Link copied!' : 'Share this document'}
+            </button>
+          </div>
+
+          <Separator />
+
           <div className="space-y-2">
             <Suspense fallback={<LoadingSpinner label="Loading history..." className="py-0" />}>
               <VersionHistory
