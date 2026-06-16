@@ -23,7 +23,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDocument, useInstances } from '@/hooks/useApi';
@@ -416,31 +415,6 @@ export function DocumentEditor() {
               />
             </div>
             <div className="flex items-center gap-4">
-              <Tooltip>
-                <Popover>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <button className="hover:underline cursor-pointer">
-                        {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
-                      </button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>View collaborators</TooltipContent>
-                  <PopoverContent side="top" align="end" className="w-64 p-2">
-                    <CollaboratorList
-                      peers={peers}
-                      userName={userName}
-                      userColor={userColor}
-                      content={content}
-                      localCursor={localCursor}
-                      onUserNameChange={setUserName}
-                      onUserColorChange={setUserColor}
-                      onJumpToCursor={jumpToCursor}
-                      onScrollToCursor={scrollToCursor}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
