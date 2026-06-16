@@ -6,6 +6,9 @@ dist
 dist-ssr
 tsconfig.tsbuildinfo
 
+# moved to packages
+shared/
+
 # coverage output
 coverage
 
