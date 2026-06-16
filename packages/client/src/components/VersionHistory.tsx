@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useVersions } from '@/hooks/useApi';
 
+/** Props for browsing saved versions and restoring one into the current document. */
 interface VersionHistoryProps {
   documentId: string;
   onRestore: (versionId: string) => void;
@@ -21,6 +22,7 @@ interface VersionHistoryProps {
   onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
 }
 
+/** Renders version previews with a stable line-number gutter for difflike scanning. */
 function PreviewContent({ content }: { content: string }) {
   const lines = content.endsWith('\n') ? content.slice(0, -1).split('\n') : content.split('\n');
   const gutterWidth = `${String(lines.length).length + 1}ch`;
@@ -44,6 +46,9 @@ function PreviewContent({ content }: { content: string }) {
   );
 }
 
+/**
+ * Displays document versions, fetches inline previews, and forwards restore/star actions.
+ */
 export function VersionHistory({
   documentId,
   onRestore,

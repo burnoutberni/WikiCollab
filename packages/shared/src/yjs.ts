@@ -1,11 +1,6 @@
 import type * as Y from 'yjs';
 
-/**
- * Replace the entire content of a Y.Text instance within a transaction.
- *
- * @param ytext - The Y.Text instance to update
- * @param content - The new content to set
- */
+/** Replaces the full Y.Text value in one transaction so collaborators receive a single update. */
 export function replaceYText(ytext: Y.Text, content: string): void {
   const doc = ytext.doc;
   if (!doc) throw new Error('Cannot replace Y.Text content: Y.Text is not attached to a document');

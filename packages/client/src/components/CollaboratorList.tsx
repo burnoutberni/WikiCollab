@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import type { Presence } from '@/hooks/useYjs';
 import { COLORS } from '@/hooks/useYjs';
 
+/** Props for the collaborator list and local identity controls. */
 interface CollaboratorListProps {
   peers: Presence[];
   userName: string;
@@ -17,6 +18,7 @@ interface CollaboratorListProps {
   onScrollToCursor: (pos: number) => void;
 }
 
+/** Maps a character offset to human-readable line and column numbers. */
 function posToLineCol(content: string, pos: number): { line: number; col: number } {
   const text = content.slice(0, pos);
   const lines = text.split('\n');
@@ -49,6 +51,7 @@ function textColor(hex: string): string {
   return luminance > 0.5 ? '#000000' : '#FFFFFF';
 }
 
+/** Restores user-added colors from `localStorage`, falling back silently on parse errors. */
 function loadCustomColors(): string[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -59,6 +62,9 @@ function loadCustomColors(): string[] {
   }
 }
 
+/**
+ * Shows active collaborators, local identity controls, and shortcuts to jump to shared cursors.
+ */
 export function CollaboratorList({
   peers,
   userName,

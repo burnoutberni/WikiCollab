@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { type MediaWikiInstance } from '@/hooks/useApi';
 
+/** Props used to prepare a publish request for the selected wiki instance. */
 interface PushToWikiProps {
   documentId: string;
   title: string;
@@ -23,6 +24,10 @@ interface PushToWikiProps {
   instance: MediaWikiInstance | null;
 }
 
+/**
+ * Collects publish details and posts them to the push endpoint.
+ * The final action stays disabled until MediaWiki auth support lands.
+ */
 export function PushToWiki({
   documentId,
   title,

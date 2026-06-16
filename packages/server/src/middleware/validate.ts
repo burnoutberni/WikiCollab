@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import type { z } from 'zod';
 
+/** Normalizes Zod issues into a stable API error shape for clients and tests. */
 function formatZodError(error: z.ZodError): {
   error: string;
   details: Array<{ field: string; message: string }>;
@@ -14,6 +15,10 @@ function formatZodError(error: z.ZodError): {
   };
 }
 
+/**
+ * Parses a JSON request body and validates it with Zod.
+ * Returns an error response instead of throwing on malformed JSON or schema failures.
+ */
 export async function parseAndValidate<T extends z.ZodType>(
   c: Context,
   schema: T

@@ -69,5 +69,6 @@ try {
   // Column already exists - expected on subsequent startups
 }
 
+/** Shared Drizzle client backed by the process-local SQLite database. */
 export const db = drizzle(sqlite, { schema });
 export { schema };

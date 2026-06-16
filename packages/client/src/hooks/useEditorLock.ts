@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const TAB_ID_KEY = 'wikicollab-tab-id';
 
+/** Returns a stable per-tab id backed by `sessionStorage`. */
 function getTabId(): string {
   let id = sessionStorage.getItem(TAB_ID_KEY);
   if (!id) {
@@ -23,6 +24,10 @@ function lockKey(documentId: string) {
 
 const STALE_MS = 30_000;
 
+/**
+ * Coordinates a best-effort single-editor lock across tabs using `localStorage` heartbeats.
+ * Claims are refreshed periodically and released on unload when possible.
+ */
 export function useEditorLock(documentId: string | null) {
   const [lockedByOther, setLockedByOther] = useState<Lock | null>(null);
   const tabIdRef = useRef(getTabId());
