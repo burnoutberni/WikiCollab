@@ -58,7 +58,7 @@ export function ConnectionStatePopover({
   }, [retrying]);
 
   const statusIcon = connected ? (
-    <span className="relative -ml-1 mr-3">
+    <span className="relative">
       <Wifi className="h-3 w-3 text-green-500" />
       <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center leading-none px-0.5">
         {collaboratorCount}
@@ -109,7 +109,7 @@ export function ConnectionStatePopover({
               <span>Status</span>
               <span className="ml-auto flex items-center gap-1 text-xs font-normal">
                 {statusIcon}
-                <span>{statusText}</span>
+                <span className="ml-1">{statusText}</span>
               </span>
             </div>
 
