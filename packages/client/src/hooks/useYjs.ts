@@ -5,6 +5,7 @@ import { decodeCustomMessage, encodeCustomMessage, messageCustom, replaceYText }
 import { IndexeddbPersistence } from 'y-indexeddb';
 import { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
+import { useConnection } from '../lib/connection-context';
 
 export interface Presence {
   clientId: number;
@@ -65,12 +66,12 @@ type CustomMessageHandler<T = unknown> = (data: T) => void;
  * Persists local identity fields in `localStorage`.
  */
 export function useYjs(docId: string | null) {
+  const { connected, setConnected } = useConnection();
   const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ydoc = ydocRef.current;
   const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
   const ytext = ytextRef.current;
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
-  const [connected, setConnected] = useState(false);
   const [peers, setPeers] = useState<Presence[]>([]);
   const [lastConnected, setLastConnected] = useState<number | null>(null);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
@@ -114,14 +115,13 @@ export function useYjs(docId: string | null) {
   useEffect(() => {
     if (!docId) {
       setProvider(null);
-      setConnected(false);
+      setConnected(true);
       setPeers([]);
       setLastConnected(null);
       return;
     }
 
     setProvider(null);
-    setConnected(false);
     setPeers([]);
     setLastConnected(null);
 
@@ -139,9 +139,11 @@ export function useYjs(docId: string | null) {
     const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, freshDoc);
 
     wsProvider.on('status', ({ status }: { status: string }) => {
-      setConnected(status === 'connected');
       if (status === 'connected') {
+        setConnected(true);
         setLastConnected(Date.now());
+      } else if (status === 'disconnected') {
+        setConnected(false);
       }
     });
 

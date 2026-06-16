@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
+import { ConnectionProvider } from './lib/connection-context';
 import { DemoDisclaimer } from './components/DemoDisclaimer';
 import { InstallBanner } from './components/InstallBanner';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -18,16 +19,18 @@ const DocumentEditor = lazy(() =>
 function App() {
   return (
     <BrowserRouter>
-      <OfflineBanner />
-      {isDemoMode && <DemoDisclaimer />}
-      <Suspense fallback={<LoadingSpinner fullScreen label="Loading page..." />}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/doc/:id" element={<DocumentEditor />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-      <InstallBanner />
+      <ConnectionProvider>
+        <OfflineBanner />
+        {isDemoMode && <DemoDisclaimer />}
+        <Suspense fallback={<LoadingSpinner fullScreen label="Loading page..." />}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/doc/:id" element={<DocumentEditor />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+        <InstallBanner />
+      </ConnectionProvider>
     </BrowserRouter>
   );
 }

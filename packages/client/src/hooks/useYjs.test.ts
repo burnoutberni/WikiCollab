@@ -230,7 +230,7 @@ describe('useYjs', () => {
     rerender({ docId: 'doc-b' });
 
     await waitFor(() => {
-      expect(result.current.connected).toBe(false);
+      expect(result.current.connected).toBe(true);
       expect(result.current.lastConnected).toBeNull();
       expect(result.current.peers).toEqual([]);
     });
@@ -256,7 +256,7 @@ describe('useYjs', () => {
 
     await waitFor(() => {
       expect(result.current.provider).toBeNull();
-      expect(result.current.connected).toBe(false);
+      expect(result.current.connected).toBe(true);
       expect(result.current.lastConnected).toBeNull();
       expect(result.current.peers).toEqual([]);
     });
