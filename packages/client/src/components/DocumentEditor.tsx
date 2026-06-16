@@ -515,7 +515,7 @@ export function DocumentEditor() {
 
           <Separator />
 
-          <div className="space-y-2">
+          <div className="flex items-center justify-between pb-4">
             <Suspense fallback={<LoadingSpinner label="Loading history..." className="py-0" />}>
               <VersionHistory
                 documentId={id!}
@@ -538,9 +538,12 @@ export function DocumentEditor() {
               />
             </Suspense>
 
-            <div className="flex justify-end">
-              <button
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-muted transition-colors"
+            <Suspense
+              fallback={<LoadingSpinner label="Loading share button..." className="py-0" />}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={async () => {
                   const url = window.location.href;
                   if (navigator.share) {
@@ -557,13 +560,13 @@ export function DocumentEditor() {
                 }}
               >
                 {linkCopied ? (
-                  <Check className="h-3.5 w-3.5 text-green-500" />
+                  <Check className="h-4 w-4 mr-2 text-green-500" />
                 ) : (
-                  <Share2 className="h-3.5 w-3.5" />
+                  <Share2 className="h-4 w-4 mr-2" />
                 )}
                 {linkCopied ? 'Copied!' : 'Share'}
-              </button>
-            </div>
+              </Button>
+            </Suspense>
           </div>
         </div>
       </BottomSheet>
