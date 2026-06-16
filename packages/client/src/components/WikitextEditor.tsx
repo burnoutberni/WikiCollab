@@ -517,6 +517,18 @@ function Toolbar({
     setScrollState({ left, right });
   }, []);
 
+  useEffect(() => {
+    if (!isMobile) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    handleScroll();
+
+    const observer = new ResizeObserver(handleScroll);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isMobile, handleScroll]);
+
   const storeWidth = useCallback((el: HTMLElement | null, id: string) => {
     if (!el) return;
     const cs = getComputedStyle(el);
@@ -562,7 +574,8 @@ function Toolbar({
           }}
           onMouseEnter={(e) => entry.tip && showTip(entry.tip, e)}
           onMouseLeave={hideTip}
-          onTouchStart={() => {
+          onTouchStart={(e) => {
+            e.preventDefault();
             if (!entry.disabled && view) entry.action!(view);
             view?.focus();
           }}
