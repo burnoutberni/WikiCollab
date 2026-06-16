@@ -59,10 +59,7 @@ function generateColor(): string {
 type CustomMessageHandler<T = unknown> = (data: T) => void;
 
 export function useYjs(docId: string | null) {
-  const ydocRef = useRef<Y.Doc | null>(null);
-  if (!ydocRef.current) {
-    ydocRef.current = new Y.Doc();
-  }
+  const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ydoc = ydocRef.current;
   const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
   const ytext = ytextRef.current;
@@ -122,9 +119,14 @@ export function useYjs(docId: string | null) {
     setPeers([]);
     setLastConnected(null);
 
+    ydocRef.current.destroy();
+    const freshDoc = new Y.Doc();
+    ydocRef.current = freshDoc;
+    ytextRef.current = freshDoc.getText('wikitext');
+
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    const wsProvider = new WebsocketProvider(wsUrl, docId, ydoc, {
+    const wsProvider = new WebsocketProvider(wsUrl, docId, freshDoc, {
       connect: true,
     });
 
@@ -206,8 +208,9 @@ export function useYjs(docId: string | null) {
       awareness.off('change', updatePeers);
       wsProvider.destroy();
       idbPersistence.destroy();
+      freshDoc.destroy();
     };
-  }, [docId, ydoc]);
+  }, [docId]);
 
   useEffect(() => {
     if (!provider) return;
