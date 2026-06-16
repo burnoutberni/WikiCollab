@@ -46,6 +46,11 @@ vi.mock('@/hooks/useYjs', () => ({
   useYjs: vi.fn(),
 }));
 
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => false,
+}));
+
 vi.mock('@/components/SplitPaneEditor', () => ({
   SplitPaneEditor: () => <div data-testid="split-pane-editor">SplitPaneEditor</div>,
 }));

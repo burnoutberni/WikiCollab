@@ -6,6 +6,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { SplitPaneEditor } from './SplitPaneEditor';
 
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => false,
+  useMediaQuery: () => false,
+}));
+
 const mockWikitextEditor = vi.fn();
 
 vi.mock('@/components/WikitextEditor', () => ({

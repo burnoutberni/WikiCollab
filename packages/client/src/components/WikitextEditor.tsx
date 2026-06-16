@@ -59,6 +59,8 @@ import { yCollab } from 'y-codemirror.next';
 import type { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 
+import { useIsMobile } from '@/hooks/useMediaQuery';
+
 /** Draws the local user's caret and label without relying on remote awareness rendering. */
 class LocalCursorWidget extends WidgetType {
   constructor(
@@ -182,6 +184,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
     const [view, setView] = useState<EditorView | null>(null);
     const [undoRedo, setUndoRedo] = useState({ canUndo: false, canRedo: false });
     const undoManagerRef = useRef<Y.UndoManager | null>(null);
+    const isMobile = useIsMobile();
 
     useImperativeHandle(
       ref,
@@ -310,6 +313,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           undoManager={undoManagerRef.current}
           canUndo={undoRedo.canUndo}
           canRedo={undoRedo.canRedo}
+          isMobile={isMobile}
         />
         <div
           ref={containerRef}
@@ -326,35 +330,41 @@ interface TooltipState {
   left: number;
 }
 
-/** Lightweight formatting toolbar that issues direct CodeMirror transactions against the active view. */
 function Toolbar({
   view,
   undoManager,
   canUndo,
   canRedo,
+  isMobile,
 }: {
   view: EditorView | null;
   undoManager: Y.UndoManager | null;
   canUndo: boolean;
   canRedo: boolean;
+  isMobile: boolean;
 }) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showTip = useCallback((text: string, e: React.MouseEvent) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setTooltip({
-      text,
-      top: rect.bottom + 6,
-      left: rect.left + rect.width / 2,
-    });
-  }, []);
+  const showTip = useCallback(
+    (text: string, e: React.MouseEvent) => {
+      if (isMobile) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setTooltip({
+        text,
+        top: rect.bottom + 6,
+        left: rect.left + rect.width / 2,
+      });
+    },
+    [isMobile]
+  );
 
   const hideTip = useCallback(() => {
+    if (isMobile) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setTooltip(null), 80);
-  }, []);
+  }, [isMobile]);
 
   const b = (icon: React.ReactNode, tip: string, fn: (v: EditorView) => void, disabled = false) => (
     <button
@@ -366,17 +376,31 @@ function Toolbar({
       }}
       onMouseEnter={(e) => showTip(tip, e)}
       onMouseLeave={hideTip}
-      className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer aria-disabled:opacity-30"
+      onTouchStart={() => {
+        if (!disabled && view) fn(view);
+        view?.focus();
+      }}
+      className={`inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer aria-disabled:opacity-30 shrink-0 ${
+        isMobile ? 'h-11 w-11 min-w-[44px] min-h-[44px]' : 'h-7 w-7'
+      }`}
     >
       {icon}
     </button>
   );
 
-  const Sep = () => <span className="w-px h-5 bg-border mx-1" />;
+  const Sep = () => (
+    <span className={`bg-border shrink-0 ${isMobile ? 'w-px h-7 mx-1' : 'w-px h-5 mx-1'}`} />
+  );
 
   return (
     <>
-      <div className="flex items-center gap-px px-2 py-1.5 border-b bg-background">
+      <div
+        className={`flex items-center gap-px border-b bg-background ${
+          isMobile
+            ? 'overflow-x-auto overscroll-contain px-2 py-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
+            : 'px-2 py-1.5'
+        }`}
+      >
         {b(<Undo2 className="h-3.5 w-3.5" />, 'Undo', () => undoManager?.undo(), !canUndo)}
         {b(<Redo2 className="h-3.5 w-3.5" />, 'Redo', () => undoManager?.redo(), !canRedo)}
         <Sep />

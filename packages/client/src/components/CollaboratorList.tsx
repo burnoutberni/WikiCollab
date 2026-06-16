@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import type { Presence } from '@/hooks/useYjs';
 import { COLORS } from '@/hooks/useYjs';
 
-/** Props for the collaborator list and local identity controls. */
 interface CollaboratorListProps {
   peers: Presence[];
   userName: string;
@@ -18,7 +17,6 @@ interface CollaboratorListProps {
   onScrollToCursor: (pos: number) => void;
 }
 
-/** Maps a character offset to human-readable line and column numbers. */
 function posToLineCol(content: string, pos: number): { line: number; col: number } {
   const text = content.slice(0, pos);
   const lines = text.split('\n');
@@ -51,7 +49,6 @@ function textColor(hex: string): string {
   return luminance > 0.5 ? '#000000' : '#FFFFFF';
 }
 
-/** Restores user-added colors from `localStorage`, falling back silently on parse errors. */
 function loadCustomColors(): string[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -62,9 +59,6 @@ function loadCustomColors(): string[] {
   }
 }
 
-/**
- * Shows active collaborators, local identity controls, and shortcuts to jump to shared cursors.
- */
 export function CollaboratorList({
   peers,
   userName,
@@ -158,7 +152,7 @@ export function CollaboratorList({
       <div className="flex items-center gap-2 px-2 py-1.5 rounded-md relative group">
         <button
           ref={colorTriggerRef}
-          className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
+          className="h-8 w-8 md:h-5 md:w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
           style={{ backgroundColor: userColor, color: textColor(userColor) }}
           onClick={(e) => {
             e.stopPropagation();
@@ -173,13 +167,13 @@ export function CollaboratorList({
           createPortal(
             <div
               ref={pickerRef}
-              className="p-2 bg-popover border rounded-md shadow-md z-50 grid grid-cols-5 gap-1.5"
+              className="p-2 bg-popover border rounded-md shadow-md z-50 grid grid-cols-5 gap-1.5 safe-area-bottom"
               style={{ position: 'fixed', top: pickerPos.top, left: pickerPos.left }}
             >
               {COLORS.map((c) => (
                 <button
                   key={c}
-                  className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
                   style={{ backgroundColor: c }}
                   onClick={() => {
                     onUserColorChange(c);
@@ -191,7 +185,7 @@ export function CollaboratorList({
               {customColors.map((c) => (
                 <button
                   key={c}
-                  className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
                   style={{ backgroundColor: c }}
                   onClick={() => {
                     onUserColorChange(c);
@@ -201,7 +195,7 @@ export function CollaboratorList({
                 />
               ))}
               <label
-                className="h-5 w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform flex items-center justify-center relative overflow-hidden"
+                className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform flex items-center justify-center relative overflow-hidden"
                 title="Custom color"
               >
                 <input
@@ -259,7 +253,7 @@ export function CollaboratorList({
         </div>
         {localCursor && (
           <button
-            className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1"
+            className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1 min-h-[44px] md:min-h-0 px-1"
             onClick={() => onJumpToCursor(localCursor.anchor, localCursor.head)}
           >
             <MousePointer2 className="h-2.5 w-2.5" />
@@ -275,7 +269,7 @@ export function CollaboratorList({
           className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50"
         >
           <div
-            className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0"
+            className="h-8 w-8 md:h-5 md:w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0"
             style={{ backgroundColor: peer.color, color: textColor(peer.color) }}
           >
             {peer.userName.charAt(0)}
@@ -285,7 +279,7 @@ export function CollaboratorList({
           </div>
           {peer.cursor && (
             <button
-              className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1"
+              className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1 min-h-[44px] md:min-h-0 px-1"
               onClick={() => onScrollToCursor(peer.cursor!.anchor)}
             >
               <MousePointer2 className="h-2.5 w-2.5" />
