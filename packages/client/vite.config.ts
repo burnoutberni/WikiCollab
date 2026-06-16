@@ -15,7 +15,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^\/api\/.*/i,
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
@@ -27,7 +27,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /^\/ws$/i,
+            urlPattern: ({ url }) => url.pathname === '/ws',
             handler: 'NetworkOnly',
           },
         ],
