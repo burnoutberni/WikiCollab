@@ -130,7 +130,7 @@ export function useYjs(docId: string | null) {
       connect: true,
     });
 
-    const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, ydoc);
+    const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, freshDoc);
 
     wsProvider.on('status', ({ status }: { status: string }) => {
       setConnected(status === 'connected');
@@ -147,9 +147,9 @@ export function useYjs(docId: string | null) {
       const states = Array.from(awareness.getStates().entries());
       const seen = new Set<string>();
       const presenceList: Presence[] = [];
-      const ytext = ydoc.getText('wikitext');
+      const ytext = freshDoc.getText('wikitext');
       for (const [clientId, state] of states) {
-        if (clientId === ydoc.clientID) continue;
+        if (clientId === freshDoc.clientID) continue;
         const s = state as AwarenessState;
         const uid = s.user?.name || 'Anonymous';
         if (uid === userNameRef.current) continue;
@@ -161,8 +161,8 @@ export function useYjs(docId: string | null) {
             const anchorRaw = s.cursor.anchor;
             const headRaw = s.cursor.head;
             if (typeof anchorRaw === 'object' && typeof headRaw === 'object') {
-              const anchor = Y.createAbsolutePositionFromRelativePosition(anchorRaw, ydoc);
-              const head = Y.createAbsolutePositionFromRelativePosition(headRaw, ydoc);
+              const anchor = Y.createAbsolutePositionFromRelativePosition(anchorRaw, freshDoc);
+              const head = Y.createAbsolutePositionFromRelativePosition(headRaw, freshDoc);
               if (anchor && head && anchor.type === ytext && head.type === ytext) {
                 cursor = { anchor: anchor.index, head: head.index };
               }
