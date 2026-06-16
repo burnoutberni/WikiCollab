@@ -19,7 +19,7 @@ interface VersionHistoryProps {
   documentId: string;
   onRestore: (versionId: string) => void;
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
+  onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
 }
 
 /** Renders version previews with a stable line-number gutter for difflike scanning. */

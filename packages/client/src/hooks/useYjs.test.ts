@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('yjs', () => {
@@ -55,7 +55,12 @@ vi.mock('y-websocket', () => {
       off: vi.fn(),
       getState: vi.fn().mockReturnValue({}),
     };
-    on = vi.fn();
+    private statusListeners: Array<(event: { status: string }) => void> = [];
+    on = vi.fn((event: string, handler: (event: { status: string }) => void) => {
+      if (event === 'status') {
+        this.statusListeners.push(handler);
+      }
+    });
     off = vi.fn();
     connect = vi.fn();
     disconnect = vi.fn();
@@ -64,6 +69,10 @@ vi.mock('y-websocket', () => {
     messageHandlers: Record<string, (...args: unknown[]) => unknown> = {};
     synced = false;
     wsconnected = false;
+
+    emitStatus(status: string) {
+      this.statusListeners.forEach((listener) => listener({ status }));
+    }
   }
   return { WebsocketProvider: MockWebsocketProvider };
 });
@@ -90,6 +99,13 @@ vi.mock('lib0/decoding', () => ({
   readVarUint: vi.fn(() => 0),
   readVarString: vi.fn(() => ''),
   readVarUint8Array: vi.fn(() => new Uint8Array()),
+}));
+
+vi.mock('shared', () => ({
+  decodeCustomMessage: vi.fn(() => ({ type: '', payload: {} })),
+  encodeCustomMessage: vi.fn(() => new Uint8Array()),
+  messageCustom: 2,
+  replaceYText: vi.fn(),
 }));
 
 import { useYjs } from './useYjs';
@@ -190,5 +206,59 @@ describe('useYjs', () => {
     const { result } = renderHook(() => useYjs('test-doc'));
 
     expect(result.current.getContent()).toBe('');
+  });
+
+  it('resets connection metadata when the document id changes', async () => {
+    const { result, rerender } = renderHook(({ docId }) => useYjs(docId), {
+      initialProps: { docId: 'doc-a' as string | null },
+    });
+
+    await waitFor(() => {
+      expect(result.current.provider).not.toBeNull();
+    });
+
+    act(() => {
+      const provider = result.current.provider as unknown as {
+        emitStatus: (status: string) => void;
+      };
+      provider.emitStatus('connected');
+    });
+
+    expect(result.current.connected).toBe(true);
+    expect(result.current.lastConnected).not.toBeNull();
+
+    rerender({ docId: 'doc-b' });
+
+    await waitFor(() => {
+      expect(result.current.connected).toBe(false);
+      expect(result.current.lastConnected).toBeNull();
+      expect(result.current.peers).toEqual([]);
+    });
+  });
+
+  it('clears provider state when the document id becomes null', async () => {
+    const { result, rerender } = renderHook(({ docId }) => useYjs(docId), {
+      initialProps: { docId: 'doc-a' as string | null },
+    });
+
+    await waitFor(() => {
+      expect(result.current.provider).not.toBeNull();
+    });
+
+    act(() => {
+      const provider = result.current.provider as unknown as {
+        emitStatus: (status: string) => void;
+      };
+      provider.emitStatus('connected');
+    });
+
+    rerender({ docId: null });
+
+    await waitFor(() => {
+      expect(result.current.provider).toBeNull();
+      expect(result.current.connected).toBe(false);
+      expect(result.current.lastConnected).toBeNull();
+      expect(result.current.peers).toEqual([]);
+    });
   });
 });

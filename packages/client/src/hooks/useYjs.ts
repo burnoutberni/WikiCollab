@@ -58,23 +58,21 @@ function generateColor(): string {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
-type CustomMessageHandler = (data: any) => void;
+type CustomMessageHandler<T = unknown> = (data: T) => void;
 
 /**
  * Sets up the shared Yjs document, websocket provider, IndexedDB cache, and awareness state.
  * Persists local identity fields in `localStorage`.
  */
 export function useYjs(docId: string | null) {
-  const ydocRef = useRef<Y.Doc | null>(null);
-  if (!ydocRef.current) {
-    ydocRef.current = new Y.Doc();
-  }
+  const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ydoc = ydocRef.current;
   const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
   const ytext = ytextRef.current;
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
   const [connected, setConnected] = useState(false);
   const [peers, setPeers] = useState<Presence[]>([]);
+  const [lastConnected, setLastConnected] = useState<number | null>(null);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
   const [userId] = useState(() => {
     const stored = localStorage.getItem('wikicollab-user-id');
@@ -114,18 +112,37 @@ export function useYjs(docId: string | null) {
   }, []);
 
   useEffect(() => {
-    if (!docId) return;
+    if (!docId) {
+      setProvider(null);
+      setConnected(false);
+      setPeers([]);
+      setLastConnected(null);
+      return;
+    }
+
+    setProvider(null);
+    setConnected(false);
+    setPeers([]);
+    setLastConnected(null);
+
+    ydocRef.current.destroy();
+    const freshDoc = new Y.Doc();
+    ydocRef.current = freshDoc;
+    ytextRef.current = freshDoc.getText('wikitext');
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    const wsProvider = new WebsocketProvider(wsUrl, docId, ydoc, {
+    const wsProvider = new WebsocketProvider(wsUrl, docId, freshDoc, {
       connect: true,
     });
 
-    const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, ydoc);
+    const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, freshDoc);
 
     wsProvider.on('status', ({ status }: { status: string }) => {
       setConnected(status === 'connected');
+      if (status === 'connected') {
+        setLastConnected(Date.now());
+      }
     });
 
     wsProvider.awareness.setLocalStateField('cursor', null);
@@ -136,9 +153,9 @@ export function useYjs(docId: string | null) {
       const states = Array.from(awareness.getStates().entries());
       const seen = new Set<string>();
       const presenceList: Presence[] = [];
-      const ytext = ydoc.getText('wikitext');
+      const ytext = freshDoc.getText('wikitext');
       for (const [clientId, state] of states) {
-        if (clientId === ydoc.clientID) continue;
+        if (clientId === freshDoc.clientID) continue;
         const s = state as AwarenessState;
         const uid = s.user?.name || 'Anonymous';
         if (uid === userNameRef.current) continue;
@@ -150,8 +167,8 @@ export function useYjs(docId: string | null) {
             const anchorRaw = s.cursor.anchor;
             const headRaw = s.cursor.head;
             if (typeof anchorRaw === 'object' && typeof headRaw === 'object') {
-              const anchor = Y.createAbsolutePositionFromRelativePosition(anchorRaw, ydoc);
-              const head = Y.createAbsolutePositionFromRelativePosition(headRaw, ydoc);
+              const anchor = Y.createAbsolutePositionFromRelativePosition(anchorRaw, freshDoc);
+              const head = Y.createAbsolutePositionFromRelativePosition(headRaw, freshDoc);
               if (anchor && head && anchor.type === ytext && head.type === ytext) {
                 cursor = { anchor: anchor.index, head: head.index };
               }
@@ -197,8 +214,9 @@ export function useYjs(docId: string | null) {
       awareness.off('change', updatePeers);
       wsProvider.destroy();
       idbPersistence.destroy();
+      freshDoc.destroy();
     };
-  }, [docId, ydoc]);
+  }, [docId]);
 
   useEffect(() => {
     if (!provider) return;
@@ -229,14 +247,14 @@ export function useYjs(docId: string | null) {
     [provider]
   );
 
-  const onCustomMessage = useCallback((type: string, handler: CustomMessageHandler) => {
+  const onCustomMessage = useCallback(<T>(type: string, handler: CustomMessageHandler<T>) => {
     if (!customHandlersRef.current.has(type)) {
       customHandlersRef.current.set(type, new Set());
     }
-    customHandlersRef.current.get(type)!.add(handler);
+    customHandlersRef.current.get(type)!.add(handler as CustomMessageHandler);
 
     return () => {
-      customHandlersRef.current.get(type)?.delete(handler);
+      customHandlersRef.current.get(type)?.delete(handler as CustomMessageHandler);
     };
   }, []);
 
@@ -245,6 +263,7 @@ export function useYjs(docId: string | null) {
     ytext,
     provider,
     connected,
+    lastConnected,
     peers,
     userId,
     userName,

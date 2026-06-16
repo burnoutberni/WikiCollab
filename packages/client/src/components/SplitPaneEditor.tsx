@@ -25,7 +25,7 @@ interface SplitPaneEditorProps {
   editorRef?: React.RefObject<WikitextEditorHandle | null>;
   onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
-  onCustomMessage?: (type: string, handler: (data: any) => void) => () => void;
+  onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
 }
 
 /** Extracts the site origin used to rewrite relative preview links and assets. */
