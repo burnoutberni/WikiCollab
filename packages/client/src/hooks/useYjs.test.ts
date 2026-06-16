@@ -214,7 +214,7 @@ describe('useYjs', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.provider).toBeDefined();
+      expect(result.current.provider).not.toBeNull();
     });
 
     act(() => {
@@ -242,7 +242,7 @@ describe('useYjs', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.provider).toBeDefined();
+      expect(result.current.provider).not.toBeNull();
     });
 
     act(() => {
