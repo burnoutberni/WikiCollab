@@ -64,6 +64,21 @@ packages/
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, Yjs, CodeMirror 6
 - **Backend**: Hono, better-sqlite3, Yjs WebSocket
 
+## Terms of Service
+
+- **Content may be deleted at any time** — this is a free collaborative tool, not a guarantee of persistence
+- **No illegal content** — do not use this service to host or share material that violates applicable laws
+- **No warranty** — this software is provided "as is", without warranty of any kind; use at your own risk
+
+See [LICENSE](LICENSE) for the full AGPL-3.0 terms.
+
+## Credits
+
+Created by [Bernhard Hayden](https://bhayden.at) ([@burnoutberni](https://github.com/burnoutberni))
+
+- **Source code**: [github.com/burnoutberni/WikiCollab](https://github.com/burnoutberni/WikiCollab)
+- **Website**: [bhayden.at](https://bhayden.at)
+
 ## License
 
 [AGPL-3.0](LICENSE)

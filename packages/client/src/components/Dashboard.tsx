@@ -217,6 +217,30 @@ export function Dashboard() {
             )}
           </div>
         </main>
+
+        <footer className="border-t py-4 text-center text-xs text-muted-foreground space-y-1">
+          <p>
+            Created by{' '}
+            <a
+              href="https://bhayden.at"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Bernhard Hayden
+            </a>{' '}
+            &middot;{' '}
+            <a
+              href="https://github.com/burnoutberni/WikiCollab"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              GitHub
+            </a>
+          </p>
+          <p>Content may be deleted at any time. No illegal content. No warranty.</p>
+        </footer>
       </div>
     </TooltipProvider>
   );

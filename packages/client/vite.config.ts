@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  envDir: '../..',
   build: {
     rollupOptions: {
       output: {
