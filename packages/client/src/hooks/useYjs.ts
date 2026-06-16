@@ -5,6 +5,7 @@ import { decodeCustomMessage, encodeCustomMessage, messageCustom, replaceYText }
 import { IndexeddbPersistence } from 'y-indexeddb';
 import { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
+
 import { useConnection } from '../lib/connection-context';
 
 export interface Presence {
@@ -217,8 +218,12 @@ export function useYjs(docId: string | null) {
       wsProvider.destroy();
       idbPersistence.destroy();
       freshDoc.destroy();
+      setConnected(true);
+      setProvider(null);
+      setPeers([]);
+      setLastConnected(null);
     };
-  }, [docId]);
+  }, [docId, setConnected]);
 
   useEffect(() => {
     if (!provider) return;

@@ -1,5 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { ConnectionProvider } from '../lib/connection-context';
 
 vi.mock('yjs', () => {
   class MockText {
@@ -110,6 +114,9 @@ vi.mock('shared', () => ({
 
 import { useYjs } from './useYjs';
 
+const withConnectionProvider = ({ children }: { children: ReactNode }) =>
+  createElement(ConnectionProvider, null, children);
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -211,6 +218,7 @@ describe('useYjs', () => {
   it('resets connection metadata when the document id changes', async () => {
     const { result, rerender } = renderHook(({ docId }) => useYjs(docId), {
       initialProps: { docId: 'doc-a' as string | null },
+      wrapper: withConnectionProvider,
     });
 
     await waitFor(() => {
@@ -239,6 +247,7 @@ describe('useYjs', () => {
   it('clears provider state when the document id becomes null', async () => {
     const { result, rerender } = renderHook(({ docId }) => useYjs(docId), {
       initialProps: { docId: 'doc-a' as string | null },
+      wrapper: withConnectionProvider,
     });
 
     await waitFor(() => {
