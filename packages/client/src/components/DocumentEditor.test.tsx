@@ -10,6 +10,8 @@ import { useYjs } from '@/hooks/useYjs';
 
 import { DocumentEditor } from './DocumentEditor';
 
+let mockIsMobile = false;
+
 const mockDoc = {
   id: 'test-doc',
   title: 'Test Document',
@@ -47,8 +49,8 @@ vi.mock('@/hooks/useYjs', () => ({
 }));
 
 vi.mock('@/hooks/useMediaQuery', () => ({
-  useIsMobile: () => false,
-  useMediaQuery: () => false,
+  useIsMobile: () => mockIsMobile,
+  useMediaQuery: () => mockIsMobile,
 }));
 
 vi.mock('@/components/SplitPaneEditor', () => ({
@@ -90,7 +92,9 @@ vi.mock('lucide-react', () => {
         'ChevronRight',
         'Code',
         'Columns',
+        'Eye',
         'FileText',
+        'FileCode',
         'RefreshCw',
         'Save',
         'Settings',
@@ -120,6 +124,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('DocumentEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsMobile = false;
     localStorage.clear();
     useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument: vi.fn() });
     useInstancesMock.mockReturnValue({
@@ -206,5 +211,27 @@ describe('DocumentEditor', () => {
     expect(screen.getByText('Session already open')).toBeInTheDocument();
     expect(screen.getByText('Take Over')).toBeInTheDocument();
     expect(screen.getByText('Go Back')).toBeInTheDocument();
+  });
+
+  it('renders the mobile header and bottom action bar in mobile mode', () => {
+    mockIsMobile = true;
+
+    renderWithProviders(<DocumentEditor />);
+
+    expect(screen.getByDisplayValue('Test Document')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-toggle-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-share')).toBeInTheDocument();
+    expect(screen.queryByTestId('view-source')).not.toBeInTheDocument();
+  });
+
+  it('opens the mobile settings bottom sheet', async () => {
+    const user = userEvent.setup();
+    mockIsMobile = true;
+
+    renderWithProviders(<DocumentEditor />);
+    await user.click(screen.getByTestId('mobile-toggle-settings'));
+
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(await screen.findByTestId('instance-manager')).toBeInTheDocument();
   });
 });
