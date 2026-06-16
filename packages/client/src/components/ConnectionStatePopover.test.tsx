@@ -23,10 +23,17 @@ describe('ConnectionStatePopover', () => {
   const defaultProps = {
     connected: true,
     lastConnected: Date.now() - 10000,
-    documentId: 'doc-123',
     collaboratorCount: 3,
-    websocketServerUrl: 'ws://localhost:3000/ws',
     onReconnect: vi.fn(),
+    peers: [],
+    userName: 'Test User',
+    userColor: '#FF6B6B',
+    content: '',
+    localCursor: null as { anchor: number; head: number } | null,
+    onUserNameChange: vi.fn(),
+    onUserColorChange: vi.fn(),
+    onJumpToCursor: vi.fn(),
+    onScrollToCursor: vi.fn(),
   };
 
   it('renders trigger button with connected state', () => {
@@ -51,12 +58,6 @@ describe('ConnectionStatePopover', () => {
 
     expect(screen.getByTestId('connection-state-popover')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Document')).toBeInTheDocument();
-    expect(screen.getByText('doc-123')).toBeInTheDocument();
-    expect(screen.getByText('Collaborators')).toBeInTheDocument();
-    expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('WebSocket')).toBeInTheDocument();
-    expect(screen.getByText('ws://localhost:3000/ws')).toBeInTheDocument();
     expect(screen.getByText('Connected since')).toBeInTheDocument();
     expect(screen.getByText('Duration')).toBeInTheDocument();
   });

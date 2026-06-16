@@ -5,14 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { Presence } from '@/hooks/useYjs';
+import { CollaboratorList } from './CollaboratorList';
 
 interface ConnectionStatePopoverProps {
   connected: boolean;
   lastConnected: number | null;
-  documentId: string;
   collaboratorCount: number;
-  websocketServerUrl: string;
   onReconnect?: () => void;
+  peers: Presence[];
+  userName: string;
+  userColor: string;
+  content: string;
+  localCursor: { anchor: number; head: number } | null;
+  onUserNameChange: (name: string) => void;
+  onUserColorChange: (color: string) => void;
+  onJumpToCursor: (anchor: number, head?: number) => void;
+  onScrollToCursor: (pos: number) => void;
 }
 
 function formatDuration(ms: number): string {
@@ -35,10 +44,17 @@ function formatTime(timestamp: number): string {
 export function ConnectionStatePopover({
   connected,
   lastConnected,
-  documentId,
   collaboratorCount,
-  websocketServerUrl,
   onReconnect,
+  peers,
+  userName,
+  userColor,
+  content,
+  localCursor,
+  onUserNameChange,
+  onUserColorChange,
+  onJumpToCursor,
+  onScrollToCursor,
 }: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
   const [retrying, setRetrying] = useState(false);
@@ -131,24 +147,17 @@ export function ConnectionStatePopover({
 
             <Separator />
 
-            <div className="space-y-1.5 text-muted-foreground">
-              <div className="flex justify-between gap-3">
-                <span>Document</span>
-                <span className="max-w-[10rem] truncate font-mono text-foreground">
-                  {documentId}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Collaborators</span>
-                <span className="text-foreground">{collaboratorCount}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>WebSocket</span>
-                <span className="max-w-[10rem] truncate font-mono text-foreground">
-                  {websocketServerUrl}
-                </span>
-              </div>
-            </div>
+            <CollaboratorList
+              peers={peers}
+              userName={userName}
+              userColor={userColor}
+              content={content}
+              localCursor={localCursor}
+              onUserNameChange={onUserNameChange}
+              onUserColorChange={onUserColorChange}
+              onJumpToCursor={onJumpToCursor}
+              onScrollToCursor={onScrollToCursor}
+            />
 
             {lastConnected && (
               <>

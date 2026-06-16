@@ -86,7 +86,6 @@ export function DocumentEditor() {
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const collaboratorCount = peers.length + 1;
-  const websocketServerUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
   useEffect(() => {
     if (doc) {
@@ -211,10 +210,17 @@ export function DocumentEditor() {
             <ConnectionStatePopover
               connected={connected}
               lastConnected={lastConnected}
-              documentId={id!}
               collaboratorCount={collaboratorCount}
-              websocketServerUrl={websocketServerUrl}
               onReconnect={provider ? () => provider.connect() : undefined}
+              peers={peers}
+              userName={userName}
+              userColor={userColor}
+              content={content}
+              localCursor={localCursor}
+              onUserNameChange={setUserName}
+              onUserColorChange={setUserColor}
+              onJumpToCursor={jumpToCursor}
+              onScrollToCursor={scrollToCursor}
             />
           </header>
         ) : (
@@ -408,10 +414,17 @@ export function DocumentEditor() {
               <ConnectionStatePopover
                 connected={connected}
                 lastConnected={lastConnected}
-                documentId={id!}
                 collaboratorCount={collaboratorCount}
-                websocketServerUrl={websocketServerUrl}
                 onReconnect={provider ? () => provider.connect() : undefined}
+                peers={peers}
+                userName={userName}
+                userColor={userColor}
+                content={content}
+                localCursor={localCursor}
+                onUserNameChange={setUserName}
+                onUserColorChange={setUserColor}
+                onJumpToCursor={jumpToCursor}
+                onScrollToCursor={scrollToCursor}
               />
             </div>
             <div className="flex items-center gap-4">
