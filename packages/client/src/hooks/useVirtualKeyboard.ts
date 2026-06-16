@@ -25,11 +25,16 @@ export function useVirtualKeyboard(): VirtualKeyboardState {
       setState({ isVisible, height: isVisible ? initialHeightRef.current - height : 0 });
     };
 
+    const handleOrientation = () => {
+      initialHeightRef.current = vapi.height;
+      handler();
+    };
+
     vapi.addEventListener('resize', handler);
-    vapi.addEventListener('orientationchange', handler);
+    window.addEventListener('orientationchange', handleOrientation);
     return () => {
       vapi.removeEventListener('resize', handler);
-      vapi.removeEventListener('orientationchange', handler);
+      window.removeEventListener('orientationchange', handleOrientation);
     };
   }, []);
 
