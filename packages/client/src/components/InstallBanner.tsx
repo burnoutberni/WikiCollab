@@ -21,10 +21,10 @@ export function InstallBanner() {
         </Button>
         <button
           onClick={dismiss}
-          className="p-1 rounded-md hover:bg-primary/80 transition-colors shrink-0"
+          className="h-11 w-11 rounded-md hover:bg-primary/80 transition-colors shrink-0 inline-flex items-center justify-center"
           aria-label="Dismiss"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </button>
       </div>
     </div>
