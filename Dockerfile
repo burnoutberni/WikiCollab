@@ -1,5 +1,8 @@
 FROM node:22-alpine AS base
 
+ARG VITE_DEMO_MODE
+ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
