@@ -198,7 +198,12 @@ export function DocumentEditor() {
         {/* Mobile Header */}
         {isMobile ? (
           <header className="border-b px-3 py-2 flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} aria-label="Back to dashboard">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/')}
+              aria-label="Back to dashboard"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Input
@@ -228,9 +233,14 @@ export function DocumentEditor() {
           <header className="border-b px-4 py-2 flex items-center gap-4">
             <Tooltip>
               <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/')} aria-label="Back to dashboard">
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/')}
+                  aria-label="Back to dashboard"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
               </TooltipTrigger>
               <TooltipContent>Back to dashboard</TooltipContent>
             </Tooltip>
@@ -305,14 +315,14 @@ export function DocumentEditor() {
 
             <Tooltip>
               <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    aria-label="Toggle settings"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  aria-label="Toggle settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
               </TooltipTrigger>
               <TooltipContent>Toggle settings</TooltipContent>
             </Tooltip>

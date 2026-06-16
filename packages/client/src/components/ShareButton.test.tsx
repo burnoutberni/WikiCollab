@@ -53,9 +53,9 @@ describe('ShareButton', () => {
       writable: true,
       configurable: true,
     });
-    const shareSpy = vi.mocked(navigator.share).mockRejectedValueOnce(
-      new DOMException('blocked', 'NotAllowedError')
-    );
+    const shareSpy = vi
+      .mocked(navigator.share)
+      .mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
     const writeTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
 
     renderWithProviders(<ShareButton documentId="abc123" />);

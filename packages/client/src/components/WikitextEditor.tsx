@@ -69,12 +69,8 @@ import { yCollab } from 'y-codemirror.next';
 import type { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 
 /** Draws the local user's caret and label without relying on remote awareness rendering. */
 class LocalCursorWidget extends WidgetType {
@@ -397,31 +393,141 @@ function Toolbar({
 
   const allItems = useMemo<ToolbarEntry[]>(
     () => [
-      { id: 'undo', type: 'button', icon: <Undo2 className="h-3.5 w-3.5" />, tip: 'Undo', action: () => undoManager?.undo(), disabled: !canUndo },
-      { id: 'redo', type: 'button', icon: <Redo2 className="h-3.5 w-3.5" />, tip: 'Redo', action: () => undoManager?.redo(), disabled: !canRedo },
+      {
+        id: 'undo',
+        type: 'button',
+        icon: <Undo2 className="h-3.5 w-3.5" />,
+        tip: 'Undo',
+        action: () => undoManager?.undo(),
+        disabled: !canUndo,
+      },
+      {
+        id: 'redo',
+        type: 'button',
+        icon: <Redo2 className="h-3.5 w-3.5" />,
+        tip: 'Redo',
+        action: () => undoManager?.redo(),
+        disabled: !canRedo,
+      },
       { id: 'sep1', type: 'separator' },
-      { id: 'bold', type: 'button', icon: <Bold className="h-3.5 w-3.5" />, tip: "Bold — '''text'''", action: (v) => insertText(v, "'''", "'''", 'bold') },
-      { id: 'italic', type: 'button', icon: <Italic className="h-3.5 w-3.5" />, tip: "Italic — ''text''", action: (v) => insertText(v, "''", "''", 'italic') },
+      {
+        id: 'bold',
+        type: 'button',
+        icon: <Bold className="h-3.5 w-3.5" />,
+        tip: "Bold — '''text'''",
+        action: (v) => insertText(v, "'''", "'''", 'bold'),
+      },
+      {
+        id: 'italic',
+        type: 'button',
+        icon: <Italic className="h-3.5 w-3.5" />,
+        tip: "Italic — ''text''",
+        action: (v) => insertText(v, "''", "''", 'italic'),
+      },
       { id: 'sep2', type: 'separator' },
-      { id: 'h2', type: 'button', icon: <Heading2 className="h-3.5 w-3.5" />, tip: 'Heading 2 — == text ==', action: (v) => wrapLine(v, '== ', ' ==') },
-      { id: 'h3', type: 'button', icon: <Heading3 className="h-3.5 w-3.5" />, tip: 'Heading 3 — === text ===', action: (v) => wrapLine(v, '=== ', ' ===') },
-      { id: 'h4', type: 'button', icon: <Heading4 className="h-3.5 w-3.5" />, tip: 'Heading 4 — ==== text ====', action: (v) => wrapLine(v, '==== ', ' ====') },
+      {
+        id: 'h2',
+        type: 'button',
+        icon: <Heading2 className="h-3.5 w-3.5" />,
+        tip: 'Heading 2 — == text ==',
+        action: (v) => wrapLine(v, '== ', ' =='),
+      },
+      {
+        id: 'h3',
+        type: 'button',
+        icon: <Heading3 className="h-3.5 w-3.5" />,
+        tip: 'Heading 3 — === text ===',
+        action: (v) => wrapLine(v, '=== ', ' ==='),
+      },
+      {
+        id: 'h4',
+        type: 'button',
+        icon: <Heading4 className="h-3.5 w-3.5" />,
+        tip: 'Heading 4 — ==== text ====',
+        action: (v) => wrapLine(v, '==== ', ' ===='),
+      },
       { id: 'sep3', type: 'separator' },
-      { id: 'link', type: 'button', icon: <Link className="h-3.5 w-3.5" />, tip: 'Internal link — [[Page name]]', action: (v) => insertText(v, '[[', ']]', 'Page name') },
-      { id: 'extlink', type: 'button', icon: <ExternalLink className="h-3.5 w-3.5" />, tip: 'External link — [http:// label]', action: (v) => insertText(v, '[', ']', 'http://example.com label') },
+      {
+        id: 'link',
+        type: 'button',
+        icon: <Link className="h-3.5 w-3.5" />,
+        tip: 'Internal link — [[Page name]]',
+        action: (v) => insertText(v, '[[', ']]', 'Page name'),
+      },
+      {
+        id: 'extlink',
+        type: 'button',
+        icon: <ExternalLink className="h-3.5 w-3.5" />,
+        tip: 'External link — [http:// label]',
+        action: (v) => insertText(v, '[', ']', 'http://example.com label'),
+      },
       { id: 'sep4', type: 'separator' },
-      { id: 'template', type: 'button', icon: <FileCode className="h-3.5 w-3.5" />, tip: 'Template — {{name}}', action: (v) => insertText(v, '{{', '}}', 'template name') },
-      { id: 'category', type: 'button', icon: <Tag className="h-3.5 w-3.5" />, tip: 'Category — [[Category:Name]]', action: (v) => insertText(v, '[[Category:', ']]', 'Category name') },
-      { id: 'image', type: 'button', icon: <Image className="h-3.5 w-3.5" />, tip: 'Image — [[File:Name.png|thumb]]', action: (v) => insertText(v, '[[File:', '|thumb|Caption]]', 'Example.png') },
+      {
+        id: 'template',
+        type: 'button',
+        icon: <FileCode className="h-3.5 w-3.5" />,
+        tip: 'Template — {{name}}',
+        action: (v) => insertText(v, '{{', '}}', 'template name'),
+      },
+      {
+        id: 'category',
+        type: 'button',
+        icon: <Tag className="h-3.5 w-3.5" />,
+        tip: 'Category — [[Category:Name]]',
+        action: (v) => insertText(v, '[[Category:', ']]', 'Category name'),
+      },
+      {
+        id: 'image',
+        type: 'button',
+        icon: <Image className="h-3.5 w-3.5" />,
+        tip: 'Image — [[File:Name.png|thumb]]',
+        action: (v) => insertText(v, '[[File:', '|thumb|Caption]]', 'Example.png'),
+      },
       { id: 'sep5', type: 'separator' },
-      { id: 'code', type: 'button', icon: <Code2 className="h-3.5 w-3.5" />, tip: 'Preformatted — <pre>text</pre>', action: (v) => insertText(v, '<pre>\n', '\n</pre>', 'preformatted text') },
-      { id: 'nowiki', type: 'button', icon: <Ban className="h-3.5 w-3.5" />, tip: 'Nowiki — <nowiki>text</nowiki>', action: (v) => insertText(v, '<nowiki>', '</nowiki>', 'literal text') },
-      { id: 'hr', type: 'button', icon: <Minus className="h-3.5 w-3.5" />, tip: 'Horizontal rule — ----', action: (v) => insertAtLine(v, '----\n') },
+      {
+        id: 'code',
+        type: 'button',
+        icon: <Code2 className="h-3.5 w-3.5" />,
+        tip: 'Preformatted — <pre>text</pre>',
+        action: (v) => insertText(v, '<pre>\n', '\n</pre>', 'preformatted text'),
+      },
+      {
+        id: 'nowiki',
+        type: 'button',
+        icon: <Ban className="h-3.5 w-3.5" />,
+        tip: 'Nowiki — <nowiki>text</nowiki>',
+        action: (v) => insertText(v, '<nowiki>', '</nowiki>', 'literal text'),
+      },
+      {
+        id: 'hr',
+        type: 'button',
+        icon: <Minus className="h-3.5 w-3.5" />,
+        tip: 'Horizontal rule — ----',
+        action: (v) => insertAtLine(v, '----\n'),
+      },
       { id: 'sep6', type: 'separator' },
-      { id: 'table', type: 'button', icon: <Table className="h-3.5 w-3.5" />, tip: 'Table — {| class="wikitable" ... |}', action: (v) => insertText(v, '{| class="wikitable"\n|-\n| cell1 || cell2\n|}', '') },
+      {
+        id: 'table',
+        type: 'button',
+        icon: <Table className="h-3.5 w-3.5" />,
+        tip: 'Table — {| class="wikitable" ... |}',
+        action: (v) => insertText(v, '{| class="wikitable"\n|-\n| cell1 || cell2\n|}', ''),
+      },
       { id: 'sep7', type: 'separator' },
-      { id: 'redirect', type: 'button', icon: <Route className="h-3.5 w-3.5" />, tip: 'Redirect — #REDIRECT [[Page]]', action: (v) => insertAtLine(v, '#REDIRECT [[') },
-      { id: 'reference', type: 'button', icon: <Quote className="h-3.5 w-3.5" />, tip: 'Reference — <ref>text</ref>', action: (v) => insertText(v, '<ref>', '</ref>', 'reference text') },
+      {
+        id: 'redirect',
+        type: 'button',
+        icon: <Route className="h-3.5 w-3.5" />,
+        tip: 'Redirect — #REDIRECT [[Page]]',
+        action: (v) => insertAtLine(v, '#REDIRECT [['),
+      },
+      {
+        id: 'reference',
+        type: 'button',
+        icon: <Quote className="h-3.5 w-3.5" />,
+        tip: 'Reference — <ref>text</ref>',
+        action: (v) => insertText(v, '<ref>', '</ref>', 'reference text'),
+      },
     ],
     [canUndo, canRedo, undoManager]
   );
@@ -615,13 +721,13 @@ function Toolbar({
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="flex flex-wrap items-center gap-px p-1.5 min-w-0 w-auto" align="start">
+            <PopoverContent
+              className="flex flex-wrap items-center gap-px p-1.5 min-w-0 w-auto"
+              align="start"
+            >
               {displayDropdownItems.map((entry) =>
                 entry.type === 'separator' ? (
-                  <span
-                    key={entry.id}
-                    className="bg-border w-px h-7 mx-1 shrink-0"
-                  />
+                  <span key={entry.id} className="bg-border w-px h-7 mx-1 shrink-0" />
                 ) : (
                   <button
                     key={entry.id}

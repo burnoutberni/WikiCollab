@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Presence } from '@/hooks/useYjs';
+
 import { CollaboratorList } from './CollaboratorList';
 
 interface ConnectionStatePopoverProps {

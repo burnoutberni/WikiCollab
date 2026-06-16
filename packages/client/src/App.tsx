@@ -1,11 +1,11 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
-import { ConnectionProvider } from './lib/connection-context';
 import { DemoDisclaimer } from './components/DemoDisclaimer';
 import { InstallBanner } from './components/InstallBanner';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { OfflineBanner } from './components/OfflineBanner';
+import { ConnectionProvider } from './lib/connection-context';
 
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
