@@ -1,5 +1,5 @@
 import { Check, Share2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -12,7 +12,26 @@ interface ShareButtonProps {
 
 export function ShareButton({ documentId, showLabel = false, className }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const url = `${window.location.origin}/doc/${documentId}`;
+
+  useEffect(
+    () => () => {
+      if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
+    },
+    []
+  );
+
+  const copyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }, [url]);
 
   const handleClick = useCallback(
     async (e: React.MouseEvent) => {
@@ -21,20 +40,15 @@ export function ShareButton({ documentId, showLabel = false, className }: ShareB
       if (navigator.share) {
         try {
           await navigator.share({ title: document.title, url });
-        } catch {
-          // user cancelled
+        } catch (error) {
+          if ((error as DOMException).name === 'AbortError') return;
+          await copyLink();
         }
       } else {
-        try {
-          await navigator.clipboard.writeText(url);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        } catch {
-          setCopied(false);
-        }
+        await copyLink();
       }
     },
-    [url]
+    [copyLink, url]
   );
 
   return (
