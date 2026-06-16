@@ -6,7 +6,6 @@ import {
   Code,
   Columns,
   FileText,
-  Save,
   Settings,
   Share2,
   Users,
@@ -407,10 +406,6 @@ export function DocumentEditor() {
         {!isMobile && (
           <footer className="border-t px-4 py-0 flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <Save className="h-3 w-3" />
-                Saved
-              </span>
               <ConnectionStatePopover
                 connected={connected}
                 lastConnected={lastConnected}
