@@ -2,7 +2,6 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    "helpers:pinGitHubActionsDigests",
     ":pinDockerImages"
   ],
   "packageRules": [
@@ -10,6 +9,7 @@
       "description": "Group all GitHub Actions updates into one weekly PR",
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
+      "pinDigests": true,
       "schedule": ["before 9am on Monday"]
     },
     {
