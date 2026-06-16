@@ -364,7 +364,7 @@ export function DocumentEditor() {
               documentId={id!}
               collaboratorCount={collaboratorCount}
               websocketServerUrl={websocketServerUrl}
-              onReconnect={() => provider?.connect()}
+              onReconnect={provider ? () => provider.connect() : undefined}
             />
           </div>
           <div className="flex items-center gap-4">
