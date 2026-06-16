@@ -35,7 +35,11 @@ export function DemoDisclaimer() {
 
   return (
     <Dialog open={open} onOpenChange={(v) => v && setOpen(true)}>
-      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-md [&>button]:hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Demo Instance</DialogTitle>
           <DialogDescription>
