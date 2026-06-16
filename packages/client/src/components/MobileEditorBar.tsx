@@ -1,5 +1,5 @@
-import { Eye, FileCode, FileText, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Eye, FileCode, Settings, Share2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 import type { ViewMode } from '@/components/DocumentEditor';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,23 @@ export function MobileEditorBar({
   onToggleSidebar,
   sidebarOpen,
 }: MobileEditorBarProps) {
-  const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = useCallback(async () => {
+    const url = window.location.href;
+    const title = document.title;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch {
+        // user cancelled or share failed
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, []);
 
   return (
     <div className="md:hidden border-t bg-background safe-area-bottom">
@@ -25,11 +41,12 @@ export function MobileEditorBar({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/')}
+          onClick={handleShare}
           className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
+          data-testid="mobile-share"
         >
-          <FileText className="h-5 w-5" />
-          <span className="text-[10px]">Docs</span>
+          <Share2 className="h-5 w-5" />
+          <span className="text-[10px]">{copied ? 'Copied!' : 'Share'}</span>
         </Button>
 
         <div className="flex-1 flex justify-center">
