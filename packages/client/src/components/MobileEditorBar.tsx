@@ -39,14 +39,14 @@ export function MobileEditorBar({
     <div className="md:hidden border-t bg-background safe-area-bottom">
       <div className="flex items-center py-1.5 px-2">
         <Button
-          variant="ghost"
+          variant={sidebarOpen ? 'secondary' : 'ghost'}
           size="sm"
-          onClick={handleShare}
+          onClick={onToggleSidebar}
           className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
-          data-testid="mobile-share"
+          data-testid="mobile-toggle-settings"
         >
-          {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
-          <span className="text-[10px]">{copied ? 'Copied!' : 'Share'}</span>
+          <Settings className="h-5 w-5" />
+          <span className="text-[10px]">Settings</span>
         </Button>
 
         <div className="flex-1 flex justify-center">
@@ -75,14 +75,14 @@ export function MobileEditorBar({
         </div>
 
         <Button
-          variant={sidebarOpen ? 'secondary' : 'ghost'}
+          variant="ghost"
           size="sm"
-          onClick={onToggleSidebar}
+          onClick={handleShare}
           className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
-          data-testid="mobile-toggle-settings"
+          data-testid="mobile-share"
         >
-          <Settings className="h-5 w-5" />
-          <span className="text-[10px]">Settings</span>
+          {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
+          <span className="text-[10px]">{copied ? 'Copied!' : 'Share'}</span>
         </Button>
       </div>
     </div>
