@@ -133,6 +133,19 @@ describe('ConnectionStatePopover', () => {
     expect(screen.getByText('0s')).toBeInTheDocument();
   });
 
+  it('does not show retry button when onReconnect is not provided', async () => {
+    const user = userEvent.setup();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { onReconnect: _, ...propsWithoutReconnect } = defaultProps;
+    renderWithProviders(
+      <ConnectionStatePopover {...propsWithoutReconnect} connected={false} lastConnected={null} />
+    );
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+
+    expect(screen.queryByTestId('connection-retry-btn')).not.toBeInTheDocument();
+  });
+
   it('adds an accessible name to the trigger button', () => {
     renderWithProviders(<ConnectionStatePopover {...defaultProps} />);
 

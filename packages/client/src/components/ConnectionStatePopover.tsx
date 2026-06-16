@@ -108,7 +108,7 @@ export function ConnectionStatePopover({
               </span>
             </div>
 
-            {!connected && (
+            {!connected && onReconnect && (
               <div className="pt-1">
                 <Button
                   variant="outline"
