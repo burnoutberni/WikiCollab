@@ -4,14 +4,12 @@ import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-/** Props for a share button that copies the document URL instead of navigating. */
 interface ShareButtonProps {
   documentId: string;
   showLabel?: boolean;
   className?: string;
 }
 
-/** Copies the canonical document URL to the clipboard and shows short-lived feedback. */
 export function ShareButton({ documentId, showLabel = false, className }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const url = `${window.location.origin}/doc/${documentId}`;
@@ -20,12 +18,20 @@ export function ShareButton({ documentId, showLabel = false, className }: ShareB
     async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      try {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch {
-        setCopied(false);
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: document.title, url });
+        } catch {
+          // user cancelled
+        }
+      } else {
+        try {
+          await navigator.clipboard.writeText(url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          setCopied(false);
+        }
       }
     },
     [url]
@@ -41,7 +47,7 @@ export function ShareButton({ documentId, showLabel = false, className }: ShareB
           </a>
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{copied ? 'Link copied to clipboard' : 'Copy share link'}</TooltipContent>
+      <TooltipContent>{copied ? 'Link copied to clipboard' : 'Share document'}</TooltipContent>
     </Tooltip>
   );
 }
