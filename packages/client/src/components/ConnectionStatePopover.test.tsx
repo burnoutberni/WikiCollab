@@ -125,7 +125,7 @@ describe('ConnectionStatePopover', () => {
   it('clamps duration to zero when lastConnected is ahead of current time', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <ConnectionStatePopover {...defaultProps} lastConnected={Date.now() + 1000} />
+      <ConnectionStatePopover {...defaultProps} lastConnected={Date.now() + 10000} />
     );
 
     await user.click(screen.getByTestId('connection-state-trigger'));
