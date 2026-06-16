@@ -79,11 +79,13 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
         ref={sheetRef}
         className="absolute bottom-0 left-0 right-0 bg-background rounded-t-xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ transform: `translateY(${dragY}px)` }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
-        <div className="flex justify-center pt-3 pb-2">
+        <div
+          className="flex justify-center pt-3 pb-2"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
         </div>
         {title && (
