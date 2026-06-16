@@ -96,7 +96,9 @@ const _preview = createRateLimiter({
 
 /** General API limiter applied to document CRUD routes. */
 export const crudLimiter = _crud;
+/** Limiter for outbound wiki POST requests when pushing content to MediaWiki. */
 export const pushLimiter = _push;
+/** Limiter for preview generation requests. */
 export const previewLimiter = _preview;
 
 /** Clears all rate-limit state so tests start from a clean process-wide cache. */
