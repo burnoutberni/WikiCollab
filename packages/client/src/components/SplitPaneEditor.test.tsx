@@ -6,9 +6,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { SplitPaneEditor } from './SplitPaneEditor';
 
+let mockIsMobile = false;
+
 vi.mock('@/hooks/useMediaQuery', () => ({
-  useIsMobile: () => false,
-  useMediaQuery: () => false,
+  useIsMobile: () => mockIsMobile,
+  useMediaQuery: () => mockIsMobile,
 }));
 
 const mockWikitextEditor = vi.fn();
@@ -59,6 +61,7 @@ describe('SplitPaneEditor', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsMobile = false;
     mockWikitextEditor.mockReset();
     mockPreviewLinkModal.mockReset();
     global.fetch = vi.fn();
@@ -160,5 +163,34 @@ describe('SplitPaneEditor', () => {
     await vi.waitFor(() => {
       expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('renders mobile source tab when requested', () => {
+    mockIsMobile = true;
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} initialMobileTab="source" />);
+
+    expect(screen.getByTestId('wikitext-editor')).toBeInTheDocument();
+  });
+
+  it('renders PreviewLinkModal for intercepted mobile preview links', async () => {
+    const user = userEvent.setup();
+    mockIsMobile = true;
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<a href="https://example.com">mobile link</a>' }),
+    });
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} initialMobileTab="preview" />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('mobile link')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('mobile link'));
+
+    expect(screen.getByTestId('preview-link-modal')).toBeInTheDocument();
+    expect(screen.getByText('URL: https://example.com')).toBeInTheDocument();
   });
 });

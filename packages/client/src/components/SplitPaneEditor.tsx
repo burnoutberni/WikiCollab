@@ -187,12 +187,6 @@ export function SplitPaneEditor({
     };
   }, [ytext, debouncedPreview]);
 
-  useEffect(() => {
-    if (isMobile && initialMobileTab === 'preview') {
-      refreshPreview();
-    }
-  }, [isMobile, initialMobileTab, refreshPreview]);
-
   const handlePreviewClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     const anchor = target.closest('a');
@@ -258,6 +252,13 @@ export function SplitPaneEditor({
             </div>
           )}
         </div>
+        <PreviewLinkModal
+          url={linkModalUrl || ''}
+          open={linkModalUrl !== null}
+          onOpenChange={(open) => {
+            if (!open) setLinkModalUrl(null);
+          }}
+        />
       </div>
     );
   }
