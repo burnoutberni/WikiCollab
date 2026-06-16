@@ -8,15 +8,28 @@ interface BeforeInstallPromptEvent extends Event {
 const DISMISSED_KEY = 'wikicollab-install-dismissed';
 const INSTALLED_KEY = 'wikicollab-installed';
 
+function safeGetBoolean(key: string): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(key) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(() => {
-    return localStorage.getItem(INSTALLED_KEY) === 'true';
-  });
-  const [isDismissed, setIsDismissed] = useState(() => {
-    return localStorage.getItem(DISMISSED_KEY) === 'true';
-  });
+  const [isInstalled, setIsInstalled] = useState(() => safeGetBoolean(INSTALLED_KEY));
+  const [isDismissed, setIsDismissed] = useState(() => safeGetBoolean(DISMISSED_KEY));
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -28,7 +41,7 @@ export function useInstallPrompt() {
     const installedHandler = () => {
       setIsInstalled(true);
       setIsInstallable(false);
-      localStorage.setItem(INSTALLED_KEY, 'true');
+      safeSetItem(INSTALLED_KEY, 'true');
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -52,7 +65,7 @@ export function useInstallPrompt() {
     setIsInstallable(false);
     if (outcome === 'accepted') {
       setIsInstalled(true);
-      localStorage.setItem(INSTALLED_KEY, 'true');
+      safeSetItem(INSTALLED_KEY, 'true');
     }
     return outcome === 'accepted';
   }, [deferredPrompt]);
@@ -60,7 +73,7 @@ export function useInstallPrompt() {
   const dismiss = useCallback(() => {
     setIsDismissed(true);
     setIsInstallable(false);
-    localStorage.setItem(DISMISSED_KEY, 'true');
+    safeSetItem(DISMISSED_KEY, 'true');
   }, []);
 
   const shouldShowBanner = isInstallable && !isInstalled && !isDismissed;
