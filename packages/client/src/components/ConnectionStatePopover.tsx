@@ -58,7 +58,7 @@ export function ConnectionStatePopover({
   }, [retrying]);
 
   const statusIcon = connected ? (
-    <span className="relative">
+    <span className="relative mr-3">
       <Wifi className="h-3 w-3 text-green-500" />
       <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center leading-none px-0.5">
         {collaboratorCount}
