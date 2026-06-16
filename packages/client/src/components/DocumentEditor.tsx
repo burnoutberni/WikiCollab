@@ -405,7 +405,7 @@ export function DocumentEditor() {
 
         {/* Desktop Status Bar */}
         {!isMobile && (
-          <footer className="border-t px-4 py-1.5 flex items-center justify-between text-xs text-muted-foreground">
+          <footer className="border-t px-4 py-0 flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
                 <Save className="h-3 w-3" />

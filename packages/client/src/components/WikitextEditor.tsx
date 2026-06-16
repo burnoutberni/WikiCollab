@@ -575,26 +575,22 @@ function Toolbar({
   );
 
   return (
-    <div className="relative">
-      {isMobile && (
-        <>
-          {scrollState.left && (
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
-          )}
-          {scrollState.right && (
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
-          )}
-        </>
-      )}
+    <>
       <div
         ref={isMobile ? scrollRef : toolbarRef}
         onScroll={isMobile ? handleScroll : undefined}
-        className={`flex items-center gap-px border-b bg-background ${
+        className={`flex items-center gap-px border-b bg-background relative ${
           isMobile
             ? 'overflow-x-auto overscroll-contain px-2 py-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
-            : 'overflow-hidden px-2 py-1.5'
+            : 'px-2 py-1.5'
         }`}
       >
+        {isMobile && scrollState.left && (
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
+        )}
+        {isMobile && scrollState.right && (
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+        )}
         {allItems.map(renderItem)}
         {!isMobile && overflowItems.length > 0 && (
           <Popover>
@@ -646,7 +642,7 @@ function Toolbar({
           {tooltip.text}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
