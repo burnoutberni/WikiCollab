@@ -1,4 +1,4 @@
-import { Eye, FileCode, Settings, Share2 } from 'lucide-react';
+import { Check, Eye, FileCode, Settings, Share2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import type { ViewMode } from '@/components/DocumentEditor';
@@ -45,7 +45,7 @@ export function MobileEditorBar({
           className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
           data-testid="mobile-share"
         >
-          <Share2 className="h-5 w-5" />
+          {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
           <span className="text-[10px]">{copied ? 'Copied!' : 'Share'}</span>
         </Button>
 
