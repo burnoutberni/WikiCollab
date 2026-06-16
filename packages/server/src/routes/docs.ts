@@ -145,8 +145,9 @@ docs.post('/:id/versions/:v/restore', (c) => {
 });
 
 docs.post('/:id/versions/:v/star', (c) => {
+  const id = c.req.param('id');
   const vId = c.req.param('v');
-  const updated = setVersionStarred(vId, true, { db, schema, getVersionById });
+  const updated = setVersionStarred(vId, true, { db, schema, getVersionById }, id);
   if (!updated) {
     return c.json({ error: 'Version not found' }, 404);
   }
@@ -154,8 +155,9 @@ docs.post('/:id/versions/:v/star', (c) => {
 });
 
 docs.delete('/:id/versions/:v/star', (c) => {
+  const id = c.req.param('id');
   const vId = c.req.param('v');
-  const updated = setVersionStarred(vId, false, { db, schema, getVersionById });
+  const updated = setVersionStarred(vId, false, { db, schema, getVersionById }, id);
   if (!updated) {
     return c.json({ error: 'Version not found' }, 404);
   }

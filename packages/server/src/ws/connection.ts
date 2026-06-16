@@ -174,11 +174,13 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
       const starred = typeof payload.starred === 'boolean' ? payload.starred : false;
       if (!versionId) break;
 
-      const version = getVersionById(versionId);
-      if (!version) break;
-      if (version.document_id !== doc.name) break;
-
-      setVersionStarred(versionId, starred, { db, schema, getVersionById });
+      const updated = setVersionStarred(
+        versionId,
+        starred,
+        { db, schema, getVersionById },
+        doc.name
+      );
+      if (!updated) break;
 
       broadcastCustom(doc, encodeInnerPayload('star', { versionId, starred }));
       break;
