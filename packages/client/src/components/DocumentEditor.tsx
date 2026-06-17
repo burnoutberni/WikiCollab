@@ -76,9 +76,11 @@ export function DocumentEditor() {
   const [viewMode, setViewMode] = useState<ViewMode>(
     () => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split'
   );
-  const [sidebarOpen, setSidebarOpen] = useState(
-    () => localStorage.getItem('wikicollab-sidebarOpen') === 'true'
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const stored = localStorage.getItem('wikicollab-sidebarOpen');
+    if (stored !== null) return stored === 'true';
+    return !isMobile;
+  });
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(
     () => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false'
   );
@@ -97,6 +99,18 @@ export function DocumentEditor() {
 
   const handleCursorChange = useCallback((cursor: { anchor: number; head: number } | null) => {
     setLocalCursor(cursor);
+  }, []);
+
+  const copyCurrentUrl = useCallback(async (url = window.location.href) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+      return true;
+    } catch {
+      setLinkCopied(false);
+      return false;
+    }
   }, []);
 
   const jumpToCursor = useCallback((anchor: number, head?: number) => {
@@ -447,10 +461,8 @@ export function DocumentEditor() {
                 <TooltipTrigger asChild>
                   <button
                     className="flex items-center gap-1.5 font-mono hover:underline cursor-pointer text-muted-foreground hover:text-foreground"
-                    onClick={() => {
-                      navigator.clipboard.writeText(window.location.href);
-                      setLinkCopied(true);
-                      setTimeout(() => setLinkCopied(false), 2000);
+                    onClick={async () => {
+                      await copyCurrentUrl();
                     }}
                   >
                     {linkCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
@@ -550,9 +562,7 @@ export function DocumentEditor() {
                       // user cancelled
                     }
                   } else {
-                    await navigator.clipboard.writeText(url);
-                    setLinkCopied(true);
-                    setTimeout(() => setLinkCopied(false), 2000);
+                    await copyCurrentUrl(url);
                   }
                 }}
               >
