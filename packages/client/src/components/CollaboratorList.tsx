@@ -153,6 +153,7 @@ export function CollaboratorList({
         <button
           ref={colorTriggerRef}
           className="h-8 w-8 md:h-5 md:w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
+          aria-label="Change user color"
           style={{ backgroundColor: userColor, color: textColor(userColor) }}
           onClick={(e) => {
             e.stopPropagation();
@@ -174,6 +175,7 @@ export function CollaboratorList({
                 <button
                   key={c}
                   className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  aria-label={`Select color ${c}`}
                   style={{ backgroundColor: c }}
                   onClick={() => {
                     onUserColorChange(c);
@@ -186,6 +188,7 @@ export function CollaboratorList({
                 <button
                   key={c}
                   className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  aria-label={`Select custom color ${c}`}
                   style={{ backgroundColor: c }}
                   onClick={() => {
                     onUserColorChange(c);
@@ -200,6 +203,7 @@ export function CollaboratorList({
               >
                 <input
                   type="color"
+                  aria-label="Choose custom color"
                   value={userColor}
                   onChange={(e) => {
                     const newColor = e.target.value;

@@ -668,6 +668,7 @@ function Toolbar({
           type="button"
           data-item-id={entry.id}
           aria-disabled={entry.disabled || undefined}
+          aria-label={entry.tip?.split(' — ')[0] || entry.id}
           ref={(el) => {
             if (el && !isHidden) storeWidth(el, entry.id);
           }}

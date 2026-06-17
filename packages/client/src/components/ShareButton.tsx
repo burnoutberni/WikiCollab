@@ -55,7 +55,12 @@ export function ShareButton({ documentId, showLabel = false, className }: ShareB
     <Tooltip>
       <TooltipTrigger asChild>
         <Button asChild variant={copied ? 'secondary' : 'ghost'} size="sm" className={className}>
-          <a href={`/doc/${documentId}`} onClick={handleClick}>
+          <a
+            href={`/doc/${documentId}`}
+            onClick={handleClick}
+            aria-label={copied ? 'Link copied to clipboard' : 'Share document'}
+            title={copied ? 'Link copied to clipboard' : 'Share document'}
+          >
             {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
             {showLabel && <span className="ml-1.5">{copied ? 'Copied!' : 'Share'}</span>}
           </a>
