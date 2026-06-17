@@ -14,18 +14,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60,
-              },
-            },
-          },
+          // Avoid caching API responses until route-level auth/privacy requirements are settled.
           {
             urlPattern: ({ url }) => url.pathname === '/ws',
             handler: 'NetworkOnly',
