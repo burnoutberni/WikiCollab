@@ -25,11 +25,21 @@ function safeSetItem(key: string, value: string): void {
   }
 }
 
+function isIosSafari(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua);
+  const isWebKit = /WebKit/.test(ua);
+  const isOtherBrowser = /CriOS|FxiOS|EdgiOS/.test(ua);
+  return isIos && isWebKit && !isOtherBrowser;
+}
+
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(() => safeGetBoolean(INSTALLED_KEY));
   const [isDismissed, setIsDismissed] = useState(() => safeGetBoolean(DISMISSED_KEY));
+  const [isManualInstall, setIsManualInstall] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -47,8 +57,12 @@ export function useInstallPrompt() {
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', installedHandler);
 
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) {
       setIsInstalled(true);
+    } else if (isIosSafari()) {
+      setIsInstallable(true);
+      setIsManualInstall(true);
     }
 
     return () => {
@@ -78,5 +92,13 @@ export function useInstallPrompt() {
 
   const shouldShowBanner = isInstallable && !isInstalled && !isDismissed;
 
-  return { isInstallable, isInstalled, isDismissed, shouldShowBanner, promptInstall, dismiss };
+  return {
+    isInstallable,
+    isInstalled,
+    isDismissed,
+    isManualInstall,
+    shouldShowBanner,
+    promptInstall,
+    dismiss,
+  };
 }
