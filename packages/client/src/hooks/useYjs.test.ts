@@ -124,7 +124,9 @@ beforeEach(() => {
 
 describe('useYjs', () => {
   it('creates a Yjs document and text object', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.ydoc).toBeDefined();
     expect(result.current.ytext).toBeDefined();
@@ -135,7 +137,9 @@ describe('useYjs', () => {
     localStorage.setItem('wikicollab-user-name', 'Custom User');
     localStorage.setItem('wikicollab-user-color', '#123456');
 
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.userId).toBe('custom-id');
     expect(result.current.userName).toBe('Custom User');
@@ -143,7 +147,9 @@ describe('useYjs', () => {
   });
 
   it('generates and stores user identity when localStorage is empty', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.userId).toBeTruthy();
     expect(result.current.userName).toBeTruthy();
@@ -154,7 +160,9 @@ describe('useYjs', () => {
   });
 
   it('setUserName persists to localStorage', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     act(() => {
       result.current.setUserName('New Name');
@@ -165,7 +173,9 @@ describe('useYjs', () => {
   });
 
   it('setUserName ignores empty or whitespace-only names', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     const original = result.current.userName;
 
@@ -177,7 +187,9 @@ describe('useYjs', () => {
   });
 
   it('setUserColor persists to localStorage', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     act(() => {
       result.current.setUserColor('#FF0000');
@@ -188,7 +200,9 @@ describe('useYjs', () => {
   });
 
   it('registers custom message handlers via onCustomMessage', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     const handler = vi.fn();
     act(() => {
@@ -197,7 +211,9 @@ describe('useYjs', () => {
   });
 
   it('onCustomMessage returns an unsubscribe function', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     const handler = vi.fn();
     let unsubscribe: (() => void) | undefined;
@@ -210,7 +226,9 @@ describe('useYjs', () => {
   });
 
   it('getContent returns empty string when no content set', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.getContent()).toBe('');
   });

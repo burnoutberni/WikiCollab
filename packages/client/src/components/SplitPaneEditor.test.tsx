@@ -10,7 +10,7 @@ let mockIsMobile = false;
 
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => mockIsMobile,
-  useMediaQuery: () => mockIsMobile,
+  useMediaQuery: (query: string) => (query === '(min-width: 768px)' ? !mockIsMobile : mockIsMobile),
 }));
 
 const mockWikitextEditor = vi.fn();
