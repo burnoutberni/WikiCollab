@@ -7,11 +7,20 @@ export function useMediaQuery(query: string): boolean {
   });
 
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      setMatches(false);
+      return;
+    }
+
     const mql = window.matchMedia(query);
     const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
     setMatches(mql.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', handler);
+      return () => mql.removeEventListener('change', handler);
+    }
+    mql.addListener(handler);
+    return () => mql.removeListener(handler);
   }, [query]);
 
   return matches;

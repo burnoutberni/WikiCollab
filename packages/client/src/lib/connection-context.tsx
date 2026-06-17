@@ -6,10 +6,7 @@ interface ConnectionContextValue {
   setConnected: (connected: boolean) => void;
 }
 
-const ConnectionContext = createContext<ConnectionContextValue>({
-  connected: true,
-  setConnected: () => {},
-});
+const ConnectionContext = createContext<ConnectionContextValue | undefined>(undefined);
 
 export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(true);
@@ -21,5 +18,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 }
 
 export function useConnection() {
-  return useContext(ConnectionContext);
+  const context = useContext(ConnectionContext);
+  if (!context) {
+    throw new Error('useConnection must be used within ConnectionProvider');
+  }
+  return context;
 }
