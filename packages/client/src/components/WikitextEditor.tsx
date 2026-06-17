@@ -680,11 +680,6 @@ function Toolbar({
           }}
           onMouseEnter={(e) => entry.tip && showTip(entry.tip, e)}
           onMouseLeave={hideTip}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            if (!entry.disabled && view) entry.action!(view);
-            view?.focus();
-          }}
         >
           {entry.icon}
         </button>
