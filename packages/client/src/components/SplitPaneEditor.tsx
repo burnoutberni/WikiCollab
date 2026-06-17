@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WebsocketProvider } from 'y-websocket';
@@ -95,6 +96,11 @@ export function SplitPaneEditor({
 
   const previewCss = instanceCss || defaultCss;
 
+  const sanitizePreviewHtml = useCallback(
+    (html: string) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
+    []
+  );
+
   const requestPreview = useCallback(() => {
     if (sendCustomMessage) {
       sendCustomMessage('preview_request', {
@@ -116,13 +122,13 @@ export function SplitPaneEditor({
           if (currentApiUrl) {
             html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl));
           }
-          setPreviewHtml(html);
+          setPreviewHtml(sanitizePreviewHtml(html));
           setLoading(false);
         }
       }
     );
     return unsubscribe;
-  }, [onCustomMessage]);
+  }, [onCustomMessage, sanitizePreviewHtml]);
 
   const fetchPreview = useCallback(async () => {
     const wikitext = ytext ? ytext.toString() : content;
@@ -145,7 +151,7 @@ export function SplitPaneEditor({
         if (apiUrl) {
           html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl));
         }
-        setPreviewHtml(html);
+        setPreviewHtml(sanitizePreviewHtml(html));
       } else {
         setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
       }
@@ -157,7 +163,7 @@ export function SplitPaneEditor({
     } finally {
       setLoading(false);
     }
-  }, [ytext, apiUrl, title]);
+  }, [apiUrl, content, sanitizePreviewHtml, title, ytext]);
 
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
