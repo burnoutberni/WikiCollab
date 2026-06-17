@@ -8,6 +8,13 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ open, onOpenChange, children, title }: BottomSheetProps) {
+  const previousBodyStyles = useRef<{
+    overflow: string;
+    position: string;
+    width: string;
+    top: string;
+  } | null>(null);
+  const scrollYRef = useRef(0);
   const sheetRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const [dragY, setDragY] = useState(0);
@@ -19,18 +26,35 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
 
   useEffect(() => {
     if (open) {
+      scrollYRef.current = window.scrollY;
+      previousBodyStyles.current = {
+        overflow: document.body.style.overflow,
+        position: document.body.style.position,
+        width: document.body.style.width,
+        top: document.body.style.top,
+      };
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
+      document.body.style.top = `-${scrollYRef.current}px`;
     } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      const previous = previousBodyStyles.current;
+      if (previous) {
+        document.body.style.overflow = previous.overflow;
+        document.body.style.position = previous.position;
+        document.body.style.width = previous.width;
+        document.body.style.top = previous.top;
+        window.scrollTo(0, scrollYRef.current);
+      }
     }
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      const previous = previousBodyStyles.current;
+      if (previous) {
+        document.body.style.overflow = previous.overflow;
+        document.body.style.position = previous.position;
+        document.body.style.width = previous.width;
+        document.body.style.top = previous.top;
+      }
     };
   }, [open]);
 
