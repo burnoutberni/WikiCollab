@@ -22,17 +22,28 @@ export function MobileEditorBar({
   const handleShare = useCallback(async () => {
     const url = window.location.href;
     const title = document.title;
+    const copyToClipboard = async () => {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
     if (navigator.share) {
       try {
         await navigator.share({ title, url });
-      } catch {
-        // user cancelled or share failed
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        try {
+          await copyToClipboard();
+        } catch {
+          setCopied(false);
+        }
       }
     } else {
       try {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        await copyToClipboard();
       } catch {
         setCopied(false);
       }
