@@ -101,7 +101,7 @@ export function Dashboard() {
               <div className="h-8 w-8 rounded bg-primary flex items-center justify-center">
                 <FileText className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-xl font-bold hidden sm:block">WikiCollab</h1>
+              <h1 className="text-xl font-bold hidden md:block">WikiCollab</h1>
             </div>
             <Button onClick={handleCreate} size={isMobile ? 'sm' : 'default'}>
               <Plus className="h-4 w-4" />
