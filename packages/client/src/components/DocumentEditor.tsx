@@ -547,33 +547,29 @@ export function DocumentEditor() {
               />
             </Suspense>
 
-            <Suspense
-              fallback={<LoadingSpinner label="Loading share button..." className="py-0" />}
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  const url = window.location.href;
-                  if (navigator.share) {
-                    try {
-                      await navigator.share({ title, url });
-                    } catch {
-                      // user cancelled
-                    }
-                  } else {
-                    await copyCurrentUrl(url);
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                const url = window.location.href;
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ title, url });
+                  } catch {
+                    // user cancelled
                   }
-                }}
-              >
-                {linkCopied ? (
-                  <Check className="h-4 w-4 mr-2 text-green-500" />
-                ) : (
-                  <Share2 className="h-4 w-4 mr-2" />
-                )}
-                {linkCopied ? 'Copied!' : 'Share'}
-              </Button>
-            </Suspense>
+                } else {
+                  await copyCurrentUrl(url);
+                }
+              }}
+            >
+              {linkCopied ? (
+                <Check className="h-4 w-4 mr-2 text-green-500" />
+              ) : (
+                <Share2 className="h-4 w-4 mr-2" />
+              )}
+              {linkCopied ? 'Copied!' : 'Share'}
+            </Button>
           </div>
         </div>
       </BottomSheet>
