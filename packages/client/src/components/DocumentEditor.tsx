@@ -555,8 +555,10 @@ export function DocumentEditor() {
                 if (navigator.share) {
                   try {
                     await navigator.share({ title, url });
-                  } catch {
-                    // user cancelled
+                  } catch (error) {
+                    if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                      await copyCurrentUrl(url);
+                    }
                   }
                 } else {
                   await copyCurrentUrl(url);
