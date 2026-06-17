@@ -13,6 +13,7 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const startY = useRef(0);
+  const dragYRef = useRef(0);
 
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
@@ -52,6 +53,7 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
       if (!isDragging) return;
       const delta = e.touches[0].clientY - startY.current;
       if (delta > 0) {
+        dragYRef.current = delta;
         setDragY(delta);
       }
     },
@@ -60,11 +62,12 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
-    if (dragY > 120) {
+    if (dragYRef.current > 120) {
       close();
     }
+    dragYRef.current = 0;
     setDragY(0);
-  }, [dragY, close]);
+  }, [close]);
 
   if (!open) return null;
 
