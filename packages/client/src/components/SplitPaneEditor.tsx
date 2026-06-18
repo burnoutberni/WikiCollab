@@ -249,6 +249,7 @@ export function SplitPaneEditor({
                       size="sm"
                       onClick={refreshPreview}
                       disabled={loading}
+                      aria-label="Refresh preview"
                     >
                       <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
