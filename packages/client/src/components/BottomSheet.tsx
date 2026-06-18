@@ -27,7 +27,8 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
 
   useEffect(() => {
     if (open) {
-      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      previousFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       scrollYRef.current = window.scrollY;
       previousBodyStyles.current = {
         overflow: document.body.style.overflow,
@@ -129,7 +130,12 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
   };
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div
+      className="fixed inset-0 z-50 md:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
       <div
         ref={backdropRef}
         className="absolute inset-0 bg-black/50 animate-in fade-in duration-200"
