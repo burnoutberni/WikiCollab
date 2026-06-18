@@ -27,11 +27,13 @@ function safeSetItem(key: string, value: string): void {
 
 function isIosSafari(): boolean {
   if (typeof window === 'undefined') return false;
-  const ua = window.navigator.userAgent;
+  const nav = window.navigator;
+  const ua = nav.userAgent;
   const isIos = /iPad|iPhone|iPod/.test(ua);
+  const isIpadOsDesktopUa = nav.platform === 'MacIntel' && nav.maxTouchPoints > 1;
   const isWebKit = /WebKit/.test(ua);
   const isOtherBrowser = /CriOS|FxiOS|EdgiOS/.test(ua);
-  return isIos && isWebKit && !isOtherBrowser;
+  return (isIos || isIpadOsDesktopUa) && isWebKit && !isOtherBrowser;
 }
 
 export function useInstallPrompt() {
