@@ -71,8 +71,9 @@ export function MobileEditorBar({
               variant={viewMode === 'source' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('source')}
-              className="rounded-r-none h-9 px-4"
+              className="rounded-r-none h-11 min-h-[44px] px-4"
               data-testid="mobile-view-source"
+              aria-pressed={viewMode === 'source'}
             >
               <FileCode className="h-4 w-4 mr-1.5" />
               <span className="text-xs">Source</span>
@@ -81,8 +82,9 @@ export function MobileEditorBar({
               variant={viewMode !== 'source' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('split')}
-              className="rounded-l-none h-9 px-4"
+              className="rounded-l-none h-11 min-h-[44px] px-4"
               data-testid="mobile-view-preview"
+              aria-pressed={viewMode !== 'source'}
             >
               <Eye className="h-4 w-4 mr-1.5" />
               <span className="text-xs">Preview</span>
