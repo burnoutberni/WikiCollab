@@ -103,7 +103,12 @@ export function Dashboard() {
               </div>
               <h1 className="text-xl font-bold hidden md:block">WikiCollab</h1>
             </div>
-            <Button onClick={handleCreate} size={isMobile ? 'sm' : 'default'}>
+            <Button
+              onClick={handleCreate}
+              size={isMobile ? 'sm' : 'default'}
+              aria-label="New Document"
+              title="New Document"
+            >
               <Plus className="h-4 w-4" />
               {!isMobile && <span className="ml-2">New Document</span>}
             </Button>
