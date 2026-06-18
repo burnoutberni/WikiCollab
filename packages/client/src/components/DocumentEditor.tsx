@@ -335,12 +335,12 @@ export function DocumentEditor() {
 
             <Tooltip>
               <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDesktopSidebarOpen(!desktopSidebarOpen)}
-                    aria-label="Toggle settings"
-                  >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDesktopSidebarOpen(!desktopSidebarOpen)}
+                  aria-label="Toggle settings"
+                >
                   <Settings className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -434,13 +434,13 @@ export function DocumentEditor() {
 
         {/* Mobile Bottom Action Bar */}
         {isMobile && (
-            <MobileEditorBar
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              onToggleSidebar={() => setMobileSheetOpen(!mobileSheetOpen)}
-              sidebarOpen={mobileSheetOpen}
-            />
-          )}
+          <MobileEditorBar
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            onToggleSidebar={() => setMobileSheetOpen(!mobileSheetOpen)}
+            sidebarOpen={mobileSheetOpen}
+          />
+        )}
 
         {/* Desktop Status Bar */}
         {!isMobile && (
@@ -485,7 +485,11 @@ export function DocumentEditor() {
       </div>
 
       {/* Mobile Sidebar as Bottom Sheet */}
-      <BottomSheet open={isMobile && mobileSheetOpen} onOpenChange={setMobileSheetOpen} title="Settings">
+      <BottomSheet
+        open={isMobile && mobileSheetOpen}
+        onOpenChange={setMobileSheetOpen}
+        title="Settings"
+      >
         <div className="space-y-4">
           <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
             <InstanceManager
