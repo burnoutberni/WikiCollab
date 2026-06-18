@@ -185,13 +185,14 @@ export function SplitPaneEditor({
 
   useEffect(() => {
     if (!ytext) return;
+    if (isMobile && initialMobileTab !== 'preview') return;
     const observer = () => debouncedPreview();
     ytext.observe(observer);
     return () => {
       ytext.unobserve(observer);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [ytext, debouncedPreview]);
+  }, [ytext, debouncedPreview, isMobile, initialMobileTab]);
 
   const handlePreviewClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
