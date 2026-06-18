@@ -82,10 +82,9 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
     (e: React.TouchEvent) => {
       if (!isDragging) return;
       const delta = e.touches[0].clientY - startY.current;
-      if (delta > 0) {
-        dragYRef.current = delta;
-        setDragY(delta);
-      }
+      const nextDragY = Math.max(0, delta);
+      dragYRef.current = nextDragY;
+      setDragY(nextDragY);
     },
     [isDragging]
   );
