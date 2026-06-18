@@ -73,9 +73,10 @@ export function DocumentEditor() {
   const [title, setTitle] = useState('');
   const [wikiTitle, setWikiTitle] = useState('');
   const [content, setContentState] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    () => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split'
-  );
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const stored = localStorage.getItem('wikicollab-viewMode');
+    return stored === 'source' || stored === 'split' ? stored : 'split';
+  });
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
     const stored = localStorage.getItem('wikicollab-sidebarOpen');
     if (stored !== null) return stored === 'true';
