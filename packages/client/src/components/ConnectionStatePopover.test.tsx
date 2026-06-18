@@ -150,9 +150,8 @@ describe('ConnectionStatePopover', () => {
   it('adds an accessible name to the trigger button', () => {
     renderWithProviders(<ConnectionStatePopover {...defaultProps} />);
 
-    expect(screen.getByRole('button', { name: 'Connection status: Connected' })).toHaveAttribute(
-      'type',
-      'button'
-    );
+    expect(
+      screen.getByRole('button', { name: 'Connection status: Connected. 3 collaborators' })
+    ).toHaveAttribute('type', 'button');
   });
 });

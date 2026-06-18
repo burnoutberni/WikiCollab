@@ -118,7 +118,7 @@ export function ConnectionStatePopover({
           <PopoverTrigger asChild>
             <button
               type="button"
-              aria-label={`Connection status: ${statusText}`}
+              aria-label={`Connection status: ${statusText}. ${collaboratorCount} collaborator${collaboratorCount === 1 ? '' : 's'}`}
               className="inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-80 h-9 px-2 rounded-md"
               data-testid="connection-state-trigger"
             >
