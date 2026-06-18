@@ -560,6 +560,19 @@ function Toolbar({
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
 
+      const measuredWidths = allItems
+        .map((item) => itemWidthsRef.current.get(item.id) ?? 0)
+        .filter((width) => width > 0);
+      const totalWidth = measuredWidths.reduce(
+        (sum, width, index) => sum + width + (index > 0 ? 1 : 0),
+        0
+      );
+
+      if (totalWidth <= containerWidth) {
+        setOverflowIds(new Set());
+        return;
+      }
+
       const moreWidth = 40;
 
       let usedWidth = 0;
@@ -722,6 +735,7 @@ function Toolbar({
             <PopoverTrigger asChild>
               <button
                 type="button"
+                aria-label="More formatting options"
                 className="inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0 h-7 text-xs font-medium gap-0.5 px-1"
               >
                 <MoreHorizontal className="h-3.5 w-3.5" />
@@ -739,6 +753,7 @@ function Toolbar({
                     key={entry.id}
                     type="button"
                     aria-disabled={entry.disabled || undefined}
+                    aria-label={entry.tip?.split(' — ')[0] || entry.id}
                     className="inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer aria-disabled:opacity-30 h-7 w-7 shrink-0"
                     onClick={() => {
                       if (!entry.disabled && view) entry.action!(view);
