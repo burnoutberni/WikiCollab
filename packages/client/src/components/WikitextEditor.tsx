@@ -608,11 +608,21 @@ function Toolbar({
       }
     };
 
+    let measureTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleMeasure = () => {
+      if (measureTimeout) clearTimeout(measureTimeout);
+      measureTimeout = setTimeout(measure, 150);
+    };
+
     measure();
 
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (measureTimeout) clearTimeout(measureTimeout);
+    };
   }, [isMobile, allItems]);
 
   const handleScroll = useCallback(() => {
