@@ -59,7 +59,9 @@ export function useInstallPrompt() {
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', installedHandler);
 
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isStandalone =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(display-mode: standalone)').matches;
     if (isStandalone) {
       setIsInstalled(true);
     } else if (isIosSafari()) {
