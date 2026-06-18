@@ -76,11 +76,12 @@ export function DocumentEditor() {
   const [viewMode, setViewMode] = useState<ViewMode>(
     () => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split'
   );
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
     const stored = localStorage.getItem('wikicollab-sidebarOpen');
     if (stored !== null) return stored === 'true';
     return !isMobile;
   });
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(
     () => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false'
   );
@@ -125,8 +126,8 @@ export function DocumentEditor() {
     localStorage.setItem('wikicollab-viewMode', viewMode);
   }, [viewMode]);
   useEffect(() => {
-    localStorage.setItem('wikicollab-sidebarOpen', String(sidebarOpen));
-  }, [sidebarOpen]);
+    localStorage.setItem('wikicollab-sidebarOpen', String(desktopSidebarOpen));
+  }, [desktopSidebarOpen]);
   useEffect(() => {
     localStorage.setItem('wikicollab-collaboratorsExpanded', String(collaboratorsExpanded));
   }, [collaboratorsExpanded]);
@@ -280,6 +281,8 @@ export function DocumentEditor() {
                     onClick={() => setViewMode('source')}
                     className="rounded-r-none"
                     data-testid="view-source"
+                    aria-label="Show source editor"
+                    aria-pressed={viewMode === 'source'}
                   >
                     <Code className="h-4 w-4" />
                   </Button>
@@ -295,6 +298,8 @@ export function DocumentEditor() {
                     onClick={() => setViewMode('split')}
                     className="rounded-none"
                     data-testid="view-split"
+                    aria-label="Show split view"
+                    aria-pressed={viewMode === 'split'}
                   >
                     <Columns className="h-4 w-4" />
                   </Button>
@@ -329,12 +334,12 @@ export function DocumentEditor() {
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  aria-label="Toggle settings"
-                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDesktopSidebarOpen(!desktopSidebarOpen)}
+                    aria-label="Toggle settings"
+                  >
                   <Settings className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -346,7 +351,7 @@ export function DocumentEditor() {
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Desktop Sidebar */}
-          {!isMobile && sidebarOpen && (
+          {!isMobile && desktopSidebarOpen && (
             <aside className="w-64 border-r flex flex-col">
               <div className="p-4 border-b">
                 <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
@@ -428,13 +433,13 @@ export function DocumentEditor() {
 
         {/* Mobile Bottom Action Bar */}
         {isMobile && (
-          <MobileEditorBar
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-            sidebarOpen={sidebarOpen}
-          />
-        )}
+            <MobileEditorBar
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              onToggleSidebar={() => setMobileSheetOpen(!mobileSheetOpen)}
+              sidebarOpen={mobileSheetOpen}
+            />
+          )}
 
         {/* Desktop Status Bar */}
         {!isMobile && (
@@ -479,7 +484,7 @@ export function DocumentEditor() {
       </div>
 
       {/* Mobile Sidebar as Bottom Sheet */}
-      <BottomSheet open={isMobile && sidebarOpen} onOpenChange={setSidebarOpen} title="Settings">
+      <BottomSheet open={isMobile && mobileSheetOpen} onOpenChange={setMobileSheetOpen} title="Settings">
         <div className="space-y-4">
           <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
             <InstanceManager
