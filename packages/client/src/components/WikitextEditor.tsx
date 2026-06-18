@@ -709,7 +709,7 @@ function Toolbar({
         </button>
       );
     },
-    [view, isMobile, overflowIds, showTip, hideTip]
+    [view, isMobile, overflowIds, showTip, hideTip, storeWidth]
   );
 
   return (
