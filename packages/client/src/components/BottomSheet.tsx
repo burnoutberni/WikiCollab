@@ -119,6 +119,12 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
     const last = focusable[focusable.length - 1];
     const active = document.activeElement;
 
+    if (active === sheetRef.current) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+      return;
+    }
+
     if (e.shiftKey && active === first) {
       e.preventDefault();
       last.focus();

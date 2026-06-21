@@ -152,7 +152,7 @@ export function CollaboratorList({
       <div className="flex items-center gap-2 px-2 py-1.5 rounded-md relative group">
         <button
           ref={colorTriggerRef}
-          className="h-8 w-8 md:h-5 md:w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
+          className="h-11 w-11 md:h-5 md:w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
           aria-label="Change user color"
           style={{ backgroundColor: userColor, color: textColor(userColor) }}
           onClick={(e) => {
@@ -174,7 +174,7 @@ export function CollaboratorList({
               {COLORS.map((c) => (
                 <button
                   key={c}
-                  className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  className="h-11 w-11 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
                   aria-label={`Select color ${c}`}
                   style={{ backgroundColor: c }}
                   onClick={() => {
@@ -187,7 +187,7 @@ export function CollaboratorList({
               {customColors.map((c) => (
                 <button
                   key={c}
-                  className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
+                  className="h-11 w-11 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform"
                   aria-label={`Select custom color ${c}`}
                   style={{ backgroundColor: c }}
                   onClick={() => {
@@ -198,7 +198,7 @@ export function CollaboratorList({
                 />
               ))}
               <label
-                className="h-8 w-8 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform flex items-center justify-center relative overflow-hidden"
+                className="h-11 w-11 md:h-5 md:w-5 rounded-full cursor-pointer ring-1 ring-foreground/10 hover:scale-110 transition-transform flex items-center justify-center relative overflow-hidden"
                 title="Custom color"
               >
                 <input

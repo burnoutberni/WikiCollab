@@ -139,14 +139,15 @@ export function useYjs(docId: string | null) {
 
     const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, freshDoc);
 
-    wsProvider.on('status', ({ status }: { status: string }) => {
+    const handleStatus = ({ status }: { status: string }) => {
       if (status === 'connected') {
         setConnected(true);
         setLastConnected(Date.now());
       } else if (status === 'disconnected') {
         setConnected(false);
       }
-    });
+    };
+    wsProvider.on('status', handleStatus);
 
     wsProvider.awareness.setLocalStateField('cursor', null);
 
@@ -214,6 +215,7 @@ export function useYjs(docId: string | null) {
     setProvider(wsProvider);
 
     return () => {
+      wsProvider.off('status', handleStatus);
       awareness.off('change', updatePeers);
       wsProvider.destroy();
       idbPersistence.destroy();
