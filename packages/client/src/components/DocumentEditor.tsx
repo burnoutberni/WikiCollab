@@ -142,7 +142,9 @@ export function DocumentEditor() {
   }, []);
 
   useEffect(() => {
-    if (!id || title === (doc?.title ?? '')) return;
+    const loadedTitle = doc?.title;
+    if (!id || loading || loadedTitle === undefined || title === loadedTitle) return;
+
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
       void fetch(`/api/docs/${id}`, {
@@ -150,14 +152,21 @@ export function DocumentEditor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title }),
         signal: controller.signal,
-      });
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to update document title (${res.status})`);
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          console.error('Failed to update document title:', error);
+        });
     }, 300);
 
     return () => {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [id, title, doc?.title]);
+  }, [id, title, doc?.title, loading]);
 
   const handleContentChange = useCallback(
     (newContent: string) => {

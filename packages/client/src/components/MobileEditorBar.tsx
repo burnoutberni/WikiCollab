@@ -1,5 +1,5 @@
 import { Check, Eye, FileCode, Settings, Share2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ViewMode } from '@/components/DocumentEditor';
 import { Button } from '@/components/ui/button';
@@ -18,14 +18,29 @@ export function MobileEditorBar({
   sidebarOpen,
 }: MobileEditorBarProps) {
   const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current !== null) {
+        window.clearTimeout(copiedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleShare = useCallback(async () => {
     const url = window.location.href;
     const title = document.title;
     const copyToClipboard = async () => {
       await navigator.clipboard.writeText(url);
+      if (copiedTimeoutRef.current !== null) {
+        window.clearTimeout(copiedTimeoutRef.current);
+      }
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copiedTimeoutRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copiedTimeoutRef.current = null;
+      }, 2000);
     };
 
     if (navigator.share) {

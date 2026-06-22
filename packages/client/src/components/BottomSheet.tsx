@@ -92,6 +92,12 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
     setDragY(0);
   }, [close]);
 
+  const handleTouchCancel = useCallback(() => {
+    setIsDragging(false);
+    dragYRef.current = 0;
+    setDragY(0);
+  }, []);
+
   if (!open) return null;
 
   const titleId = title ? 'bottom-sheet-title' : undefined;
@@ -153,6 +159,7 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
         >
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" aria-hidden="true" />
         </div>
