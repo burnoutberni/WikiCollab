@@ -80,9 +80,8 @@ export function usePreventOverscroll(ref: React.RefObject<HTMLElement | null>) {
     [ref]
   );
 
-  const element = ref.current;
-
   useEffect(() => {
+    const element = ref.current;
     if (!element) return;
 
     element.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -91,5 +90,5 @@ export function usePreventOverscroll(ref: React.RefObject<HTMLElement | null>) {
       element.removeEventListener('touchstart', handleTouchStart);
       element.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [element, handleTouchStart, handleTouchMove]);
+  }, [ref, handleTouchStart, handleTouchMove]);
 }
