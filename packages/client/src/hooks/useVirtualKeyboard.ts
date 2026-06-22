@@ -90,6 +90,5 @@ export function usePreventOverscroll(ref: React.RefObject<HTMLElement | null>) {
       element.removeEventListener('touchstart', handleTouchStart);
       element.removeEventListener('touchmove', handleTouchMove);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ref, handleTouchStart, handleTouchMove]);
 }

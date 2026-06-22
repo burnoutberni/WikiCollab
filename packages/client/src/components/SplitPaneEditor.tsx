@@ -180,6 +180,7 @@ export function SplitPaneEditor({
   }, [refreshPreview]);
 
   useEffect(() => {
+    if (isMobile && initialMobileTab !== 'preview') return;
     refreshPreview();
   }, [apiUrl, title]); // eslint-disable-line react-hooks/exhaustive-deps
 

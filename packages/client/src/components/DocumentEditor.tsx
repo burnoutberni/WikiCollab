@@ -90,6 +90,7 @@ export function DocumentEditor() {
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const linkCopiedTimeoutRef = useRef<number | null>(null);
+  const lastPersistedTitleRef = useRef<string | null>(null);
   const collaboratorCount = peers.length + 1;
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export function DocumentEditor() {
       setTitle(doc.title);
       setWikiTitle(doc.title);
       setContentState(doc.content);
+      lastPersistedTitleRef.current = doc.title;
     }
   }, [doc]);
 
@@ -142,6 +144,13 @@ export function DocumentEditor() {
     localStorage.setItem('wikicollab-viewMode', viewMode);
   }, [viewMode]);
   useEffect(() => {
+    if (!isMobile) {
+      const stored = localStorage.getItem('wikicollab-sidebarOpen');
+      setDesktopSidebarOpen(stored !== null ? stored === 'true' : true);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
     if (!isMobile) localStorage.setItem('wikicollab-sidebarOpen', String(desktopSidebarOpen));
   }, [desktopSidebarOpen, isMobile]);
   useEffect(() => {
@@ -157,8 +166,7 @@ export function DocumentEditor() {
   }, []);
 
   useEffect(() => {
-    const loadedTitle = doc?.title;
-    if (!id || loading || loadedTitle === undefined || title === loadedTitle) return;
+    if (!id || loading || title === lastPersistedTitleRef.current) return;
 
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
@@ -170,6 +178,7 @@ export function DocumentEditor() {
       })
         .then((res) => {
           if (!res.ok) throw new Error(`Failed to update document title (${res.status})`);
+          lastPersistedTitleRef.current = title;
         })
         .catch((error: unknown) => {
           if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -181,7 +190,7 @@ export function DocumentEditor() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [id, title, doc?.title, loading]);
+  }, [id, title, loading]);
 
   const handleContentChange = useCallback(
     (newContent: string) => {
