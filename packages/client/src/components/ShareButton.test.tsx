@@ -38,7 +38,7 @@ describe('ShareButton', () => {
     const link = screen.getByRole('link');
     const writeTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
     await user.click(link);
-    expect(writeTextSpy).toHaveBeenCalledWith('http://localhost:5173/doc/abc123');
+    expect(writeTextSpy).toHaveBeenCalledWith(`${window.location.origin}/doc/abc123`);
   });
 
   it('shows label when showLabel is true', () => {
@@ -62,7 +62,7 @@ describe('ShareButton', () => {
     await user.click(screen.getByRole('link'));
 
     expect(shareSpy).toHaveBeenCalled();
-    expect(writeTextSpy).toHaveBeenCalledWith('http://localhost:5173/doc/abc123');
+    expect(writeTextSpy).toHaveBeenCalledWith(`${window.location.origin}/doc/abc123`);
   });
 
   it('does not fall back to clipboard when navigator.share is aborted', async () => {

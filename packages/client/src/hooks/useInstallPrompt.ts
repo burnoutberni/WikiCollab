@@ -60,10 +60,14 @@ export function useInstallPrompt() {
     window.addEventListener('appinstalled', installedHandler);
 
     const isStandalone =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(display-mode: standalone)').matches;
+      (typeof window.matchMedia === 'function' &&
+        window.matchMedia('(display-mode: standalone)').matches) ||
+      (typeof navigator !== 'undefined' &&
+        'standalone' in navigator &&
+        navigator.standalone === true);
     if (isStandalone) {
       setIsInstalled(true);
+      safeSetItem(INSTALLED_KEY, 'true');
     } else if (isIosSafari()) {
       setIsInstallable(true);
       setIsManualInstall(true);
