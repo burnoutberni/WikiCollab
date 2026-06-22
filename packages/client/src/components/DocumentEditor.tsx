@@ -89,6 +89,7 @@ export function DocumentEditor() {
   const editorRef = useRef<WikitextEditorHandle | null>(null);
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const linkCopiedTimeoutRef = useRef<number | null>(null);
   const collaboratorCount = peers.length + 1;
 
   useEffect(() => {
@@ -99,6 +100,14 @@ export function DocumentEditor() {
     }
   }, [doc]);
 
+  useEffect(() => {
+    return () => {
+      if (linkCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(linkCopiedTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleCursorChange = useCallback((cursor: { anchor: number; head: number } | null) => {
     setLocalCursor(cursor);
   }, []);
@@ -106,8 +115,14 @@ export function DocumentEditor() {
   const copyCurrentUrl = useCallback(async (url = window.location.href) => {
     try {
       await navigator.clipboard.writeText(url);
+      if (linkCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(linkCopiedTimeoutRef.current);
+      }
       setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
+      linkCopiedTimeoutRef.current = window.setTimeout(() => {
+        setLinkCopied(false);
+        linkCopiedTimeoutRef.current = null;
+      }, 2000);
       return true;
     } catch {
       setLinkCopied(false);
@@ -127,8 +142,8 @@ export function DocumentEditor() {
     localStorage.setItem('wikicollab-viewMode', viewMode);
   }, [viewMode]);
   useEffect(() => {
-    localStorage.setItem('wikicollab-sidebarOpen', String(desktopSidebarOpen));
-  }, [desktopSidebarOpen]);
+    if (!isMobile) localStorage.setItem('wikicollab-sidebarOpen', String(desktopSidebarOpen));
+  }, [desktopSidebarOpen, isMobile]);
   useEffect(() => {
     localStorage.setItem('wikicollab-collaboratorsExpanded', String(collaboratorsExpanded));
   }, [collaboratorsExpanded]);
