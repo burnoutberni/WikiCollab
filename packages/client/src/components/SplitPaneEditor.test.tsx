@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -53,6 +53,7 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('SplitPaneEditor', () => {
+  const originalFetch = global.fetch;
   const defaultProps = {
     content: 'Hello wikitext',
     onChange: vi.fn(),
@@ -66,6 +67,10 @@ describe('SplitPaneEditor', () => {
     mockPreviewLinkModal.mockReset();
     global.fetch = vi.fn();
     HTMLElement.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('renders source editor and preview panes', () => {
