@@ -26,32 +26,23 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
   useEffect(() => {
-    if (open) {
-      previousFocusRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      scrollYRef.current = window.scrollY;
-      previousBodyStyles.current = {
-        overflow: document.body.style.overflow,
-        position: document.body.style.position,
-        width: document.body.style.width,
-        top: document.body.style.top,
-      };
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.top = `-${scrollYRef.current}px`;
-      requestAnimationFrame(() => sheetRef.current?.focus());
-    } else {
-      const previous = previousBodyStyles.current;
-      if (previous) {
-        document.body.style.overflow = previous.overflow;
-        document.body.style.position = previous.position;
-        document.body.style.width = previous.width;
-        document.body.style.top = previous.top;
-        window.scrollTo(0, scrollYRef.current);
-      }
-      previousFocusRef.current?.focus();
-    }
+    if (!open) return;
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    scrollYRef.current = window.scrollY;
+    previousBodyStyles.current = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      width: document.body.style.width,
+      top: document.body.style.top,
+    };
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.top = `-${scrollYRef.current}px`;
+    requestAnimationFrame(() => sheetRef.current?.focus());
+
     return () => {
       const previous = previousBodyStyles.current;
       if (previous) {
@@ -59,8 +50,11 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
         document.body.style.position = previous.position;
         document.body.style.width = previous.width;
         document.body.style.top = previous.top;
+        window.scrollTo(0, scrollYRef.current);
+        previousBodyStyles.current = null;
       }
       previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
     };
   }, [open]);
 

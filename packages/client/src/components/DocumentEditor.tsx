@@ -137,19 +137,27 @@ export function DocumentEditor() {
     setContentState(newContent);
   }, []);
 
-  const handleTitleChange = useCallback(
-    async (newTitle: string) => {
-      setTitle(newTitle);
-      if (id) {
-        await fetch(`/api/docs/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: newTitle }),
-        });
-      }
-    },
-    [id]
-  );
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setTitle(newTitle);
+  }, []);
+
+  useEffect(() => {
+    if (!id || title === (doc?.title ?? '')) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      void fetch(`/api/docs/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+        signal: controller.signal,
+      });
+    }, 300);
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [id, title, doc?.title]);
 
   const handleContentChange = useCallback(
     (newContent: string) => {

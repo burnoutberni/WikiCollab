@@ -699,8 +699,9 @@ function Toolbar({
             isMobile ? 'h-11 w-11 min-w-[44px] min-h-[44px]' : 'h-7 w-7'
           }`}
           onClick={() => {
-            if (!entry.disabled && view) entry.action!(view);
-            view?.focus();
+            if (entry.disabled || !view) return;
+            entry.action?.(view);
+            view.focus();
           }}
           onMouseEnter={(e) => entry.tip && showTip(entry.tip, e)}
           onMouseLeave={hideTip}
@@ -756,8 +757,9 @@ function Toolbar({
                     aria-label={entry.tip?.split(' — ')[0] || entry.id}
                     className="inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer aria-disabled:opacity-30 h-7 w-7 shrink-0"
                     onClick={() => {
-                      if (!entry.disabled && view) entry.action!(view);
-                      view?.focus();
+                      if (entry.disabled || !view) return;
+                      entry.action?.(view);
+                      view.focus();
                     }}
                     title={entry.tip}
                   >
