@@ -298,7 +298,13 @@ export function SplitPaneEditor({
         <div className="absolute bottom-3 right-3">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="secondary" size="sm" onClick={refreshPreview} disabled={loading}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={refreshPreview}
+                disabled={loading}
+                aria-label="Refresh preview"
+              >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </TooltipTrigger>

@@ -26,7 +26,7 @@ export function PreviewLinkModal({ url, open, onOpenChange }: PreviewLinkModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="md:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ExternalLink className="h-4 w-4" />

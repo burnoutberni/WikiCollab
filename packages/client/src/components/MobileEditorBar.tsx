@@ -115,6 +115,7 @@ export function MobileEditorBar({
           onClick={handleShare}
           className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
           data-testid="mobile-share"
+          aria-label={copied ? 'Link copied' : 'Share document'}
         >
           {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
           <span className="text-[10px]">{copied ? 'Copied!' : 'Share'}</span>

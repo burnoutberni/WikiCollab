@@ -401,6 +401,7 @@ export function DocumentEditor() {
                 <button
                   className="flex items-center gap-1.5 text-xs font-medium w-full text-left mb-2"
                   onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
+                  aria-expanded={collaboratorsExpanded}
                 >
                   {collaboratorsExpanded ? (
                     <ChevronDown className="h-3 w-3" />
@@ -538,6 +539,7 @@ export function DocumentEditor() {
             <button
               className="flex items-center gap-1.5 text-xs font-medium w-full text-left mb-2"
               onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
+              aria-expanded={collaboratorsExpanded}
             >
               {collaboratorsExpanded ? (
                 <ChevronDown className="h-3 w-3" />
@@ -606,6 +608,7 @@ export function DocumentEditor() {
                   await copyCurrentUrl(url);
                 }
               }}
+              aria-label={linkCopied ? 'Link copied' : 'Share document'}
             >
               {linkCopied ? (
                 <Check className="h-4 w-4 mr-2 text-green-500" />
@@ -620,7 +623,7 @@ export function DocumentEditor() {
 
       {/* Takeover Dialog */}
       <Dialog open={!!lockedByOther} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="md:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Session already open</DialogTitle>
             <DialogDescription>
