@@ -66,13 +66,15 @@ type CustomMessageHandler<T = unknown> = (data: T) => void;
  * Sets up the shared Yjs document, websocket provider, IndexedDB cache, and awareness state.
  * Persists local identity fields in `localStorage`.
  */
-export function useYjs(docId: string | null) {
+export function useYjs(docId: string | null, suppressCursor = false) {
   const { connected, setConnected } = useConnection();
   const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ydoc = ydocRef.current;
   const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
   const ytext = ytextRef.current;
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const awarenessRef = useRef<any>(null);
   const [peers, setPeers] = useState<Presence[]>([]);
   const [lastConnected, setLastConnected] = useState<number | null>(null);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
@@ -149,16 +151,27 @@ export function useYjs(docId: string | null) {
     };
     wsProvider.on('status', handleStatus);
 
-    // Clear the cursor awareness state when the page unloads so the old
-    // clientID's cursor isn't rendered as a "remote" cursor after reload.
-    const handleBeforeUnload = () => {
-      wsProvider.awareness.setLocalStateField('cursor', null);
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    const realAwareness = wsProvider.awareness;
 
-    wsProvider.awareness.setLocalStateField('cursor', null);
+    const awareness = suppressCursor
+      ? new Proxy(realAwareness, {
+          get(target, prop, receiver) {
+            if (prop === 'setLocalStateField') {
+              return (_field: string, _value: unknown) => {
+                // block all local state writes when cursor is suppressed
+                void _field;
+                void _value;
+              };
+            }
+            const val = Reflect.get(target, prop, receiver);
+            return typeof val === 'function' ? val.bind(target) : val;
+          },
+        })
+      : realAwareness;
 
-    const awareness = wsProvider.awareness;
+    if (!suppressCursor) {
+      realAwareness.setLocalStateField('cursor', null);
+    }
 
     const updatePeers = () => {
       const states = Array.from(awareness.getStates().entries());
@@ -220,20 +233,21 @@ export function useYjs(docId: string | null) {
     };
 
     setProvider(wsProvider);
+    awarenessRef.current = awareness;
 
     return () => {
       wsProvider.off('status', handleStatus);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       awareness.off('change', updatePeers);
       wsProvider.destroy();
       idbPersistence.destroy();
       freshDoc.destroy();
       setConnected(true);
       setProvider(null);
+      awarenessRef.current = null;
       setPeers([]);
       setLastConnected(null);
     };
-  }, [docId, setConnected]);
+  }, [docId, setConnected, suppressCursor]);
 
   useEffect(() => {
     if (!provider) return;
@@ -279,6 +293,7 @@ export function useYjs(docId: string | null) {
     ydoc,
     ytext,
     provider,
+    awareness: awarenessRef.current,
     connected,
     lastConnected,
     peers,
