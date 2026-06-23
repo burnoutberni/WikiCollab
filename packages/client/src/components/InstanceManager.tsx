@@ -173,7 +173,7 @@ export function InstanceManager({
 
   const dialogContent = (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="md:max-w-md grid-rows-[auto_1fr_auto] md:grid-rows-none">
+      <DialogContent className="md:max-w-md">
         <DialogHeader>
           <DialogTitle>Add MediaWiki Instance</DialogTitle>
           <DialogDescription>

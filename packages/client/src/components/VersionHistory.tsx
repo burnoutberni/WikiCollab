@@ -126,7 +126,7 @@ export function VersionHistory({
         </TooltipTrigger>
         <TooltipContent>Version history</TooltipContent>
       </Tooltip>
-      <DialogContent className="md:max-w-lg grid-rows-[auto_1fr_auto] md:grid-rows-none">
+      <DialogContent className="md:max-w-lg">
         <DialogHeader>
           <DialogTitle>Version History</DialogTitle>
           <DialogDescription>
