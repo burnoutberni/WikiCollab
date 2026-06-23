@@ -89,7 +89,7 @@ export function InstanceManager({
     setApiUrl('');
     setNameIndex(-1);
     setSelectedPreset(null);
-    setNameOpen(true);
+    setNameOpen(false);
     setDialogOpen(true);
   };
 
@@ -173,7 +173,7 @@ export function InstanceManager({
 
   const dialogContent = (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="md:max-w-md grid-rows-[auto_1fr_auto] md:grid-rows-none">
         <DialogHeader>
           <DialogTitle>Add MediaWiki Instance</DialogTitle>
           <DialogDescription>
@@ -197,35 +197,27 @@ export function InstanceManager({
               autoCapitalize="off"
               spellCheck={false}
             />
-            {nameOpen && (
+            {nameOpen && filteredPresets.length > 0 && (
               <div
                 ref={listRef}
                 className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-0 shadow-md"
               >
-                {filteredPresets.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    No matching presets — type a custom name and API URL below
-                  </div>
-                ) : (
-                  filteredPresets.map((preset, i) => (
-                    <button
-                      key={preset.api_url}
-                      type="button"
-                      className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
-                        i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
-                      }`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        selectPreset(preset);
-                      }}
-                    >
-                      <span className="font-medium">{preset.name}</span>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {preset.api_url}
-                      </span>
-                    </button>
-                  ))
-                )}
+                {filteredPresets.map((preset, i) => (
+                  <button
+                    key={preset.api_url}
+                    type="button"
+                    className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                      i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
+                    }`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectPreset(preset);
+                    }}
+                  >
+                    <span className="font-medium">{preset.name}</span>
+                    <span className="text-xs text-muted-foreground truncate">{preset.api_url}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>

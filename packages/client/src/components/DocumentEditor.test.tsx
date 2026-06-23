@@ -10,6 +10,8 @@ import { useYjs } from '@/hooks/useYjs';
 
 import { DocumentEditor } from './DocumentEditor';
 
+let mockIsMobile = false;
+
 const mockDoc = {
   id: 'test-doc',
   title: 'Test Document',
@@ -44,6 +46,11 @@ vi.mock('@/hooks/useEditorLock', () => ({
 
 vi.mock('@/hooks/useYjs', () => ({
   useYjs: vi.fn(),
+}));
+
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => mockIsMobile,
+  useMediaQuery: (query: string) => (query === '(min-width: 768px)' ? !mockIsMobile : mockIsMobile),
 }));
 
 vi.mock('@/components/SplitPaneEditor', () => ({
@@ -85,7 +92,9 @@ vi.mock('lucide-react', () => {
         'ChevronRight',
         'Code',
         'Columns',
+        'Eye',
         'FileText',
+        'FileCode',
         'RefreshCw',
         'Save',
         'Settings',
@@ -115,6 +124,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('DocumentEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsMobile = false;
     localStorage.clear();
     useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument: vi.fn() });
     useInstancesMock.mockReturnValue({
@@ -135,14 +145,14 @@ describe('DocumentEditor', () => {
       unobserve: vi.fn(),
       _length: 0,
       doc: null,
-    } as any;
+    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     const mockYDoc = {
       on: vi.fn(),
       off: vi.fn(),
       getText: vi.fn(),
       destroy: vi.fn(),
       clientID: 1,
-    } as any;
+    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     useYjsMock.mockReturnValue({
       ydoc: mockYDoc,
       ytext: mockYText,
@@ -159,7 +169,7 @@ describe('DocumentEditor', () => {
       sendCustomMessage: vi.fn(),
       onCustomMessage: vi.fn(),
       lastConnected: Date.now() - 5000,
-    } as any);
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
   });
 
   it('shows loading state', () => {
@@ -201,5 +211,27 @@ describe('DocumentEditor', () => {
     expect(screen.getByText('Session already open')).toBeInTheDocument();
     expect(screen.getByText('Take Over')).toBeInTheDocument();
     expect(screen.getByText('Go Back')).toBeInTheDocument();
+  });
+
+  it('renders the mobile header and bottom action bar in mobile mode', () => {
+    mockIsMobile = true;
+
+    renderWithProviders(<DocumentEditor />);
+
+    expect(screen.getByDisplayValue('Test Document')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-toggle-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-share')).toBeInTheDocument();
+    expect(screen.queryByTestId('view-source')).not.toBeInTheDocument();
+  });
+
+  it('opens the mobile settings bottom sheet', async () => {
+    const user = userEvent.setup();
+    mockIsMobile = true;
+
+    renderWithProviders(<DocumentEditor />);
+    await user.click(screen.getByTestId('mobile-toggle-settings'));
+
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(await screen.findByTestId('instance-manager')).toBeInTheDocument();
   });
 });

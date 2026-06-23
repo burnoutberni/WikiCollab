@@ -1,5 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { ConnectionProvider } from '../lib/connection-context';
 
 vi.mock('yjs', () => {
   class MockText {
@@ -110,6 +114,9 @@ vi.mock('shared', () => ({
 
 import { useYjs } from './useYjs';
 
+const withConnectionProvider = ({ children }: { children: ReactNode }) =>
+  createElement(ConnectionProvider, null, children);
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -117,7 +124,9 @@ beforeEach(() => {
 
 describe('useYjs', () => {
   it('creates a Yjs document and text object', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.ydoc).toBeDefined();
     expect(result.current.ytext).toBeDefined();
@@ -128,7 +137,9 @@ describe('useYjs', () => {
     localStorage.setItem('wikicollab-user-name', 'Custom User');
     localStorage.setItem('wikicollab-user-color', '#123456');
 
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.userId).toBe('custom-id');
     expect(result.current.userName).toBe('Custom User');
@@ -136,7 +147,9 @@ describe('useYjs', () => {
   });
 
   it('generates and stores user identity when localStorage is empty', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.userId).toBeTruthy();
     expect(result.current.userName).toBeTruthy();
@@ -147,7 +160,9 @@ describe('useYjs', () => {
   });
 
   it('setUserName persists to localStorage', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     act(() => {
       result.current.setUserName('New Name');
@@ -158,7 +173,9 @@ describe('useYjs', () => {
   });
 
   it('setUserName ignores empty or whitespace-only names', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     const original = result.current.userName;
 
@@ -170,7 +187,9 @@ describe('useYjs', () => {
   });
 
   it('setUserColor persists to localStorage', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     act(() => {
       result.current.setUserColor('#FF0000');
@@ -181,7 +200,9 @@ describe('useYjs', () => {
   });
 
   it('registers custom message handlers via onCustomMessage', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     const handler = vi.fn();
     act(() => {
@@ -190,7 +211,9 @@ describe('useYjs', () => {
   });
 
   it('onCustomMessage returns an unsubscribe function', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     const handler = vi.fn();
     let unsubscribe: (() => void) | undefined;
@@ -203,7 +226,9 @@ describe('useYjs', () => {
   });
 
   it('getContent returns empty string when no content set', () => {
-    const { result } = renderHook(() => useYjs('test-doc'));
+    const { result } = renderHook(() => useYjs('test-doc'), {
+      wrapper: withConnectionProvider,
+    });
 
     expect(result.current.getContent()).toBe('');
   });
@@ -211,6 +236,7 @@ describe('useYjs', () => {
   it('resets connection metadata when the document id changes', async () => {
     const { result, rerender } = renderHook(({ docId }) => useYjs(docId), {
       initialProps: { docId: 'doc-a' as string | null },
+      wrapper: withConnectionProvider,
     });
 
     await waitFor(() => {
@@ -230,7 +256,7 @@ describe('useYjs', () => {
     rerender({ docId: 'doc-b' });
 
     await waitFor(() => {
-      expect(result.current.connected).toBe(false);
+      expect(result.current.connected).toBe(true);
       expect(result.current.lastConnected).toBeNull();
       expect(result.current.peers).toEqual([]);
     });
@@ -239,6 +265,7 @@ describe('useYjs', () => {
   it('clears provider state when the document id becomes null', async () => {
     const { result, rerender } = renderHook(({ docId }) => useYjs(docId), {
       initialProps: { docId: 'doc-a' as string | null },
+      wrapper: withConnectionProvider,
     });
 
     await waitFor(() => {
@@ -256,7 +283,7 @@ describe('useYjs', () => {
 
     await waitFor(() => {
       expect(result.current.provider).toBeNull();
-      expect(result.current.connected).toBe(false);
+      expect(result.current.connected).toBe(true);
       expect(result.current.lastConnected).toBeNull();
       expect(result.current.peers).toEqual([]);
     });

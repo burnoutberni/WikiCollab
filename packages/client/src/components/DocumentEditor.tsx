@@ -6,7 +6,6 @@ import {
   Code,
   Columns,
   FileText,
-  Save,
   Settings,
   Share2,
   Users,
@@ -24,16 +23,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDocument, useInstances } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useYjs } from '@/hooks/useYjs';
 
+import { BottomSheet } from './BottomSheet';
 import { CollaboratorList } from './CollaboratorList';
 import { ConnectionStatePopover } from './ConnectionStatePopover';
 import { LoadingSpinner } from './LoadingSpinner';
+import { MobileEditorBar } from './MobileEditorBar';
 import { SplitPaneEditor } from './SplitPaneEditor';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
@@ -45,12 +46,8 @@ const VersionHistory = lazy(() =>
   import('./VersionHistory').then((mod) => ({ default: mod.VersionHistory }))
 );
 
-type ViewMode = 'source' | 'split';
+export type ViewMode = 'source' | 'split';
 
-/**
- * Main editing screen that wires together collaboration, preview, version history, and local UI state.
- * Persists view preferences in `localStorage` and can take over a lock from another tab.
- */
 export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -72,50 +69,130 @@ export function DocumentEditor() {
     lastConnected,
   } = useYjs(id || null);
 
+  const isMobile = useIsMobile();
   const [title, setTitle] = useState('');
   const [wikiTitle, setWikiTitle] = useState('');
   const [content, setContentState] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    () => (localStorage.getItem('wikicollab-viewMode') as ViewMode) || 'split'
-  );
-  const [sidebarOpen, setSidebarOpen] = useState(
-    () => localStorage.getItem('wikicollab-sidebarOpen') !== 'false'
-  );
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const stored = localStorage.getItem('wikicollab-viewMode');
+    return stored === 'source' || stored === 'split' ? stored : 'split';
+  });
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
+    const stored = localStorage.getItem('wikicollab-sidebarOpen');
+    if (stored !== null) return stored === 'true';
+    return !isMobile;
+  });
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [collaboratorsExpanded, setCollaboratorsExpanded] = useState(
     () => localStorage.getItem('wikicollab-collaboratorsExpanded') !== 'false'
   );
   const editorRef = useRef<WikitextEditorHandle | null>(null);
   const [localCursor, setLocalCursor] = useState<{ anchor: number; head: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const linkCopiedTimeoutRef = useRef<number | null>(null);
+  const lastPersistedTitleRef = useRef<string | null>(null);
   const collaboratorCount = peers.length + 1;
-  const websocketServerUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
   useEffect(() => {
     if (doc) {
       setTitle(doc.title);
       setWikiTitle(doc.title);
       setContentState(doc.content);
+      lastPersistedTitleRef.current = doc.title;
+      if (isMobile && !doc.content) {
+        setViewMode('source');
+      }
     }
-  }, [doc]);
+  }, [doc, isMobile]);
+
+  useEffect(() => {
+    return () => {
+      if (linkCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(linkCopiedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCursorChange = useCallback((cursor: { anchor: number; head: number } | null) => {
     setLocalCursor(cursor);
   }, []);
 
-  const jumpToCursor = useCallback((anchor: number, head?: number) => {
-    editorRef.current?.jumpToPosition(anchor, head);
+  const copyCurrentUrl = useCallback(async (url = window.location.href) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      if (linkCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(linkCopiedTimeoutRef.current);
+      }
+      setLinkCopied(true);
+      linkCopiedTimeoutRef.current = window.setTimeout(() => {
+        setLinkCopied(false);
+        linkCopiedTimeoutRef.current = null;
+      }, 2000);
+      return true;
+    } catch {
+      setLinkCopied(false);
+      return false;
+    }
   }, []);
 
-  const scrollToCursor = useCallback((pos: number) => {
-    editorRef.current?.scrollToPosition(pos);
+  const pendingCursorRef = useRef<{ anchor: number; head?: number } | null>(null);
+
+  const handleLocalCursorClicked = useCallback(() => {
+    setMobileSheetOpen(false);
+    requestAnimationFrame(() => {
+      editorRef.current?.jumpToPosition(localCursor?.anchor ?? 0, localCursor?.head);
+    });
+  }, [localCursor]);
+
+  const handlePeerCursorClicked = useCallback(() => {
+    setMobileSheetOpen(false);
   }, []);
+
+  const jumpToCursor = useCallback(
+    (anchor: number, head?: number) => {
+      if (isMobile && viewMode !== 'source') {
+        pendingCursorRef.current = { anchor, head };
+        setViewMode('source');
+      } else {
+        editorRef.current?.jumpToPosition(anchor, head);
+      }
+    },
+    [isMobile, viewMode]
+  );
+
+  const scrollToCursor = useCallback(
+    (pos: number) => {
+      if (isMobile && viewMode !== 'source') {
+        pendingCursorRef.current = { anchor: pos };
+        setViewMode('source');
+      } else {
+        editorRef.current?.scrollToPosition(pos);
+      }
+    },
+    [isMobile, viewMode]
+  );
+
+  useEffect(() => {
+    if (viewMode === 'source' && pendingCursorRef.current) {
+      const { anchor, head } = pendingCursorRef.current;
+      pendingCursorRef.current = null;
+      editorRef.current?.jumpToPosition(anchor, head);
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     localStorage.setItem('wikicollab-viewMode', viewMode);
   }, [viewMode]);
   useEffect(() => {
-    localStorage.setItem('wikicollab-sidebarOpen', String(sidebarOpen));
-  }, [sidebarOpen]);
+    if (!isMobile) {
+      const stored = localStorage.getItem('wikicollab-sidebarOpen');
+      setDesktopSidebarOpen(stored !== null ? stored === 'true' : true);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) localStorage.setItem('wikicollab-sidebarOpen', String(desktopSidebarOpen));
+  }, [desktopSidebarOpen, isMobile]);
   useEffect(() => {
     localStorage.setItem('wikicollab-collaboratorsExpanded', String(collaboratorsExpanded));
   }, [collaboratorsExpanded]);
@@ -124,19 +201,37 @@ export function DocumentEditor() {
     setContentState(newContent);
   }, []);
 
-  const handleTitleChange = useCallback(
-    async (newTitle: string) => {
-      setTitle(newTitle);
-      if (id) {
-        await fetch(`/api/docs/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: newTitle }),
+  const TITLE_MAX = 500;
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setTitle(newTitle.slice(0, TITLE_MAX));
+  }, []);
+
+  useEffect(() => {
+    if (!id || loading || title === lastPersistedTitleRef.current) return;
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      void fetch(`/api/docs/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+        signal: controller.signal,
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to update document title (${res.status})`);
+          lastPersistedTitleRef.current = title;
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          console.error('Failed to update document title:', error);
         });
-      }
-    },
-    [id]
-  );
+    }, 300);
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [id, title, loading]);
 
   const handleContentChange = useCallback(
     (newContent: string) => {
@@ -198,97 +293,152 @@ export function DocumentEditor() {
   return (
     <TooltipProvider>
       <div className="h-screen flex flex-col">
-        {/* Header */}
-        <header className="border-b px-4 py-2 flex items-center gap-4">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Back to dashboard</TooltipContent>
-          </Tooltip>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          <Input
-            value={title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            className="max-w-xs font-semibold"
-            placeholder="Document title"
-          />
-
-          <div className="flex-1" />
-
-          {/* View Mode Toggles */}
-          <div className="flex items-center border rounded-md">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewMode === 'source' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('source')}
-                  className="rounded-r-none"
-                  data-testid="view-source"
-                >
-                  <Code className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Source</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewMode === 'split' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('split')}
-                  className="rounded-none"
-                  data-testid="view-split"
-                >
-                  <Columns className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Split View</TooltipContent>
-            </Tooltip>
-          </div>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          <Suspense fallback={<LoadingSpinner label="Loading history..." className="py-0" />}>
-            <VersionHistory
-              documentId={id!}
-              onRestore={handleRestoreVersion}
-              sendCustomMessage={sendCustomMessage}
-              onCustomMessage={onCustomMessage}
+        {/* Mobile Header */}
+        {isMobile ? (
+          <header className="border-b px-3 py-2 flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/')}
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Input
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              maxLength={TITLE_MAX}
+              className="flex-1 font-semibold text-sm h-8"
+              placeholder="Document title"
             />
-          </Suspense>
-
-          <Suspense fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}>
-            <PushToWiki
-              documentId={id!}
-              title={title}
-              wikiTitle={wikiTitle}
-              onWikiTitleChange={setWikiTitle}
+            <ConnectionStatePopover
+              connected={connected}
+              lastConnected={lastConnected}
+              collaboratorCount={collaboratorCount}
+              onReconnect={provider ? () => provider.connect() : undefined}
+              peers={peers}
+              userName={userName}
+              userColor={userColor}
               content={content}
-              instance={instances[0] || null}
+              localCursor={localCursor}
+              onUserNameChange={setUserName}
+              onUserColorChange={setUserColor}
+              onJumpToCursor={jumpToCursor}
+              onScrollToCursor={scrollToCursor}
+              onLocalCursorClicked={handleLocalCursorClicked}
+              onPeerCursorClicked={handlePeerCursorClicked}
             />
-          </Suspense>
+          </header>
+        ) : (
+          /* Desktop Header */
+          <header className="border-b px-4 py-2 flex items-center gap-4">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/')}
+                  aria-label="Back to dashboard"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Back to dashboard</TooltipContent>
+            </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
-                <Settings className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Toggle settings</TooltipContent>
-          </Tooltip>
-        </header>
+            <Separator orientation="vertical" className="h-6" />
+
+            <Input
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              maxLength={TITLE_MAX}
+              className="max-w-xs font-semibold"
+              placeholder="Document title"
+            />
+
+            <div className="flex-1" />
+
+            {/* View Mode Toggles */}
+            <div className="flex items-center border rounded-md">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'source' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('source')}
+                    className="rounded-r-none"
+                    data-testid="view-source"
+                    aria-label="Show source editor"
+                    aria-pressed={viewMode === 'source'}
+                  >
+                    <Code className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Source</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'split' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('split')}
+                    className="rounded-none"
+                    data-testid="view-split"
+                    aria-label="Show split view"
+                    aria-pressed={viewMode === 'split'}
+                  >
+                    <Columns className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Split View</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            <Suspense fallback={<LoadingSpinner label="Loading history..." className="py-0" />}>
+              <VersionHistory
+                documentId={id!}
+                onRestore={handleRestoreVersion}
+                sendCustomMessage={sendCustomMessage}
+                onCustomMessage={onCustomMessage}
+              />
+            </Suspense>
+
+            <Suspense
+              fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
+            >
+              <PushToWiki
+                documentId={id!}
+                title={title}
+                wikiTitle={wikiTitle}
+                onWikiTitleChange={setWikiTitle}
+                content={content}
+                instance={instances[0] || null}
+              />
+            </Suspense>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDesktopSidebarOpen(!desktopSidebarOpen)}
+                  aria-label="Toggle settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Toggle settings</TooltipContent>
+            </Tooltip>
+          </header>
+        )}
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar */}
-          {sidebarOpen && (
+          {/* Desktop Sidebar */}
+          {!isMobile && desktopSidebarOpen && (
             <aside className="w-64 border-r flex flex-col">
               <div className="p-4 border-b">
                 <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
@@ -303,8 +453,10 @@ export function DocumentEditor() {
 
               <div className="p-4 mt-auto border-t">
                 <button
-                  className="flex items-center gap-1.5 text-xs font-medium w-full text-left mb-2"
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
                   onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
+                  aria-expanded={collaboratorsExpanded}
                 >
                   {collaboratorsExpanded ? (
                     <ChevronDown className="h-3 w-3" />
@@ -327,6 +479,8 @@ export function DocumentEditor() {
                     onUserColorChange={setUserColor}
                     onJumpToCursor={jumpToCursor}
                     onScrollToCursor={scrollToCursor}
+                    onLocalCursorClicked={handleLocalCursorClicked}
+                    onPeerCursorClicked={handlePeerCursorClicked}
                   />
                 )}
               </div>
@@ -337,11 +491,13 @@ export function DocumentEditor() {
           <main className="flex-1 overflow-hidden">
             {viewMode === 'source' && (
               <WikitextEditor
+                ref={editorRef}
                 content={content}
                 onChange={handleContentChange}
                 ytext={ytext}
                 provider={provider}
                 onRemoteChange={handleRemoteChange}
+                onCursorChange={handleCursorChange}
                 userName={userName}
                 userColor={userColor}
               />
@@ -362,78 +518,181 @@ export function DocumentEditor() {
                 onCursorChange={handleCursorChange}
                 sendCustomMessage={sendCustomMessage}
                 onCustomMessage={onCustomMessage}
+                initialMobileTab={isMobile ? 'preview' : 'source'}
               />
             )}
           </main>
         </div>
 
-        {/* Status Bar */}
-        <footer className="border-t px-4 py-1.5 flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Save className="h-3 w-3" />
-              Saved
-            </span>
-            <ConnectionStatePopover
-              connected={connected}
-              lastConnected={lastConnected}
-              documentId={id!}
-              collaboratorCount={collaboratorCount}
-              websocketServerUrl={websocketServerUrl}
-              onReconnect={provider ? () => provider.connect() : undefined}
-            />
-          </div>
-          <div className="flex items-center gap-4">
-            <Tooltip>
-              <Popover>
+        {/* Mobile Bottom Action Bar */}
+        {isMobile && (
+          <MobileEditorBar
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            onToggleSidebar={() => setMobileSheetOpen(!mobileSheetOpen)}
+            sidebarOpen={mobileSheetOpen}
+          />
+        )}
+
+        {/* Desktop Status Bar */}
+        {!isMobile && (
+          <footer className="border-t px-4 py-0 flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-4">
+              <ConnectionStatePopover
+                connected={connected}
+                lastConnected={lastConnected}
+                collaboratorCount={collaboratorCount}
+                onReconnect={provider ? () => provider.connect() : undefined}
+                peers={peers}
+                userName={userName}
+                userColor={userColor}
+                content={content}
+                localCursor={localCursor}
+                onUserNameChange={setUserName}
+                onUserColorChange={setUserColor}
+                onJumpToCursor={jumpToCursor}
+                onScrollToCursor={scrollToCursor}
+                onLocalCursorClicked={handleLocalCursorClicked}
+                onPeerCursorClicked={handlePeerCursorClicked}
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <Tooltip>
                 <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <button className="hover:underline cursor-pointer">
-                      {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
-                    </button>
-                  </PopoverTrigger>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 font-mono hover:underline cursor-pointer text-muted-foreground hover:text-foreground"
+                    onClick={async () => {
+                      await copyCurrentUrl();
+                    }}
+                  >
+                    {linkCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
+                    {linkCopied ? 'Copied!' : id}
+                  </button>
                 </TooltipTrigger>
-                <TooltipContent>View collaborators</TooltipContent>
-                <PopoverContent side="top" align="end" className="w-64 p-2">
-                  <CollaboratorList
-                    peers={peers}
-                    userName={userName}
-                    userColor={userColor}
-                    content={content}
-                    localCursor={localCursor}
-                    onUserNameChange={setUserName}
-                    onUserColorChange={setUserColor}
-                    onJumpToCursor={jumpToCursor}
-                    onScrollToCursor={scrollToCursor}
-                  />
-                </PopoverContent>
-              </Popover>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  className="flex items-center gap-1.5 font-mono hover:underline cursor-pointer text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    setLinkCopied(true);
-                    setTimeout(() => setLinkCopied(false), 2000);
-                  }}
-                >
-                  {linkCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
-                  {linkCopied ? 'Copied!' : id}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {linkCopied ? 'Link copied!' : 'Copy link to clipboard'}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </footer>
+                <TooltipContent>
+                  {linkCopied ? 'Link copied!' : 'Copy link to clipboard'}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </footer>
+        )}
       </div>
+
+      {/* Mobile Sidebar as Bottom Sheet */}
+      <BottomSheet
+        open={isMobile && mobileSheetOpen}
+        onOpenChange={setMobileSheetOpen}
+        title="Settings"
+      >
+        <div className="space-y-4">
+          <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
+            <InstanceManager
+              instances={instances}
+              loading={instancesLoading}
+              createInstance={createInstance}
+              deleteInstance={deleteInstance}
+            />
+          </Suspense>
+
+          <Separator />
+
+          <div>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
+              onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
+              aria-expanded={collaboratorsExpanded}
+            >
+              {collaboratorsExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              <Users className="h-3.5 w-3.5" />
+              <span>
+                {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
+              </span>
+            </button>
+            {collaboratorsExpanded && (
+              <CollaboratorList
+                peers={peers}
+                userName={userName}
+                userColor={userColor}
+                content={content}
+                localCursor={localCursor}
+                onUserNameChange={setUserName}
+                onUserColorChange={setUserColor}
+                onJumpToCursor={jumpToCursor}
+                onScrollToCursor={scrollToCursor}
+                onLocalCursorClicked={handleLocalCursorClicked}
+                onPeerCursorClicked={handlePeerCursorClicked}
+              />
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between pb-4">
+            <Suspense fallback={<LoadingSpinner label="Loading history..." className="py-0" />}>
+              <VersionHistory
+                documentId={id!}
+                onRestore={handleRestoreVersion}
+                sendCustomMessage={sendCustomMessage}
+                onCustomMessage={onCustomMessage}
+              />
+            </Suspense>
+
+            <Suspense
+              fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
+            >
+              <PushToWiki
+                documentId={id!}
+                title={title}
+                wikiTitle={wikiTitle}
+                onWikiTitleChange={setWikiTitle}
+                content={content}
+                instance={instances[0] || null}
+              />
+            </Suspense>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                const url = window.location.href;
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ title, url });
+                  } catch (error) {
+                    if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                      await copyCurrentUrl(url);
+                    }
+                  }
+                } else {
+                  await copyCurrentUrl(url);
+                }
+              }}
+              aria-label={linkCopied ? 'Link copied' : 'Share document'}
+            >
+              {linkCopied ? (
+                <Check className="h-4 w-4 mr-2 text-green-500" />
+              ) : (
+                <Share2 className="h-4 w-4 mr-2" />
+              )}
+              {linkCopied ? 'Copied!' : 'Share'}
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* Takeover Dialog */}
       <Dialog open={!!lockedByOther} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent
+          className="md:max-w-md"
+          hideCloseButton
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Session already open</DialogTitle>
             <DialogDescription>

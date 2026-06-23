@@ -6,6 +6,8 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 
+import { useConnection } from '../lib/connection-context';
+
 export interface Presence {
   clientId: number;
   userId: string;
@@ -65,12 +67,12 @@ type CustomMessageHandler<T = unknown> = (data: T) => void;
  * Persists local identity fields in `localStorage`.
  */
 export function useYjs(docId: string | null) {
+  const { connected, setConnected } = useConnection();
   const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ydoc = ydocRef.current;
   const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
   const ytext = ytextRef.current;
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
-  const [connected, setConnected] = useState(false);
   const [peers, setPeers] = useState<Presence[]>([]);
   const [lastConnected, setLastConnected] = useState<number | null>(null);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
@@ -114,14 +116,13 @@ export function useYjs(docId: string | null) {
   useEffect(() => {
     if (!docId) {
       setProvider(null);
-      setConnected(false);
+      setConnected(true);
       setPeers([]);
       setLastConnected(null);
       return;
     }
 
     setProvider(null);
-    setConnected(false);
     setPeers([]);
     setLastConnected(null);
 
@@ -138,16 +139,33 @@ export function useYjs(docId: string | null) {
 
     const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, freshDoc);
 
-    wsProvider.on('status', ({ status }: { status: string }) => {
-      setConnected(status === 'connected');
+    const handleStatus = ({ status }: { status: string }) => {
       if (status === 'connected') {
+        setConnected(true);
         setLastConnected(Date.now());
+      } else if (status === 'disconnected') {
+        setConnected(false);
       }
-    });
+    };
+    wsProvider.on('status', handleStatus);
 
     wsProvider.awareness.setLocalStateField('cursor', null);
 
     const awareness = wsProvider.awareness;
+
+    // Proxy getStates() so yCollab never renders stale cursors from previous
+    // sessions that share the same userName but have a different clientID.
+    const originalGetStates = awareness.getStates.bind(awareness);
+    awareness.getStates = () => {
+      const states = originalGetStates();
+      const filtered = new Map();
+      for (const [clientId, state] of states) {
+        if (clientId === freshDoc.clientID) continue;
+        if ((state as AwarenessState)?.user?.name === userNameRef.current) continue;
+        filtered.set(clientId, state);
+      }
+      return filtered;
+    };
 
     const updatePeers = () => {
       const states = Array.from(awareness.getStates().entries());
@@ -211,12 +229,17 @@ export function useYjs(docId: string | null) {
     setProvider(wsProvider);
 
     return () => {
+      wsProvider.off('status', handleStatus);
       awareness.off('change', updatePeers);
       wsProvider.destroy();
       idbPersistence.destroy();
       freshDoc.destroy();
+      setConnected(true);
+      setProvider(null);
+      setPeers([]);
+      setLastConnected(null);
     };
-  }, [docId]);
+  }, [docId, setConnected]);
 
   useEffect(() => {
     if (!provider) return;

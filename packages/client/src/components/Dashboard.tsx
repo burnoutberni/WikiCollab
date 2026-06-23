@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useDocuments } from '@/hooks/useApi';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
+import NEW_DOC_BOILERPLATE from '../content/new-doc-boilerplate.wikitext?raw';
 import { ShareButton } from './ShareButton';
 
 type SortKey = 'newest' | 'oldest' | 'alpha' | 'alpha-rev';
@@ -22,10 +24,10 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 const SORT_OPTIONS: SortKey[] = ['newest', 'oldest', 'alpha', 'alpha-rev'];
 
-/** Lists documents, applies client-side search/sort, and stages newly polled items separately. */
 export function Dashboard() {
   const { documents, loading, pendingCount, loadPending, createDocument } = useDocuments();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>(() => {
     const stored = localStorage.getItem('wikicollab-sort');
@@ -70,7 +72,7 @@ export function Dashboard() {
   }, [documents, search, sort]);
 
   const handleCreate = useCallback(async () => {
-    const doc = await createDocument('Untitled');
+    const doc = await createDocument('Untitled', undefined, NEW_DOC_BOILERPLATE);
     navigate(`/doc/${doc.id}`);
   }, [createDocument, navigate]);
 
@@ -100,11 +102,16 @@ export function Dashboard() {
               <div className="h-8 w-8 rounded bg-primary flex items-center justify-center">
                 <FileText className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-xl font-bold">WikiCollab</h1>
+              <h1 className="text-xl font-bold hidden md:block">WikiCollab</h1>
             </div>
-            <Button onClick={handleCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Document
+            <Button
+              onClick={handleCreate}
+              size={isMobile ? 'sm' : 'default'}
+              aria-label="New Document"
+              title="New Document"
+            >
+              <Plus className="h-4 w-4" />
+              {!isMobile && <span className="ml-2">New Document</span>}
             </Button>
           </div>
         </header>
@@ -118,8 +125,8 @@ export function Dashboard() {
           </div>
 
           {!loading && documents.length > 0 && (
-            <div className="flex items-center gap-3 mb-6">
-              <div className="relative flex-1 max-w-sm">
+            <div className={`mb-6 ${isMobile ? 'space-y-3' : 'flex items-center gap-3'}`}>
+              <div className={`relative ${isMobile ? 'w-full' : 'flex-1 max-w-sm'}`}>
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search documents..."
@@ -128,14 +135,16 @@ export function Dashboard() {
                   className="pl-9"
                 />
               </div>
-              <div className="flex items-center gap-1 border rounded-md p-0.5">
-                <ArrowUpDown className="h-4 w-4 mx-1.5 text-muted-foreground" />
+              <div
+                className={`flex items-center gap-1 border rounded-md p-0.5 ${isMobile ? 'overflow-x-auto' : ''}`}
+              >
+                <ArrowUpDown className="h-4 w-4 mx-1.5 text-muted-foreground shrink-0" />
                 {SORT_OPTIONS.map((key) => (
                   <Button
                     key={key}
                     variant={sort === key ? 'secondary' : 'ghost'}
                     size="sm"
-                    className="h-7 text-xs"
+                    className={`h-8 md:h-7 text-xs shrink-0 ${isMobile ? 'px-2' : ''}`}
                     onClick={() => setSort(key)}
                   >
                     {SORT_LABELS[key]}
@@ -218,7 +227,7 @@ export function Dashboard() {
           </div>
         </main>
 
-        <footer className="border-t py-4 text-center text-xs text-muted-foreground space-y-1">
+        <footer className="border-t py-4 text-center text-xs text-muted-foreground space-y-1 safe-area-bottom">
           <p>
             Created by{' '}
             <a
@@ -239,7 +248,9 @@ export function Dashboard() {
               GitHub
             </a>
           </p>
-          <p>Content may be deleted at any time. No illegal content. No warranty.</p>
+          <p className="pb-4">
+            Content may be deleted at any time. No illegal content. No warranty.
+          </p>
         </footer>
       </div>
     </TooltipProvider>

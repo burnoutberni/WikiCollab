@@ -1,14 +1,22 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { SplitPaneEditor } from './SplitPaneEditor';
 
+let mockIsMobile = false;
+
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => mockIsMobile,
+  useMediaQuery: (query: string) => (query === '(min-width: 768px)' ? !mockIsMobile : mockIsMobile),
+}));
+
 const mockWikitextEditor = vi.fn();
 
 vi.mock('@/components/WikitextEditor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   WikitextEditor: (props: any) => {
     mockWikitextEditor(props);
     return <div data-testid="wikitext-editor">WikitextEditor</div>;
@@ -46,18 +54,27 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('SplitPaneEditor', () => {
+  const originalFetch = global.fetch;
   const defaultProps = {
     content: 'Hello wikitext',
     onChange: vi.fn(),
     documentId: 'doc1',
   };
 
+  const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsMobile = false;
     mockWikitextEditor.mockReset();
     mockPreviewLinkModal.mockReset();
     global.fetch = vi.fn();
     HTMLElement.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
   });
 
   it('renders source editor and preview panes', () => {
@@ -155,5 +172,34 @@ describe('SplitPaneEditor', () => {
     await vi.waitFor(() => {
       expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('renders mobile source tab when requested', () => {
+    mockIsMobile = true;
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} initialMobileTab="source" />);
+
+    expect(screen.getByTestId('wikitext-editor')).toBeInTheDocument();
+  });
+
+  it('renders PreviewLinkModal for intercepted mobile preview links', async () => {
+    const user = userEvent.setup();
+    mockIsMobile = true;
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<a href="https://example.com">mobile link</a>' }),
+    });
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} initialMobileTab="preview" />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('mobile link')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('mobile link'));
+
+    expect(screen.getByTestId('preview-link-modal')).toBeInTheDocument();
+    expect(screen.getByText('URL: https://example.com')).toBeInTheDocument();
   });
 });

@@ -11,7 +11,7 @@ import * as Y from 'yjs';
 import type { MockWebSocket } from '../mocks/websocket.js';
 
 const { mockDbModule } = vi.hoisted(() => ({
-  mockDbModule: { db: null as any, schema: null as any },
+  mockDbModule: { db: null as any, schema: null as any }, // eslint-disable-line @typescript-eslint/no-explicit-any
 }));
 vi.mock('../../db/index.js', () => mockDbModule);
 
