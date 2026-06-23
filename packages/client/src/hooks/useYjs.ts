@@ -149,6 +149,13 @@ export function useYjs(docId: string | null) {
     };
     wsProvider.on('status', handleStatus);
 
+    // Clear the cursor awareness state when the page unloads so the old
+    // clientID's cursor isn't rendered as a "remote" cursor after reload.
+    const handleBeforeUnload = () => {
+      wsProvider.awareness.setLocalStateField('cursor', null);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     wsProvider.awareness.setLocalStateField('cursor', null);
 
     const awareness = wsProvider.awareness;
@@ -216,6 +223,7 @@ export function useYjs(docId: string | null) {
 
     return () => {
       wsProvider.off('status', handleStatus);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       awareness.off('change', updatePeers);
       wsProvider.destroy();
       idbPersistence.destroy();
