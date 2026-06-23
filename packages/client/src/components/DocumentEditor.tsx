@@ -139,7 +139,10 @@ export function DocumentEditor() {
 
   const handleCursorClicked = useCallback(() => {
     setMobileSheetOpen(false);
-  }, []);
+    requestAnimationFrame(() => {
+      editorRef.current?.jumpToPosition(localCursor?.anchor ?? 0, localCursor?.head);
+    });
+  }, [localCursor]);
 
   const jumpToCursor = useCallback((anchor: number, head?: number) => {
     if (isMobile && viewMode !== 'source') {
