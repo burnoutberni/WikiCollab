@@ -168,7 +168,7 @@ export function CollaboratorList({
           createPortal(
             <div
               ref={pickerRef}
-              className="p-2 bg-popover border rounded-md shadow-md z-50 grid grid-cols-5 gap-1.5 safe-area-bottom"
+              className="p-2 bg-popover border rounded-md shadow-md z-50 grid grid-cols-5 gap-1.5"
               style={{ position: 'fixed', top: pickerPos.top, left: pickerPos.left }}
             >
               {COLORS.map((c) => (
