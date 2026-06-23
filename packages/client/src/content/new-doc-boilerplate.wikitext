@@ -1,0 +1,24 @@
+Welcome to your new document!
+
+== What you can do here ==
+* '''Edit together''' in real time — changes sync instantly for all collaborators.
+* '''Preview''' your wikitext side-by-side using the split view.
+* '''Share''' this document by sending the URL to anyone you want to collaborate with.
+* '''Push to MediaWiki''' once you're happy with the result (if an instance is connected).
+* '''Version history''' — previous revisions are saved automatically; you can browse and restore them at any time.
+
+== Wiki syntax quick reference ==
+'''Bold text'''
+''Italic text''
+[[Link to another page]]
+[https://example.com External link]
+== Heading ==
+=== Sub-heading ===
+* Bullet list
+# Numbered list
+{{template name}}
+
+== Reminders ==
+'''Data may be deleted at any time.''' This is a demo instance — do not rely on it for important work. '''Keep it legal.''' Do not upload or share content that violates applicable laws. No warranty is provided — see the [https://github.com/burnoutberni/WikiCollab project on GitHub] for source code and license details.
+
+Now delete this boilerplate and start writing!

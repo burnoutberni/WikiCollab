@@ -191,7 +191,7 @@ describe('Dashboard', () => {
 
     await user.click(screen.getByText('Create Document'));
 
-    expect(mockCreateDocument).toHaveBeenCalledWith('Untitled');
+    expect(mockCreateDocument).toHaveBeenCalledWith('Untitled', undefined, expect.any(String));
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1');
     });

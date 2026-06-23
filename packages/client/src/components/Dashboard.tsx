@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useDocuments } from '@/hooks/useApi';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
+import NEW_DOC_BOILERPLATE from '../content/new-doc-boilerplate.wikitext?raw';
 import { ShareButton } from './ShareButton';
 
 type SortKey = 'newest' | 'oldest' | 'alpha' | 'alpha-rev';
@@ -71,7 +72,7 @@ export function Dashboard() {
   }, [documents, search, sort]);
 
   const handleCreate = useCallback(async () => {
-    const doc = await createDocument('Untitled');
+    const doc = await createDocument('Untitled', undefined, NEW_DOC_BOILERPLATE);
     navigate(`/doc/${doc.id}`);
   }, [createDocument, navigate]);
 
