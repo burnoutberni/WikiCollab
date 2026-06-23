@@ -137,6 +137,10 @@ export function DocumentEditor() {
 
   const pendingCursorRef = useRef<{ anchor: number; head?: number } | null>(null);
 
+  const handleCursorClicked = useCallback(() => {
+    setMobileSheetOpen(false);
+  }, []);
+
   const jumpToCursor = useCallback((anchor: number, head?: number) => {
     if (isMobile && viewMode !== 'source') {
       pendingCursorRef.current = { anchor, head };
@@ -308,6 +312,7 @@ export function DocumentEditor() {
               onUserColorChange={setUserColor}
               onJumpToCursor={jumpToCursor}
               onScrollToCursor={scrollToCursor}
+              onCursorClicked={handleCursorClicked}
             />
           </header>
         ) : (
@@ -459,6 +464,7 @@ export function DocumentEditor() {
                     onUserColorChange={setUserColor}
                     onJumpToCursor={jumpToCursor}
                     onScrollToCursor={scrollToCursor}
+                    onCursorClicked={handleCursorClicked}
                   />
                 )}
               </div>
@@ -528,6 +534,7 @@ export function DocumentEditor() {
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}
+                onCursorClicked={handleCursorClicked}
               />
             </div>
             <div className="flex items-center gap-4">
@@ -597,6 +604,7 @@ export function DocumentEditor() {
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}
+                onCursorClicked={handleCursorClicked}
               />
             )}
           </div>
