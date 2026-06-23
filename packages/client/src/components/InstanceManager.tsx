@@ -75,6 +75,7 @@ export function InstanceManager({
     null
   );
   const justSelectedRef = useRef(false);
+  const suppressNextFocusRef = useRef(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +91,7 @@ export function InstanceManager({
     setNameIndex(-1);
     setSelectedPreset(null);
     setNameOpen(false);
+    suppressNextFocusRef.current = true;
     setDialogOpen(true);
   };
 
@@ -143,6 +145,10 @@ export function InstanceManager({
   };
 
   const handleNameFocus = useCallback(() => {
+    if (suppressNextFocusRef.current) {
+      suppressNextFocusRef.current = false;
+      return;
+    }
     if (justSelectedRef.current) {
       justSelectedRef.current = false;
       return;
