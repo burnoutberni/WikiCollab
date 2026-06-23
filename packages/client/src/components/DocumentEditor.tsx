@@ -411,7 +411,7 @@ export function DocumentEditor() {
 
               <div className="p-4 mt-auto border-t">
                 <button
-                  className="flex items-center gap-1.5 text-xs font-medium w-full text-left mb-2"
+                  className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
                   onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
                   aria-expanded={collaboratorsExpanded}
                 >
@@ -549,7 +549,7 @@ export function DocumentEditor() {
 
           <div>
             <button
-              className="flex items-center gap-1.5 text-xs font-medium w-full text-left mb-2"
+              className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
               onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
               aria-expanded={collaboratorsExpanded}
             >
