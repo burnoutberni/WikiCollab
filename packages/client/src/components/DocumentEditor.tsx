@@ -135,13 +135,33 @@ export function DocumentEditor() {
     }
   }, []);
 
+  const pendingCursorRef = useRef<{ anchor: number; head?: number } | null>(null);
+
   const jumpToCursor = useCallback((anchor: number, head?: number) => {
-    editorRef.current?.jumpToPosition(anchor, head);
-  }, []);
+    if (isMobile && viewMode !== 'source') {
+      pendingCursorRef.current = { anchor, head };
+      setViewMode('source');
+    } else {
+      editorRef.current?.jumpToPosition(anchor, head);
+    }
+  }, [isMobile, viewMode]);
 
   const scrollToCursor = useCallback((pos: number) => {
-    editorRef.current?.scrollToPosition(pos);
-  }, []);
+    if (isMobile && viewMode !== 'source') {
+      pendingCursorRef.current = { anchor: pos };
+      setViewMode('source');
+    } else {
+      editorRef.current?.scrollToPosition(pos);
+    }
+  }, [isMobile, viewMode]);
+
+  useEffect(() => {
+    if (viewMode === 'source' && pendingCursorRef.current) {
+      const { anchor, head } = pendingCursorRef.current;
+      pendingCursorRef.current = null;
+      editorRef.current?.jumpToPosition(anchor, head);
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     localStorage.setItem('wikicollab-viewMode', viewMode);
