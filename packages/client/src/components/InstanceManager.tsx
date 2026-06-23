@@ -89,7 +89,7 @@ export function InstanceManager({
     setApiUrl('');
     setNameIndex(-1);
     setSelectedPreset(null);
-    setNameOpen(true);
+    setNameOpen(false);
     setDialogOpen(true);
   };
 
@@ -173,7 +173,7 @@ export function InstanceManager({
 
   const dialogContent = (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="md:max-w-md">
+      <DialogContent className="md:max-w-md items-start md:items-stretch">
         <DialogHeader>
           <DialogTitle>Add MediaWiki Instance</DialogTitle>
           <DialogDescription>
