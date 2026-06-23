@@ -60,6 +60,8 @@ describe('SplitPaneEditor', () => {
     documentId: 'doc1',
   };
 
+  const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsMobile = false;
@@ -71,6 +73,7 @@ describe('SplitPaneEditor', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
   });
 
   it('renders source editor and preview panes', () => {

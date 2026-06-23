@@ -161,8 +161,9 @@ export function DocumentEditor() {
     setContentState(newContent);
   }, []);
 
+  const TITLE_MAX = 500;
   const handleTitleChange = useCallback((newTitle: string) => {
-    setTitle(newTitle);
+    setTitle(newTitle.slice(0, TITLE_MAX));
   }, []);
 
   useEffect(() => {
@@ -266,6 +267,7 @@ export function DocumentEditor() {
             <Input
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
+              maxLength={TITLE_MAX}
               className="flex-1 font-semibold text-sm h-8"
               placeholder="Document title"
             />
@@ -307,6 +309,7 @@ export function DocumentEditor() {
             <Input
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
+              maxLength={TITLE_MAX}
               className="max-w-xs font-semibold"
               placeholder="Document title"
             />
