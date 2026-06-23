@@ -144,7 +144,7 @@ export function Dashboard() {
                     key={key}
                     variant={sort === key ? 'secondary' : 'ghost'}
                     size="sm"
-                    className={`h-11 text-xs shrink-0 ${isMobile ? 'px-2' : ''}`}
+                    className={`h-8 md:h-7 text-xs shrink-0 ${isMobile ? 'px-2' : ''}`}
                     onClick={() => setSort(key)}
                   >
                     {SORT_LABELS[key]}
