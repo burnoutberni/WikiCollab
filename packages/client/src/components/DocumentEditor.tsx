@@ -671,7 +671,7 @@ export function DocumentEditor() {
 
       {/* Takeover Dialog */}
       <Dialog open={!!lockedByOther} onOpenChange={() => {}}>
-        <DialogContent className="md:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="md:max-w-md" hideCloseButton onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Session already open</DialogTitle>
             <DialogDescription>
