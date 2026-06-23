@@ -99,6 +99,9 @@ export function DocumentEditor() {
       setWikiTitle(doc.title);
       setContentState(doc.content);
       lastPersistedTitleRef.current = doc.title;
+      if (isMobile && !doc.content) {
+        setViewMode('source');
+      }
     }
   }, [doc]);
 
