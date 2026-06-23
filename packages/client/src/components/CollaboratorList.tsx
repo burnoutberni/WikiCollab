@@ -149,7 +149,7 @@ export function CollaboratorList({
   }, [showColors]);
 
   return (
-    <div className="space-y-1 mt-2">
+    <div className="space-y-2 md:space-y-1 mt-2">
       {/* Current user */}
       <div className="flex items-center gap-2 px-2 py-1.5 rounded-md relative group">
         <button
@@ -222,7 +222,7 @@ export function CollaboratorList({
                   }}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
-                <span className="text-[10px] leading-none text-muted-foreground">+</span>
+                <span className="text-lg md:text-[10px] leading-none text-muted-foreground">+</span>
               </label>
             </div>,
             document.body
