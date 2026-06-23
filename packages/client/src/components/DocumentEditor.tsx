@@ -657,6 +657,7 @@ export function DocumentEditor() {
                 }
               }}
               aria-label={linkCopied ? 'Link copied' : 'Share document'}
+              className="min-w-[5rem]"
             >
               {linkCopied ? (
                 <Check className="h-4 w-4 mr-2 text-green-500" />
