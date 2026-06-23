@@ -179,6 +179,9 @@ export function SplitPaneEditor({
     timerRef.current = setTimeout(refreshPreview, 500);
   }, [refreshPreview]);
 
+  const debouncedPreviewRef = useRef(debouncedPreview);
+  debouncedPreviewRef.current = debouncedPreview;
+
   useEffect(() => {
     if (isMobile && initialMobileTab !== 'preview') return;
     refreshPreview();
@@ -187,13 +190,16 @@ export function SplitPaneEditor({
   useEffect(() => {
     if (!ytext) return;
     if (isMobile && initialMobileTab !== 'preview') return;
-    const observer = () => debouncedPreview();
+    const observer = () => debouncedPreviewRef.current();
     ytext.observe(observer);
     return () => {
       ytext.unobserve(observer);
-      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [ytext, debouncedPreview, isMobile, initialMobileTab]);
+  }, [ytext, isMobile, initialMobileTab]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   const handlePreviewClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
