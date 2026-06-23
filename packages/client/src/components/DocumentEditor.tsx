@@ -475,11 +475,13 @@ export function DocumentEditor() {
           <main className="flex-1 overflow-hidden">
             {viewMode === 'source' && (
               <WikitextEditor
+                ref={editorRef}
                 content={content}
                 onChange={handleContentChange}
                 ytext={ytext}
                 provider={provider}
                 onRemoteChange={handleRemoteChange}
+                onCursorChange={handleCursorChange}
                 userName={userName}
                 userColor={userColor}
               />
