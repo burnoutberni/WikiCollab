@@ -149,7 +149,7 @@ export function CollaboratorList({
   }, [showColors]);
 
   return (
-    <div className="space-y-2 md:space-y-1 mt-2">
+    <div className="mt-4">
       {/* Current user */}
       <div className="flex items-center gap-2 px-2 py-1.5 rounded-md relative group">
         <button

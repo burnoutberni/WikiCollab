@@ -315,9 +315,10 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursor .cm-selectionBackground { background-color: var(--cm-y-selection) !important; }
 .cm-yLocalCursor .cm-content ::selection { background-color: var(--cm-y-selection) !important; }
 .cm-ySelectionInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
-.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { display: none !important; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { opacity: 0.5 !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }
 .cm-yLocalCaret { animation: cm-blink 1.2s step-end infinite; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { animation: none !important; }
 @keyframes cm-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }`}</style>
         <Toolbar
           view={view}
