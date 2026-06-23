@@ -121,7 +121,7 @@ export function ConnectionStatePopover({
             <button
               type="button"
               aria-label={`Connection status: ${statusText}. ${collaboratorCount} collaborator${collaboratorCount === 1 ? '' : 's'}`}
-              className="inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-80 h-9 rounded-md"
+              className="inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-80 h-9 rounded-md px-2 sm:px-0"
               data-testid="connection-state-trigger"
             >
               {statusIcon}
