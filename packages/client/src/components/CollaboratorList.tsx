@@ -15,7 +15,8 @@ interface CollaboratorListProps {
   onUserColorChange: (color: string) => void;
   onJumpToCursor: (anchor: number, head?: number) => void;
   onScrollToCursor: (pos: number) => void;
-  onCursorClicked?: () => void;
+  onLocalCursorClicked?: () => void;
+  onPeerCursorClicked?: () => void;
 }
 
 function posToLineCol(content: string, pos: number): { line: number; col: number } {
@@ -70,7 +71,8 @@ export function CollaboratorList({
   onUserColorChange,
   onJumpToCursor,
   onScrollToCursor,
-  onCursorClicked,
+  onLocalCursorClicked,
+  onPeerCursorClicked,
 }: CollaboratorListProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(userName);
@@ -262,7 +264,7 @@ export function CollaboratorList({
             className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1 min-h-[44px] md:min-h-0 px-1"
             onClick={() => {
               onJumpToCursor(localCursor.anchor, localCursor.head);
-              onCursorClicked?.();
+              onLocalCursorClicked?.();
             }}
           >
             <MousePointer2 className="h-2.5 w-2.5" />
@@ -291,7 +293,7 @@ export function CollaboratorList({
               className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1 min-h-[44px] md:min-h-0 px-1"
               onClick={() => {
                 onScrollToCursor(peer.cursor!.anchor);
-                onCursorClicked?.();
+                onPeerCursorClicked?.();
               }}
             >
               <MousePointer2 className="h-2.5 w-2.5" />

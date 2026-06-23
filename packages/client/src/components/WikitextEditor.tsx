@@ -296,6 +296,11 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
       undoManager.on('stack-cleared', checkUndoRedo);
       undoManager.on('stack-item-updated', checkUndoRedo);
 
+      // Trigger yCollab to sync the initial cursor position to awareness
+      // by dispatching a no-op selection update (same position, forces
+      // selectionSet so yCollab's update listener fires).
+      v.dispatch({ selection: v.state.selection });
+
       setView(v);
       checkUndoRedo();
 

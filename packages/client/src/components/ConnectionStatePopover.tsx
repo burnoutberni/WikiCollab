@@ -23,7 +23,8 @@ interface ConnectionStatePopoverProps {
   onUserColorChange: (color: string) => void;
   onJumpToCursor: (anchor: number, head?: number) => void;
   onScrollToCursor: (pos: number) => void;
-  onCursorClicked?: () => void;
+  onLocalCursorClicked?: () => void;
+  onPeerCursorClicked?: () => void;
 }
 
 function formatDuration(ms: number): string {
@@ -57,7 +58,8 @@ export function ConnectionStatePopover({
   onUserColorChange,
   onJumpToCursor,
   onScrollToCursor,
-  onCursorClicked,
+  onLocalCursorClicked,
+  onPeerCursorClicked,
 }: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
   const [retrying, setRetrying] = useState(false);
@@ -174,9 +176,13 @@ export function ConnectionStatePopover({
               onUserColorChange={onUserColorChange}
               onJumpToCursor={onJumpToCursor}
               onScrollToCursor={onScrollToCursor}
-              onCursorClicked={() => {
+              onLocalCursorClicked={() => {
                 setPopoverOpen(false);
-                onCursorClicked?.();
+                onLocalCursorClicked?.();
+              }}
+              onPeerCursorClicked={() => {
+                setPopoverOpen(false);
+                onPeerCursorClicked?.();
               }}
             />
 

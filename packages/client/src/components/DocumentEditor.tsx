@@ -137,12 +137,16 @@ export function DocumentEditor() {
 
   const pendingCursorRef = useRef<{ anchor: number; head?: number } | null>(null);
 
-  const handleCursorClicked = useCallback(() => {
+  const handleLocalCursorClicked = useCallback(() => {
     setMobileSheetOpen(false);
     requestAnimationFrame(() => {
       editorRef.current?.jumpToPosition(localCursor?.anchor ?? 0, localCursor?.head);
     });
   }, [localCursor]);
+
+  const handlePeerCursorClicked = useCallback(() => {
+    setMobileSheetOpen(false);
+  }, []);
 
   const jumpToCursor = useCallback(
     (anchor: number, head?: number) => {
@@ -321,7 +325,8 @@ export function DocumentEditor() {
               onUserColorChange={setUserColor}
               onJumpToCursor={jumpToCursor}
               onScrollToCursor={scrollToCursor}
-              onCursorClicked={handleCursorClicked}
+              onLocalCursorClicked={handleLocalCursorClicked}
+              onPeerCursorClicked={handlePeerCursorClicked}
             />
           </header>
         ) : (
@@ -448,6 +453,7 @@ export function DocumentEditor() {
 
               <div className="p-4 mt-auto border-t">
                 <button
+                  type="button"
                   className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
                   onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
                   aria-expanded={collaboratorsExpanded}
@@ -473,7 +479,8 @@ export function DocumentEditor() {
                     onUserColorChange={setUserColor}
                     onJumpToCursor={jumpToCursor}
                     onScrollToCursor={scrollToCursor}
-                    onCursorClicked={handleCursorClicked}
+                    onLocalCursorClicked={handleLocalCursorClicked}
+                    onPeerCursorClicked={handlePeerCursorClicked}
                   />
                 )}
               </div>
@@ -545,13 +552,15 @@ export function DocumentEditor() {
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}
-                onCursorClicked={handleCursorClicked}
+                onLocalCursorClicked={handleLocalCursorClicked}
+                onPeerCursorClicked={handlePeerCursorClicked}
               />
             </div>
             <div className="flex items-center gap-4">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     className="flex items-center gap-1.5 font-mono hover:underline cursor-pointer text-muted-foreground hover:text-foreground"
                     onClick={async () => {
                       await copyCurrentUrl();
@@ -590,6 +599,7 @@ export function DocumentEditor() {
 
           <div>
             <button
+              type="button"
               className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
               onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
               aria-expanded={collaboratorsExpanded}
@@ -615,7 +625,8 @@ export function DocumentEditor() {
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}
-                onCursorClicked={handleCursorClicked}
+                onLocalCursorClicked={handleLocalCursorClicked}
+                onPeerCursorClicked={handlePeerCursorClicked}
               />
             )}
           </div>

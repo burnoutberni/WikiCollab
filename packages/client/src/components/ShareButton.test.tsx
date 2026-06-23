@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -11,8 +11,11 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('ShareButton', () => {
+  let originalShare: PropertyDescriptor | undefined;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    originalShare = Object.getOwnPropertyDescriptor(navigator, 'share');
     Object.defineProperty(window, 'location', {
       value: { origin: 'http://localhost:5173' },
       writable: true,
@@ -23,6 +26,15 @@ describe('ShareButton', () => {
       writable: true,
       configurable: true,
     });
+  });
+
+  afterEach(() => {
+    if (originalShare) {
+      Object.defineProperty(navigator, 'share', originalShare);
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (navigator as any).share;
+    }
   });
 
   it('renders share link', () => {

@@ -35,6 +35,7 @@ export function InstallBanner() {
           </Button>
         )}
         <button
+          type="button"
           onClick={dismiss}
           className="h-11 w-11 rounded-md hover:bg-primary/80 transition-colors shrink-0 inline-flex items-center justify-center"
           aria-label="Dismiss"

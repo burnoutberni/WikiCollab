@@ -185,7 +185,7 @@ export function SplitPaneEditor({
   useEffect(() => {
     if (isMobile && initialMobileTab !== 'preview') return;
     refreshPreview();
-  }, [apiUrl, title]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [apiUrl, title, isMobile, initialMobileTab, refreshPreview]);
 
   useEffect(() => {
     if (!ytext) return;
