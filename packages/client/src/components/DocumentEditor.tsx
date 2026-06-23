@@ -63,12 +63,11 @@ export function DocumentEditor() {
     setUserName,
     setUserColor,
     provider,
-    awareness,
     setContent,
     sendCustomMessage,
     onCustomMessage,
     lastConnected,
-  } = useYjs(id || null, lockedByOther !== null);
+  } = useYjs(id || null);
 
   const isMobile = useIsMobile();
   const [title, setTitle] = useState('');
@@ -484,11 +483,10 @@ export function DocumentEditor() {
                 onChange={handleContentChange}
                 ytext={ytext}
                 provider={provider}
-                awareness={awareness}
                 onRemoteChange={handleRemoteChange}
-                onCursorChange={lockedByOther ? undefined : handleCursorChange}
-                userName={lockedByOther ? undefined : userName}
-                userColor={lockedByOther ? undefined : userColor}
+                onCursorChange={handleCursorChange}
+                userName={userName}
+                userColor={userColor}
               />
             )}
             {viewMode === 'split' && (
@@ -501,11 +499,10 @@ export function DocumentEditor() {
                 instanceCss={instances[0]?.css}
                 ytext={ytext}
                 provider={provider}
-                awareness={awareness}
-                userName={lockedByOther ? undefined : userName}
-                userColor={lockedByOther ? undefined : userColor}
+                userName={userName}
+                userColor={userColor}
                 editorRef={editorRef}
-                onCursorChange={lockedByOther ? undefined : handleCursorChange}
+                onCursorChange={handleCursorChange}
                 sendCustomMessage={sendCustomMessage}
                 onCustomMessage={onCustomMessage}
                 initialMobileTab={isMobile ? 'preview' : 'source'}

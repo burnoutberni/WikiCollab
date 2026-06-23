@@ -21,8 +21,6 @@ interface SplitPaneEditorProps {
   instanceCss?: string | null;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  awareness?: any;
   userName?: string;
   userColor?: string;
   editorRef?: React.RefObject<WikitextEditorHandle | null>;
@@ -76,7 +74,6 @@ export function SplitPaneEditor({
   instanceCss,
   ytext,
   provider,
-  awareness,
   userName,
   userColor,
   editorRef,
@@ -229,7 +226,6 @@ export function SplitPaneEditor({
               onChange={onChange}
               ytext={ytext}
               provider={provider}
-              awareness={awareness}
               userName={userName}
               userColor={userColor}
               onCursorChange={onCursorChange}
@@ -285,7 +281,6 @@ export function SplitPaneEditor({
           onChange={onChange}
           ytext={ytext}
           provider={provider}
-          awareness={awareness}
           userName={userName}
           userColor={userColor}
           onCursorChange={onCursorChange}

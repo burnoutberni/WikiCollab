@@ -66,15 +66,13 @@ type CustomMessageHandler<T = unknown> = (data: T) => void;
  * Sets up the shared Yjs document, websocket provider, IndexedDB cache, and awareness state.
  * Persists local identity fields in `localStorage`.
  */
-export function useYjs(docId: string | null, suppressCursor = false) {
+export function useYjs(docId: string | null) {
   const { connected, setConnected } = useConnection();
   const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ydoc = ydocRef.current;
   const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
   const ytext = ytextRef.current;
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const awarenessRef = useRef<any>(null);
   const [peers, setPeers] = useState<Presence[]>([]);
   const [lastConnected, setLastConnected] = useState<number | null>(null);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
@@ -151,27 +149,23 @@ export function useYjs(docId: string | null, suppressCursor = false) {
     };
     wsProvider.on('status', handleStatus);
 
-    const realAwareness = wsProvider.awareness;
+    wsProvider.awareness.setLocalStateField('cursor', null);
 
-    const awareness = suppressCursor
-      ? new Proxy(realAwareness, {
-          get(target, prop, receiver) {
-            if (prop === 'setLocalStateField') {
-              return (_field: string, _value: unknown) => {
-                // block all local state writes when cursor is suppressed
-                void _field;
-                void _value;
-              };
-            }
-            const val = Reflect.get(target, prop, receiver);
-            return typeof val === 'function' ? val.bind(target) : val;
-          },
-        })
-      : realAwareness;
+    const awareness = wsProvider.awareness;
 
-    if (!suppressCursor) {
-      realAwareness.setLocalStateField('cursor', null);
-    }
+    // Proxy getStates() so yCollab never renders stale cursors from previous
+    // sessions that share the same userName but have a different clientID.
+    const originalGetStates = awareness.getStates.bind(awareness);
+    awareness.getStates = () => {
+      const states = originalGetStates();
+      const filtered = new Map();
+      for (const [clientId, state] of states) {
+        if (clientId === freshDoc.clientID) continue;
+        if ((state as AwarenessState)?.user?.name === userNameRef.current) continue;
+        filtered.set(clientId, state);
+      }
+      return filtered;
+    };
 
     const updatePeers = () => {
       const states = Array.from(awareness.getStates().entries());
@@ -233,7 +227,6 @@ export function useYjs(docId: string | null, suppressCursor = false) {
     };
 
     setProvider(wsProvider);
-    awarenessRef.current = awareness;
 
     return () => {
       wsProvider.off('status', handleStatus);
@@ -243,11 +236,10 @@ export function useYjs(docId: string | null, suppressCursor = false) {
       freshDoc.destroy();
       setConnected(true);
       setProvider(null);
-      awarenessRef.current = null;
       setPeers([]);
       setLastConnected(null);
     };
-  }, [docId, setConnected, suppressCursor]);
+  }, [docId, setConnected]);
 
   useEffect(() => {
     if (!provider) return;
@@ -293,7 +285,6 @@ export function useYjs(docId: string | null, suppressCursor = false) {
     ydoc,
     ytext,
     provider,
-    awareness: awarenessRef.current,
     connected,
     lastConnected,
     peers,

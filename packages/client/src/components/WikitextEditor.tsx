@@ -170,8 +170,6 @@ interface WikitextEditorProps {
   onChange: (value: string) => void;
   ytext?: Y.Text | null;
   provider?: WebsocketProvider | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  awareness?: any;
   onRemoteChange?: (value: string) => void;
   onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
   userName?: string;
@@ -190,7 +188,7 @@ export interface WikitextEditorHandle {
  */
 export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(
   function WikitextEditor(
-    { ytext, provider, awareness: awarenessProp, onChange, onRemoteChange, onCursorChange, userName, userColor },
+    { ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor },
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -272,7 +270,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           EditorView.lineWrapping,
           langExtension,
           ...(userName && userColor ? [localCursorPlugin(userName, userColor)] : []),
-          yCollab(ytext, awarenessProp ?? provider.awareness, { undoManager }),
+          yCollab(ytext, provider.awareness, { undoManager }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               const newValue = update.state.doc.toString();
@@ -309,7 +307,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
         v.destroy();
         setView(null);
       };
-    }, [ytext, provider, awarenessProp, onChange, onRemoteChange, onCursorChange, userName, userColor]);
+    }, [ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor]);
 
     return (
       <div className="h-full w-full flex flex-col relative">
