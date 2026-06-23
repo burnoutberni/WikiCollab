@@ -215,9 +215,7 @@ export function InstanceManager({
                     }}
                   >
                     <span className="font-medium">{preset.name}</span>
-                    <span className="text-xs text-muted-foreground truncate">
-                      {preset.api_url}
-                    </span>
+                    <span className="text-xs text-muted-foreground truncate">{preset.api_url}</span>
                   </button>
                 ))}
               </div>

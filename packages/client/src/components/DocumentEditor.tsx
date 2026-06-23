@@ -144,23 +144,29 @@ export function DocumentEditor() {
     });
   }, [localCursor]);
 
-  const jumpToCursor = useCallback((anchor: number, head?: number) => {
-    if (isMobile && viewMode !== 'source') {
-      pendingCursorRef.current = { anchor, head };
-      setViewMode('source');
-    } else {
-      editorRef.current?.jumpToPosition(anchor, head);
-    }
-  }, [isMobile, viewMode]);
+  const jumpToCursor = useCallback(
+    (anchor: number, head?: number) => {
+      if (isMobile && viewMode !== 'source') {
+        pendingCursorRef.current = { anchor, head };
+        setViewMode('source');
+      } else {
+        editorRef.current?.jumpToPosition(anchor, head);
+      }
+    },
+    [isMobile, viewMode]
+  );
 
-  const scrollToCursor = useCallback((pos: number) => {
-    if (isMobile && viewMode !== 'source') {
-      pendingCursorRef.current = { anchor: pos };
-      setViewMode('source');
-    } else {
-      editorRef.current?.scrollToPosition(pos);
-    }
-  }, [isMobile, viewMode]);
+  const scrollToCursor = useCallback(
+    (pos: number) => {
+      if (isMobile && viewMode !== 'source') {
+        pendingCursorRef.current = { anchor: pos };
+        setViewMode('source');
+      } else {
+        editorRef.current?.scrollToPosition(pos);
+      }
+    },
+    [isMobile, viewMode]
+  );
 
   useEffect(() => {
     if (viewMode === 'source' && pendingCursorRef.current) {
@@ -671,7 +677,11 @@ export function DocumentEditor() {
 
       {/* Takeover Dialog */}
       <Dialog open={!!lockedByOther} onOpenChange={() => {}}>
-        <DialogContent className="md:max-w-md" hideCloseButton onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent
+          className="md:max-w-md"
+          hideCloseButton
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Session already open</DialogTitle>
             <DialogDescription>

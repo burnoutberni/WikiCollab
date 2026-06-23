@@ -16,7 +16,8 @@ vi.mock('@/hooks/useMediaQuery', () => ({
 const mockWikitextEditor = vi.fn();
 
 vi.mock('@/components/WikitextEditor', () => ({
-  WikitextEditor: (props: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  WikitextEditor: (props: any) => {
     mockWikitextEditor(props);
     return <div data-testid="wikitext-editor">WikitextEditor</div>;
   },

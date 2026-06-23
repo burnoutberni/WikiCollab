@@ -248,7 +248,9 @@ export function Dashboard() {
               GitHub
             </a>
           </p>
-          <p className="pb-4">Content may be deleted at any time. No illegal content. No warranty.</p>
+          <p className="pb-4">
+            Content may be deleted at any time. No illegal content. No warranty.
+          </p>
         </footer>
       </div>
     </TooltipProvider>
