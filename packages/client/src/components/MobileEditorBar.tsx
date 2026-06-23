@@ -72,7 +72,7 @@ export function MobileEditorBar({
           variant={sidebarOpen ? 'secondary' : 'ghost'}
           size="sm"
           onClick={onToggleSidebar}
-          className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
+          className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 w-[4.5rem]"
           data-testid="mobile-toggle-settings"
           aria-label="Toggle settings panel"
           aria-haspopup="dialog"
@@ -83,7 +83,7 @@ export function MobileEditorBar({
         </Button>
 
         <div className="flex-1 flex justify-center">
-          <div className="flex items-center border rounded-md">
+          <div className="flex items-center border rounded-md shrink-0">
             <Button
               variant={viewMode === 'source' ? 'secondary' : 'ghost'}
               size="sm"
@@ -113,7 +113,7 @@ export function MobileEditorBar({
           variant="ghost"
           size="sm"
           onClick={handleShare}
-          className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
+          className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 w-[4.5rem]"
           data-testid="mobile-share"
           aria-label={copied ? 'Link copied' : 'Share document'}
         >
