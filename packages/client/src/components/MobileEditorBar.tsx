@@ -67,7 +67,7 @@ export function MobileEditorBar({
 
   return (
     <div className="md:hidden border-t bg-background safe-area-bottom">
-      <div className="flex items-center py-1.5 px-2">
+      <div className="flex items-center py-1.5 pb-3 px-2">
         <Button
           variant={sidebarOpen ? 'secondary' : 'ghost'}
           size="sm"
