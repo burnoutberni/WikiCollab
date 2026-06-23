@@ -145,14 +145,14 @@ describe('DocumentEditor', () => {
       unobserve: vi.fn(),
       _length: 0,
       doc: null,
-    } as any;
+    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     const mockYDoc = {
       on: vi.fn(),
       off: vi.fn(),
       getText: vi.fn(),
       destroy: vi.fn(),
       clientID: 1,
-    } as any;
+    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     useYjsMock.mockReturnValue({
       ydoc: mockYDoc,
       ytext: mockYText,
@@ -169,7 +169,7 @@ describe('DocumentEditor', () => {
       sendCustomMessage: vi.fn(),
       onCustomMessage: vi.fn(),
       lastConnected: Date.now() - 5000,
-    } as any);
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
   });
 
   it('shows loading state', () => {

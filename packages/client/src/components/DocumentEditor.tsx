@@ -103,7 +103,7 @@ export function DocumentEditor() {
         setViewMode('source');
       }
     }
-  }, [doc]);
+  }, [doc, isMobile]);
 
   useEffect(() => {
     return () => {
