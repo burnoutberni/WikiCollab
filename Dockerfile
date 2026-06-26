@@ -1,4 +1,4 @@
-FROM node:22-alpine AS base
+FROM node:22.23.1-alpine AS base
 
 ARG VITE_DEMO_MODE
 ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
@@ -18,7 +18,7 @@ COPY . .
 
 RUN pnpm run build
 
-FROM node:22-alpine AS production
+FROM node:22.23.1-alpine AS production
 
 ARG VERSION=0.0.0
 
