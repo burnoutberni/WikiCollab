@@ -83,7 +83,9 @@ export function useDocuments() {
       if (!res.ok) {
         throw new Error(doc.error || 'Failed to create document');
       }
-      setDocuments((prev) => [doc, ...prev]);
+      if (doc.visibility !== 'unlisted') {
+        setDocuments((prev) => [doc, ...prev]);
+      }
       return doc;
     },
     []

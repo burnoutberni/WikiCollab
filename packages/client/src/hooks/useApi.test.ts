@@ -130,6 +130,27 @@ describe('useDocuments', () => {
         }),
       })
     );
+    expect(result.current.documents).toEqual([]);
+  });
+
+  it('createDocument keeps existing list unchanged for unlisted documents', async () => {
+    const existing = [createDoc({ id: '1', title: 'Visible doc' })];
+    const newDoc = createDoc({ id: '2', title: 'Hidden doc', visibility: 'unlisted' });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(existing) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(newDoc) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.createDocument('Hidden doc', undefined, 'Secret', 'unlisted');
+    });
+
+    expect(result.current.documents).toEqual(existing);
   });
 
   it('deleteDocument removes document from list', async () => {
