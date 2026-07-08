@@ -29,10 +29,10 @@ import {
   highlightActiveLineGutter,
   highlightSpecialChars,
   keymap,
+  layer,
   lineNumbers,
   rectangularSelection,
   ViewPlugin,
-  WidgetType,
 } from '@codemirror/view';
 import {
   Ban,
@@ -72,47 +72,63 @@ import * as Y from 'yjs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
-/** Draws the local user's caret and label without relying on remote awareness rendering. */
-class LocalCursorWidget extends WidgetType {
-  constructor(
-    readonly color: string,
-    readonly name: string
-  ) {
-    super();
-  }
-  toDOM() {
-    const span = document.createElement('span');
-    span.className = 'cm-ySelectionCaret cm-yLocalCaret';
-    span.style.cssText = `background-color: ${this.color}; border-color: ${this.color}`;
-    span.textContent = '\u2060';
-    const dot = document.createElement('div');
-    dot.className = 'cm-ySelectionCaretDot';
-    span.appendChild(dot);
-    const info = document.createElement('div');
-    info.className = 'cm-ySelectionInfo';
-    info.textContent = this.name + ' (you)';
-    span.appendChild(info);
-    return span;
-  }
-  eq(other: LocalCursorWidget) {
-    return this.color === other.color && this.name === other.name;
-  }
-  compare(other: LocalCursorWidget) {
-    return this.color === other.color && this.name === other.name;
-  }
+/** Converts viewport-relative coords from `coordsAtPos` to scrollDOM-relative coords for the layer. */
+function getBase(view: EditorView) {
+  const rect = view.scrollDOM.getBoundingClientRect();
+  return {
+    left: rect.left - view.scrollDOM.scrollLeft * view.scaleX,
+    top: rect.top - view.scrollDOM.scrollTop * view.scaleY,
+  };
 }
 
-/** Mirrors the current selection as local-only decorations so the active user sees their own label. */
+/** Renders the local user's cursor label as a layer overlay (no widget decoration, so arrow keys work). */
 function localCursorPlugin(userName: string, userColor: string) {
   const colorLight = userColor + '33';
-  const cursorDeco = Decoration.widget({
-    widget: new LocalCursorWidget(userColor, userName),
-    side: 1,
-  });
   const selDeco = Decoration.mark({
     class: 'cm-ySelection',
     attributes: { style: `background-color: ${colorLight}` },
   });
+
+  const cursorLabel = layer({
+    above: true,
+    class: 'cm-yLocalCursorLayer',
+    markers(view: EditorView) {
+      const sel = view.state.selection.main;
+      if (!sel.empty) return [];
+      const rect = view.coordsAtPos(sel.head, 1);
+      if (!rect) return [];
+      const base = getBase(view);
+      const x = rect.left - base.left;
+      const y = rect.top - base.top;
+      const height = rect.bottom - rect.top;
+      return [
+        {
+          eq() {
+            return false;
+          },
+          draw() {
+            const container = document.createElement('div');
+            container.className = 'cm-yLocalCursorLabel';
+            container.style.cssText = `position:absolute;left:${x}px;top:${y}px;height:${height}px`;
+            const line = document.createElement('div');
+            line.className = 'cm-yLocalCursorLine';
+            line.style.cssText = `background-color:${userColor}`;
+            const info = document.createElement('div');
+            info.className = 'cm-yLocalCursorInfo';
+            info.style.cssText = `background-color:${userColor}`;
+            info.textContent = userName + ' (you)';
+            line.appendChild(info);
+            container.appendChild(line);
+            return container;
+          },
+        },
+      ];
+    },
+    update(update) {
+      return update.selectionSet || update.docChanged;
+    },
+  });
+
   return [
     EditorView.editorAttributes.of({
       class: 'cm-yLocalCursor',
@@ -135,7 +151,6 @@ function localCursorPlugin(userName: string, userColor: string) {
           if (sel.from !== sel.to) {
             decos.push(selDeco.range(sel.from, sel.to));
           }
-          decos.push(cursorDeco.range(sel.to));
           return RangeSet.of(decos);
         }
       },
@@ -143,6 +158,7 @@ function localCursorPlugin(userName: string, userColor: string) {
         decorations: (v) => v.decorations,
       }
     ),
+    cursorLabel,
   ];
 }
 
@@ -319,12 +335,15 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
         <style>{`.cm-yLocalCursor .cm-cursor { display: none !important; }
 .cm-yLocalCursor .cm-selectionBackground { background-color: var(--cm-y-selection) !important; }
 .cm-yLocalCursor .cm-content ::selection { background-color: var(--cm-y-selection) !important; }
-.cm-ySelectionInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
-.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { opacity: 0.5 !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }
-.cm-yLocalCaret { animation: cm-blink 1.2s step-end infinite; }
-.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { animation: none !important; }
-@keyframes cm-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }`}</style>
+.cm-yLocalCursorLayer { pointer-events: none; }
+.cm-yLocalCursorLabel { position: absolute; }
+.cm-yLocalCursorLine { width: 2px; height: 100%; border-radius: 1px; position: relative; animation: cm-y-blink 1.2s step-end infinite; }
+.cm-yLocalCursorInfo { position: absolute; bottom: 0; left: 2px; transform: translateY(100%); padding: 1px 4px; border-radius: 0 0 3px 3px; color: white; font-size: .75em; font-family: serif; font-style: normal; font-weight: normal; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; }
+.cm-yLocalCursorLine:hover > .cm-yLocalCursorInfo { opacity: 1; transition-delay: 0s; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorLine { animation: none !important; opacity: 0.5 !important; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorInfo { opacity: 0 !important; }
+@keyframes cm-y-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }`}</style>
         <Toolbar
           view={view}
           undoManager={undoManagerRef.current}
