@@ -89,7 +89,7 @@ function localCursorPlugin(userName: string, userColor: string) {
     attributes: { style: `background-color: ${colorLight}` },
   });
 
-  let flashUntil = 0;
+  let flashStart = 0;
 
   const cursorLabel = layer({
     above: true,
@@ -123,7 +123,7 @@ function localCursorPlugin(userName: string, userColor: string) {
             info.textContent = userName + ' (you)';
             line.appendChild(info);
             container.appendChild(line);
-            if (Date.now() < flashUntil) {
+            if (flashStart && Date.now() - flashStart < 1500) {
               line.classList.add('cm-y-flash');
             }
             return container;
@@ -137,14 +137,17 @@ function localCursorPlugin(userName: string, userColor: string) {
   });
 
   function flash(name: string) {
-    flashUntil = Date.now() + 1500;
+    flashStart = Date.now();
     requestAnimationFrame(() => {
       const localLabel = document.querySelector('.cm-yLocalCursorInfo');
       if (localLabel && localLabel.textContent?.startsWith(name)) {
         const line = localLabel.closest('.cm-yLocalCursorLine');
-        if (line && !line.classList.contains('cm-y-flash')) {
+        if (line) {
           line.classList.add('cm-y-flash');
-          setTimeout(() => line.classList.remove('cm-y-flash'), 1500);
+          setTimeout(() => {
+            line.classList.remove('cm-y-flash');
+            flashStart = 0;
+          }, 1500);
         }
       }
     });
@@ -381,9 +384,10 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorLine { opacity: 0.5 !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorInfo { opacity: 0 !important; }
 @keyframes cm-y-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-@keyframes cm-y-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
-.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionInfo { opacity: 1 !important; animation: cm-y-flash 1.5s ease-out forwards; }
-.cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorInfo { opacity: 1 !important; animation: cm-y-flash 1.5s ease-out forwards; }
+.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionInfo { opacity: 1 !important; }
+.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionCaretDot { transform: scale(0) !important; }
+.cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorInfo { opacity: 1 !important; }
+.cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorDot { transform: scale(0) !important; }
 .cm-ySelectionInfo, .cm-yLocalCursorInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }`}</style>
         <Toolbar
           view={view}
