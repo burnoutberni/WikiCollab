@@ -123,6 +123,8 @@ vi.mock('lucide-react', () => {
         'Eye',
         'FileText',
         'FileCode',
+        'Globe',
+        'Link2',
         'RefreshCw',
         'Save',
         'Settings',
@@ -280,7 +282,7 @@ describe('DocumentEditor', () => {
 
     renderWithProviders(<DocumentEditor />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Anyone with the link/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /Link/i }));
     await vi.advanceTimersByTimeAsync(300);
 
     expect(fetch).toHaveBeenCalledWith(

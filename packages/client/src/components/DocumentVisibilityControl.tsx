@@ -1,23 +1,5 @@
+import { Globe, Link2 } from 'lucide-react';
 import type { DocumentVisibility } from 'shared';
-
-import { Button } from '@/components/ui/button';
-
-const VISIBILITY_OPTIONS: Array<{
-  value: DocumentVisibility;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: 'public',
-    label: 'Public',
-    description: 'Shows up on the start page and in search results.',
-  },
-  {
-    value: 'unlisted',
-    label: 'Anyone with the link',
-    description: 'Hidden from the start page and search, but anyone with the link can open it.',
-  },
-];
 
 interface DocumentVisibilityControlProps {
   visibility: DocumentVisibility;
@@ -30,6 +12,8 @@ export function DocumentVisibilityControl({
   onChange,
   disabled = false,
 }: DocumentVisibilityControlProps) {
+  const isPublic = visibility === 'public';
+
   return (
     <section className="space-y-3" aria-labelledby="document-visibility-heading">
       <div className="space-y-1">
@@ -42,30 +26,48 @@ export function DocumentVisibilityControl({
         </p>
       </div>
 
-      <div className="grid gap-2">
-        {VISIBILITY_OPTIONS.map((option) => {
-          const selected = visibility === option.value;
+      <div
+        className="relative flex rounded-lg bg-muted p-1"
+        role="radiogroup"
+        aria-labelledby="document-visibility-heading"
+      >
+        <div
+          className="absolute top-1 bottom-1 rounded-md bg-background shadow-sm transition-all duration-200 ease-in-out"
+          style={{
+            left: isPublic ? '50%' : '4px',
+            width: 'calc(50% - 4px)',
+          }}
+          aria-hidden="true"
+        />
 
-          return (
-            <Button
-              key={option.value}
-              type="button"
-              variant={selected ? 'secondary' : 'outline'}
-              className="h-auto w-full justify-start px-3 py-3 text-left"
-              onClick={() => onChange(option.value)}
-              disabled={disabled}
-              aria-pressed={selected}
-            >
-              <div>
-                <div className="text-sm font-medium">{option.label}</div>
-                <div className="text-xs text-muted-foreground whitespace-normal">
-                  {option.description}
-                </div>
-              </div>
-            </Button>
-          );
-        })}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!isPublic}
+          className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
+          onClick={() => onChange('unlisted')}
+          disabled={disabled}
+        >
+          <Link2 className="h-4 w-4" />
+          <span>Link</span>
+        </button>
+
+        <button
+          type="button"
+          role="radio"
+          aria-checked={isPublic}
+          className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
+          onClick={() => onChange('public')}
+          disabled={disabled}
+        >
+          <Globe className="h-4 w-4" />
+          <span>Public</span>
+        </button>
       </div>
+
+      <p className="text-xs text-muted-foreground text-center">
+        {!isPublic ? 'Only accessible via direct link' : 'Visible on start page and in search'}
+      </p>
     </section>
   );
 }
