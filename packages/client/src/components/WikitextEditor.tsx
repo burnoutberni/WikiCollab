@@ -94,7 +94,6 @@ function localCursorPlugin(userName: string, userColor: string) {
     class: 'cm-yLocalCursorLayer',
     markers(view: EditorView) {
       const sel = view.state.selection.main;
-      if (!sel.empty) return [];
       const rect = view.coordsAtPos(sel.head, 1);
       if (!rect) return [];
       const base = getBase(view);
@@ -341,12 +340,13 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }
 .cm-yLocalCursorLayer { pointer-events: none; }
 .cm-yLocalCursorLabel { position: absolute; }
-.cm-yLocalCursorLine { border-left: 1px solid; border-right: 1px solid; margin-left: -1px; margin-right: -1px; box-sizing: border-box; height: 100%; position: relative; animation: cm-y-blink 1.2s step-end infinite; }
-.cm-yLocalCursorDot { position: absolute; width: .4em; height: .4em; top: -.2em; left: -.2em; border-radius: 50%; background-color: inherit; transition: transform .3s ease-in-out; }
+.cm-yLocalCursorLine { border-left: 1px solid; border-right: 1px solid; margin-left: -1px; margin-right: -1px; box-sizing: border-box; height: 100%; position: relative; }
+.cm-yLocalCursorDot { position: absolute; width: .4em; height: .4em; top: -.2em; left: -.2em; border-radius: 50%; background-color: inherit; transition: transform .3s ease-in-out; animation: cm-y-blink 1.2s step-end infinite; }
 .cm-yLocalCursorLine:hover > .cm-yLocalCursorDot { transform: scale(0); }
 .cm-yLocalCursorInfo { position: absolute; top: -1.05em; left: -1px; font-size: .75em; font-style: normal; font-weight: normal; line-height: normal; user-select: none; color: white; padding-left: 2px; padding-right: 2px; z-index: 101; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; background-color: inherit; }
 .cm-yLocalCursorLine:hover > .cm-yLocalCursorInfo { opacity: 1; transition-delay: 0s; }
-.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorLine { animation: none !important; opacity: 0.5 !important; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorDot { animation: none !important; opacity: 0.5 !important; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorLine { opacity: 0.5 !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorInfo { opacity: 0 !important; }
 @keyframes cm-y-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
 @keyframes cm-y-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
