@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useDocument, useInstances } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { usePersistField } from '@/hooks/usePersistField';
 import { useYjs } from '@/hooks/useYjs';
 
 import { BottomSheet } from './BottomSheet';
@@ -218,59 +219,18 @@ export function DocumentEditor() {
     setTitle(newTitle.slice(0, TITLE_MAX));
   }, []);
 
-  useEffect(() => {
-    if (!id || loading || title === lastPersistedTitleRef.current) return;
+  const revertTitle = useCallback((v: string) => setTitle(v), []);
+  const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
 
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => {
-      void fetch(`/api/docs/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-        signal: controller.signal,
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error(`Failed to update document title (${res.status})`);
-          lastPersistedTitleRef.current = title;
-        })
-        .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === 'AbortError') return;
-          console.error('Failed to update document title:', error);
-        });
-    }, 300);
-
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [id, title, loading]);
-
-  useEffect(() => {
-    if (!id || loading || visibility === lastPersistedVisibilityRef.current) return;
-
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => {
-      void fetch(`/api/docs/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visibility }),
-        signal: controller.signal,
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error(`Failed to update document visibility (${res.status})`);
-          lastPersistedVisibilityRef.current = visibility;
-        })
-        .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === 'AbortError') return;
-          console.error('Failed to update document visibility:', error);
-        });
-    }, 300);
-
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [id, visibility, loading]);
+  usePersistField(id || null, loading, title, lastPersistedTitleRef, 'title', revertTitle);
+  usePersistField(
+    id || null,
+    loading,
+    visibility,
+    lastPersistedVisibilityRef,
+    'visibility',
+    revertVisibility
+  );
 
   const handleContentChange = useCallback(
     (newContent: string) => {

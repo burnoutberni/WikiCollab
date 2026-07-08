@@ -75,8 +75,16 @@ export function Dashboard() {
 
   const handleCreate = useCallback(
     async (visibility: DocumentVisibility) => {
-      const doc = await createDocument('Untitled', undefined, NEW_DOC_BOILERPLATE, visibility);
-      navigate(`/doc/${doc.id}`);
+      try {
+        const doc = await createDocument({
+          title: 'Untitled',
+          content: NEW_DOC_BOILERPLATE,
+          visibility,
+        });
+        navigate(`/doc/${doc.id}`);
+      } catch (error) {
+        console.error('Failed to create document:', error);
+      }
     },
     [createDocument, navigate]
   );

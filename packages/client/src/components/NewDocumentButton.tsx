@@ -95,12 +95,13 @@ export function NewDocumentButton({
     [onCreate]
   );
 
-  const trigger = (
+  const triggerButton = (onClick?: () => void) => (
     <Button
       size={compact ? 'sm' : 'default'}
       aria-label="New Document"
       title="New Document"
       className={className}
+      onClick={onClick}
     >
       <Plus className="h-4 w-4" />
       {!compact && <span className="ml-2">New Document</span>}
@@ -111,17 +112,7 @@ export function NewDocumentButton({
   if (isMobile) {
     return (
       <>
-        <Button
-          size={compact ? 'sm' : 'default'}
-          aria-label="New Document"
-          title="New Document"
-          className={className}
-          onClick={() => setOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          {!compact && <span className="ml-2">New Document</span>}
-          <ChevronDown className="ml-1 h-4 w-4" />
-        </Button>
+        {triggerButton(() => setOpen(true))}
         <BottomSheet open={open} onOpenChange={setOpen} title="New Document">
           <DocumentTypePicker onSelect={handleSelect} />
         </BottomSheet>
@@ -131,7 +122,7 @@ export function NewDocumentButton({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverTrigger asChild>{triggerButton()}</PopoverTrigger>
       <PopoverContent className={fullWidth ? 'w-[22rem]' : 'w-[20rem]'} align="end" sideOffset={8}>
         <DocumentTypePicker onSelect={handleSelect} />
       </PopoverContent>

@@ -1,18 +1,38 @@
 import { Globe, Link2 } from 'lucide-react';
+import { useCallback } from 'react';
 import type { DocumentVisibility } from 'shared';
 
 interface DocumentVisibilityControlProps {
   visibility: DocumentVisibility;
   onChange: (visibility: DocumentVisibility) => void;
-  disabled?: boolean;
 }
+
+const VISIBILITY_OPTIONS: DocumentVisibility[] = ['public', 'unlisted'];
 
 export function DocumentVisibilityControl({
   visibility,
   onChange,
-  disabled = false,
 }: DocumentVisibilityControlProps) {
   const isPublic = visibility === 'public';
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const current = VISIBILITY_OPTIONS.indexOf(visibility);
+      let next: number | null = null;
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        next = (current + 1) % VISIBILITY_OPTIONS.length;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        next = (current - 1 + VISIBILITY_OPTIONS.length) % VISIBILITY_OPTIONS.length;
+      }
+
+      if (next !== null) {
+        e.preventDefault();
+        onChange(VISIBILITY_OPTIONS[next]);
+      }
+    },
+    [visibility, onChange]
+  );
 
   return (
     <section className="space-y-3" aria-labelledby="document-visibility-heading">
@@ -30,6 +50,7 @@ export function DocumentVisibilityControl({
         className="relative flex rounded-lg bg-muted p-1"
         role="radiogroup"
         aria-labelledby="document-visibility-heading"
+        onKeyDown={handleKeyDown}
       >
         <div
           className="absolute top-1 bottom-1 rounded-md bg-background shadow-sm transition-all duration-200 ease-in-out"
@@ -44,9 +65,9 @@ export function DocumentVisibilityControl({
           type="button"
           role="radio"
           aria-checked={!isPublic}
+          tabIndex={isPublic ? -1 : 0}
           className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
           onClick={() => onChange('unlisted')}
-          disabled={disabled}
         >
           <Link2 className="h-4 w-4" />
           <span>Link</span>
@@ -56,9 +77,9 @@ export function DocumentVisibilityControl({
           type="button"
           role="radio"
           aria-checked={isPublic}
+          tabIndex={isPublic ? 0 : -1}
           className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
           onClick={() => onChange('public')}
-          disabled={disabled}
         >
           <Globe className="h-4 w-4" />
           <span>Public</span>

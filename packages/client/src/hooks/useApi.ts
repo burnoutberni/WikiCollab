@@ -68,15 +68,20 @@ export function useDocuments() {
   }, [pendingDocs]);
 
   const createDocument = useCallback(
-    async (title?: string, slug?: string, content?: string, visibility?: DocumentVisibility) => {
+    async (options?: {
+      title?: string;
+      slug?: string;
+      content?: string;
+      visibility?: DocumentVisibility;
+    }) => {
       const res = await fetch(`${API_BASE}/docs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          slug: slug || undefined,
-          content: content || undefined,
-          visibility: visibility || undefined,
+          title: options?.title,
+          slug: options?.slug || undefined,
+          content: options?.content || undefined,
+          visibility: options?.visibility || undefined,
         }),
       });
       const doc = await res.json();

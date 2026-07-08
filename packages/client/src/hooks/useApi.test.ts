@@ -94,7 +94,7 @@ describe('useDocuments', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.createDocument('New Doc');
+      await result.current.createDocument({ title: 'New Doc' });
     });
 
     expect(fetch).toHaveBeenCalledWith('/api/docs', expect.objectContaining({ method: 'POST' }));
@@ -115,7 +115,11 @@ describe('useDocuments', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.createDocument('Link only', undefined, 'Secret', 'unlisted');
+      await result.current.createDocument({
+        title: 'Link only',
+        content: 'Secret',
+        visibility: 'unlisted',
+      });
     });
 
     expect(fetch).toHaveBeenLastCalledWith(
@@ -147,7 +151,11 @@ describe('useDocuments', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.createDocument('Hidden doc', undefined, 'Secret', 'unlisted');
+      await result.current.createDocument({
+        title: 'Hidden doc',
+        content: 'Secret',
+        visibility: 'unlisted',
+      });
     });
 
     expect(result.current.documents).toEqual(existing);

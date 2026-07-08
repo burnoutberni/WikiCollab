@@ -211,12 +211,11 @@ describe('Dashboard', () => {
     await user.click(screen.getAllByRole('button', { name: 'New Document' })[0]);
     await user.click(screen.getByRole('button', { name: /Public document/i }));
 
-    expect(mockCreateDocument).toHaveBeenCalledWith(
-      'Untitled',
-      undefined,
-      expect.any(String),
-      'public'
-    );
+    expect(mockCreateDocument).toHaveBeenCalledWith({
+      title: 'Untitled',
+      content: expect.any(String),
+      visibility: 'public',
+    });
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1');
     });
@@ -229,12 +228,11 @@ describe('Dashboard', () => {
     await user.click(screen.getAllByRole('button', { name: 'New Document' })[0]);
     await user.click(screen.getByRole('button', { name: /Anyone with the link/i }));
 
-    expect(mockCreateDocument).toHaveBeenCalledWith(
-      'Untitled',
-      undefined,
-      expect.any(String),
-      'unlisted'
-    );
+    expect(mockCreateDocument).toHaveBeenCalledWith({
+      title: 'Untitled',
+      content: expect.any(String),
+      visibility: 'unlisted',
+    });
   });
 
   it('uses the mobile bottom sheet chooser on small screens', async () => {

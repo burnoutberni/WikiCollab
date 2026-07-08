@@ -294,6 +294,25 @@ describe('DocumentEditor', () => {
     );
   });
 
+  it('reverts visibility on PATCH failure', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    vi.stubGlobal('fetch', fetch);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderWithProviders(<DocumentEditor />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Link/i }));
+    expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true');
+
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(fetch).toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith('Failed to update visibility:', expect.any(Error));
+
+    consoleError.mockRestore();
+  });
+
   it('replays pending mobile scroll actions as scrolls after switching to source view', async () => {
     const user = userEvent.setup();
     mockIsMobile = true;
