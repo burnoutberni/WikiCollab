@@ -1,7 +1,7 @@
 {
   "name": "wikicollab",
   "private": true,
-  "packageManager": "pnpm@10.34.4",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "dev": "pnpm --filter shared build && concurrently \"pnpm run dev:shared\" \"pnpm run dev:server\" \"pnpm run dev:client\"",
     "dev:shared": "pnpm --filter shared exec tsc --watch",
@@ -33,11 +33,5 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
     "vitest": "^4.1.10"
-  },
-  "pnpm": {
-    "overrides": {
-      "undici@>=7.23.0 <7.28.0": "7.28.0",
-      "undici@>=8.0.0 <8.5.0": "8.5.0"
-    }
   }
 }
