@@ -145,7 +145,7 @@ function localCursorPlugin(userName: string, userColor: string) {
     }
     requestAnimationFrame(() => {
       const localLabel = document.querySelector('.cm-yLocalCursorInfo');
-      if (localLabel && localLabel.textContent?.startsWith(name)) {
+      if (localLabel && localLabel.textContent === name + ' (you)') {
         const line = localLabel.closest('.cm-yLocalCursorLine');
         if (line) {
           line.classList.add('cm-y-flash');
