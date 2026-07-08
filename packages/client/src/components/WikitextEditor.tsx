@@ -6,7 +6,6 @@ import {
   closeBracketsKeymap,
   completionKeymap,
 } from '@codemirror/autocomplete';
-
 import {
   bracketMatching,
   defaultHighlightStyle,
@@ -323,13 +322,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           rectangularSelection(),
           crosshairCursor(),
           highlightActiveLine(),
-          keymap.of([
-            ...closeBracketsKeymap,
-            ...searchKeymap,
-
-            ...foldKeymap,
-            ...completionKeymap,
-          ]),
+          keymap.of([...closeBracketsKeymap, ...searchKeymap, ...foldKeymap, ...completionKeymap]),
           EditorView.lineWrapping,
           langExtension,
           ...(userName && userColor
