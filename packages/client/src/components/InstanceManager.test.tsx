@@ -90,7 +90,7 @@ describe('InstanceManager', () => {
     expect(addButton).toBeDisabled();
   });
 
-  it('shows an empty state when no preset matches the search', async () => {
+  it('hides the preset dropdown when no preset matches the search', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);
 
@@ -98,10 +98,13 @@ describe('InstanceManager', () => {
 
     const dialog = await screen.findByRole('dialog');
     const nameInput = within(dialog).getByLabelText('Name');
-    await user.type(nameInput, 'No Such Preset');
     await user.click(nameInput);
+    expect(within(dialog).getByText('English Wikipedia')).toBeInTheDocument();
 
-    expect(within(dialog).getByText('No matching presets')).toBeInTheDocument();
+    await user.clear(nameInput);
+    await user.type(nameInput, 'No Such Preset');
+
+    expect(within(dialog).queryByText('English Wikipedia')).not.toBeInTheDocument();
   });
 
   it('opens delete confirmation when clicking trash icon', async () => {

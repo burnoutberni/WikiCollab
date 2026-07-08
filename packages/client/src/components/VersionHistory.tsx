@@ -134,7 +134,7 @@ export function VersionHistory({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-[500px] relative">
+        <ScrollArea className="relative min-h-0 flex-1 md:h-[500px] md:flex-none">
           {loading ? (
             <div className="flex items-center justify-center p-8 text-muted-foreground">
               Loading versions...

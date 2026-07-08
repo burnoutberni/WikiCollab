@@ -1,7 +1,7 @@
 export const DIALOG_CONTENT_CLASSES = {
   base: 'fixed z-50 grid gap-4 bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
   mobile:
-    'inset-0 w-full h-full overflow-y-auto overscroll-contain rounded-none border-none safe-area-top safe-area-bottom',
+    'inset-0 w-full h-full overflow-y-auto overscroll-contain rounded-none border-none safe-area-top-6 safe-area-bottom',
   mobileAnimation:
     'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom md:data-[state=closed]:slide-out-to-left-1/2 md:data-[state=closed]:slide-out-to-top-[48%] md:data-[state=open]:slide-in-from-left-1/2 md:data-[state=open]:slide-in-from-top-[48%]',
   desktop:

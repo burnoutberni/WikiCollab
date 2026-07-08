@@ -105,6 +105,9 @@
   .safe-area-right {
     padding-right: env(safe-area-inset-right, 0px);
   }
+  .safe-area-top-6 {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
+  }
   .touch-none {
     touch-action: none;
   }
