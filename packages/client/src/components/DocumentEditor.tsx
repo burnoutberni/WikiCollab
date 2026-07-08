@@ -167,11 +167,7 @@ export function DocumentEditor() {
 
   const handleLocalCursorClicked = useCallback(() => {
     setMobileSheetOpen(false);
-    flashPeerCursor(userName);
-    requestAnimationFrame(() => {
-      editorRef.current?.jumpToPosition(localCursor?.anchor ?? 0, localCursor?.head);
-    });
-  }, [localCursor, userName, flashPeerCursor]);
+  }, []);
 
   const handlePeerCursorClicked = useCallback(() => {
     setMobileSheetOpen(false);

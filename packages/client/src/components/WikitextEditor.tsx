@@ -90,6 +90,7 @@ function localCursorPlugin(userName: string, userColor: string) {
   });
 
   let flashActive = false;
+  let flashTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const cursorLabel = layer({
     above: true,
@@ -132,12 +133,16 @@ function localCursorPlugin(userName: string, userColor: string) {
       ];
     },
     update(update) {
-      return update.selectionSet || update.docChanged;
+      return update.selectionSet || update.docChanged || update.viewportChanged;
     },
   });
 
   function flash(name: string) {
     flashActive = true;
+    if (flashTimeout !== null) {
+      clearTimeout(flashTimeout);
+      flashTimeout = null;
+    }
     requestAnimationFrame(() => {
       const localLabel = document.querySelector('.cm-yLocalCursorInfo');
       if (localLabel && localLabel.textContent?.startsWith(name)) {
@@ -146,8 +151,9 @@ function localCursorPlugin(userName: string, userColor: string) {
           line.classList.add('cm-y-flash');
         }
       }
-      setTimeout(() => {
+      flashTimeout = setTimeout(() => {
         flashActive = false;
+        flashTimeout = null;
         document.querySelector('.cm-yLocalCursorLine.cm-y-flash')?.classList.remove('cm-y-flash');
       }, 1500);
     });
@@ -318,11 +324,13 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           ]),
           EditorView.lineWrapping,
           langExtension,
-          ...(userName && userColor ? (() => {
-            const plugin = localCursorPlugin(userName, userColor);
-            flashRef.current = plugin.flash;
-            return plugin.extensions;
-          })() : []),
+          ...(userName && userColor
+            ? (() => {
+                const plugin = localCursorPlugin(userName, userColor);
+                flashRef.current = plugin.flash;
+                return plugin.extensions;
+              })()
+            : []),
           yCollab(ytext, provider.awareness, { undoManager }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
