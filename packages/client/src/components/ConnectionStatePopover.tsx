@@ -25,6 +25,7 @@ interface ConnectionStatePopoverProps {
   onScrollToCursor: (pos: number) => void;
   onLocalCursorClicked?: () => void;
   onPeerCursorClicked?: () => void;
+  onFlashPeerCursor?: (peerName: string) => void;
 }
 
 function formatDuration(ms: number): string {
@@ -60,6 +61,7 @@ export function ConnectionStatePopover({
   onScrollToCursor,
   onLocalCursorClicked,
   onPeerCursorClicked,
+  onFlashPeerCursor,
 }: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
   const [retrying, setRetrying] = useState(false);
@@ -184,6 +186,7 @@ export function ConnectionStatePopover({
                 setPopoverOpen(false);
                 onPeerCursorClicked?.();
               }}
+              onFlashPeerCursor={onFlashPeerCursor}
             />
 
             {lastConnected && (

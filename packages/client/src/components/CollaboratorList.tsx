@@ -17,6 +17,7 @@ interface CollaboratorListProps {
   onScrollToCursor: (pos: number) => void;
   onLocalCursorClicked?: () => void;
   onPeerCursorClicked?: () => void;
+  onFlashPeerCursor?: (peerName: string) => void;
 }
 
 function posToLineCol(content: string, pos: number): { line: number; col: number } {
@@ -73,6 +74,7 @@ export function CollaboratorList({
   onScrollToCursor,
   onLocalCursorClicked,
   onPeerCursorClicked,
+  onFlashPeerCursor,
 }: CollaboratorListProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(userName);
@@ -293,6 +295,7 @@ export function CollaboratorList({
               className="text-[10px] text-muted-foreground hover:text-foreground hover:underline cursor-pointer shrink-0 flex items-center gap-1 min-h-[44px] md:min-h-0 px-1"
               onClick={() => {
                 onScrollToCursor(peer.cursor!.anchor);
+                onFlashPeerCursor?.(peer.userName);
                 onPeerCursorClicked?.();
               }}
             >

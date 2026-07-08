@@ -157,6 +157,22 @@ export function DocumentEditor() {
     setMobileSheetOpen(false);
   }, []);
 
+  const flashPeerCursor = useCallback((peerName: string) => {
+    requestAnimationFrame(() => {
+      const labels = document.querySelectorAll('.cm-ySelectionInfo');
+      for (const label of labels) {
+        if (label.textContent === peerName) {
+          const caret = label.closest('.cm-ySelectionCaret');
+          if (caret && !caret.classList.contains('cm-y-flash')) {
+            caret.classList.add('cm-y-flash');
+            setTimeout(() => caret.classList.remove('cm-y-flash'), 1500);
+          }
+          break;
+        }
+      }
+    });
+  }, []);
+
   const jumpToCursor = useCallback(
     (anchor: number, head?: number) => {
       if (isMobile && viewMode !== 'source') {
@@ -327,6 +343,7 @@ export function DocumentEditor() {
               onScrollToCursor={scrollToCursor}
               onLocalCursorClicked={handleLocalCursorClicked}
               onPeerCursorClicked={handlePeerCursorClicked}
+              onFlashPeerCursor={flashPeerCursor}
             />
           </header>
         ) : (
@@ -485,6 +502,7 @@ export function DocumentEditor() {
                     onScrollToCursor={scrollToCursor}
                     onLocalCursorClicked={handleLocalCursorClicked}
                     onPeerCursorClicked={handlePeerCursorClicked}
+                    onFlashPeerCursor={flashPeerCursor}
                   />
                 )}
               </div>
@@ -558,6 +576,7 @@ export function DocumentEditor() {
                 onScrollToCursor={scrollToCursor}
                 onLocalCursorClicked={handleLocalCursorClicked}
                 onPeerCursorClicked={handlePeerCursorClicked}
+                onFlashPeerCursor={flashPeerCursor}
               />
             </div>
             <div className="flex items-center gap-4">
@@ -635,6 +654,7 @@ export function DocumentEditor() {
                 onScrollToCursor={scrollToCursor}
                 onLocalCursorClicked={handleLocalCursorClicked}
                 onPeerCursorClicked={handlePeerCursorClicked}
+                onFlashPeerCursor={flashPeerCursor}
               />
             )}
           </div>

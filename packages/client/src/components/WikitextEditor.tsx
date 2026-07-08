@@ -113,6 +113,9 @@ function localCursorPlugin(userName: string, userColor: string) {
             const line = document.createElement('div');
             line.className = 'cm-yLocalCursorLine';
             line.style.cssText = `background-color:${userColor}`;
+            const dot = document.createElement('div');
+            dot.className = 'cm-yLocalCursorDot';
+            line.appendChild(dot);
             const info = document.createElement('div');
             info.className = 'cm-yLocalCursorInfo';
             info.style.cssText = `background-color:${userColor}`;
@@ -339,11 +342,15 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursorLayer { pointer-events: none; }
 .cm-yLocalCursorLabel { position: absolute; }
 .cm-yLocalCursorLine { width: 2px; height: 100%; border-radius: 1px; position: relative; animation: cm-y-blink 1.2s step-end infinite; }
-.cm-yLocalCursorInfo { position: absolute; bottom: 0; left: 2px; transform: translateY(100%); padding: 1px 4px; border-radius: 0 0 3px 3px; color: white; font-size: .75em; font-family: serif; font-style: normal; font-weight: normal; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; }
+.cm-yLocalCursorDot { position: absolute; width: .4em; height: .4em; top: -.2em; left: -.2em; border-radius: 50%; background-color: inherit; transition: transform .3s ease-in-out; }
+.cm-yLocalCursorLine:hover > .cm-yLocalCursorDot { transform: scale(0); }
+.cm-yLocalCursorInfo { position: absolute; top: -1.05em; left: -1px; font-size: .75em; font-family: serif; font-style: normal; font-weight: normal; line-height: normal; user-select: none; color: white; padding-left: 2px; padding-right: 2px; z-index: 101; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; background-color: inherit; }
 .cm-yLocalCursorLine:hover > .cm-yLocalCursorInfo { opacity: 1; transition-delay: 0s; }
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorLine { animation: none !important; opacity: 0.5 !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorInfo { opacity: 0 !important; }
-@keyframes cm-y-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }`}</style>
+@keyframes cm-y-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+@keyframes cm-y-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionInfo { opacity: 1 !important; animation: cm-y-flash 1.5s ease-out forwards; }`}</style>
         <Toolbar
           view={view}
           undoManager={undoManagerRef.current}
