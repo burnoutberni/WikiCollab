@@ -17,31 +17,31 @@
     "node": ">=20.18.1"
   },
   "dependencies": {
-    "@hono/node-server": "^2.0.4",
-    "better-sqlite3": "^12.10.1",
-    "cors": "^2.8.5",
+    "@hono/node-server": "^2.0.8",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.7.4",
-    "lib0": "^0.2.99",
-    "nanoid": "^5.0.9",
+    "hono": "^4.12.28",
+    "lib0": "^0.2.117",
+    "nanoid": "^5.1.16",
     "sanitize-html": "^2.17.5",
     "server-fetch": "^1.0.10",
     "shared": "workspace:*",
-    "wikiparser-node": "^1.44.0",
-    "ws": "^8.18.0",
+    "wikiparser-node": "^1.45.0",
+    "ws": "^8.21.0",
     "y-protocols": "^1.0.7",
-    "yjs": "^13.6.27",
+    "yjs": "^13.6.31",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/cors": "^2.8.17",
-    "@types/node": "^25.9.3",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/node": "^26.1.1",
     "@types/sanitize-html": "^2.16.1",
-    "@types/ws": "^8.5.14",
+    "@types/ws": "^8.18.1",
     "eslint-plugin-simple-import-sort": "^13.0.0",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }

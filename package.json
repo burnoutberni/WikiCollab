@@ -1,7 +1,7 @@
 {
   "name": "wikicollab",
   "private": true,
-  "packageManager": "pnpm@10.29.2",
+  "packageManager": "pnpm@10.34.4",
   "scripts": {
     "dev": "pnpm --filter shared build && concurrently \"pnpm run dev:shared\" \"pnpm run dev:server\" \"pnpm run dev:client\"",
     "dev:shared": "pnpm --filter shared exec tsc --watch",
@@ -9,6 +9,7 @@
     "dev:client": "pnpm --filter client dev",
     "build": "pnpm --filter shared build && pnpm --filter server build && pnpm --filter client build",
     "start": "pnpm --filter server start",
+    "audit": "pnpm audit && pnpm --dir packages/client audit && pnpm --dir packages/server audit && pnpm --dir packages/shared audit",
     "lint": "pnpm -r run lint",
     "lint:fix": "pnpm -r run lint:fix",
     "test": "pnpm -r run test",
@@ -18,20 +19,20 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/github": "^12.0.8",
+    "@semantic-release/github": "^12.0.9",
     "@semantic-release/release-notes-generator": "^14.1.1",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.10",
     "concurrently": "^10.0.3",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-simple-import-sort": "^13.0.0",
-    "prettier": "^3.8.4",
+    "prettier": "^3.9.4",
     "semantic-release": "^25.0.5",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1",
-    "vitest": "^4.1.9"
+    "typescript-eslint": "^8.63.0",
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "overrides": {
