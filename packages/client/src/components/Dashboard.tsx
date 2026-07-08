@@ -1,6 +1,7 @@
-import { ArrowDown, ArrowUpDown, Clock, FileText, Plus, Search } from 'lucide-react';
+import { ArrowDown, ArrowUpDown, Clock, FileText, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { DocumentVisibility } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { useDocuments } from '@/hooks/useApi';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
 import NEW_DOC_BOILERPLATE from '../content/new-doc-boilerplate.wikitext?raw';
+import { NewDocumentButton } from './NewDocumentButton';
 import { ShareButton } from './ShareButton';
 
 type SortKey = 'newest' | 'oldest' | 'alpha' | 'alpha-rev';
@@ -71,10 +73,13 @@ export function Dashboard() {
     return sorted;
   }, [documents, search, sort]);
 
-  const handleCreate = useCallback(async () => {
-    const doc = await createDocument('Untitled', undefined, NEW_DOC_BOILERPLATE);
-    navigate(`/doc/${doc.id}`);
-  }, [createDocument, navigate]);
+  const handleCreate = useCallback(
+    async (visibility: DocumentVisibility) => {
+      const doc = await createDocument('Untitled', undefined, NEW_DOC_BOILERPLATE, visibility);
+      navigate(`/doc/${doc.id}`);
+    },
+    [createDocument, navigate]
+  );
 
   const handleOpen = useCallback(
     (id: string) => {
@@ -104,15 +109,7 @@ export function Dashboard() {
               </div>
               <h1 className="text-xl font-bold hidden md:block">WikiCollab</h1>
             </div>
-            <Button
-              onClick={handleCreate}
-              size={isMobile ? 'sm' : 'default'}
-              aria-label="New Document"
-              title="New Document"
-            >
-              <Plus className="h-4 w-4" />
-              {!isMobile && <span className="ml-2">New Document</span>}
-            </Button>
+            <NewDocumentButton onCreate={handleCreate} compact={isMobile} />
           </div>
         </header>
 
@@ -179,10 +176,7 @@ export function Dashboard() {
                   <CardDescription className="mb-4">
                     Create your first document to get started
                   </CardDescription>
-                  <Button onClick={handleCreate}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Document
-                  </Button>
+                  <NewDocumentButton onCreate={handleCreate} />
                 </CardContent>
               </Card>
             ) : filtered.length === 0 ? (

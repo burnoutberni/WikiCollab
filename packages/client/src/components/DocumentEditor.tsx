@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import type { DocumentVisibility } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +34,7 @@ import { useYjs } from '@/hooks/useYjs';
 import { BottomSheet } from './BottomSheet';
 import { CollaboratorList } from './CollaboratorList';
 import { ConnectionStatePopover } from './ConnectionStatePopover';
+import { DocumentVisibilityControl } from './DocumentVisibilityControl';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MobileEditorBar } from './MobileEditorBar';
 import { SplitPaneEditor } from './SplitPaneEditor';
@@ -91,14 +93,18 @@ export function DocumentEditor() {
   const [linkCopied, setLinkCopied] = useState(false);
   const linkCopiedTimeoutRef = useRef<number | null>(null);
   const lastPersistedTitleRef = useRef<string | null>(null);
+  const lastPersistedVisibilityRef = useRef<DocumentVisibility | null>(null);
   const collaboratorCount = peers.length + 1;
+  const [visibility, setVisibility] = useState<DocumentVisibility>('public');
 
   useEffect(() => {
     if (doc) {
       setTitle(doc.title);
       setWikiTitle(doc.title);
       setContentState(doc.content);
+      setVisibility(doc.visibility);
       lastPersistedTitleRef.current = doc.title;
+      lastPersistedVisibilityRef.current = doc.visibility;
       if (isMobile && !doc.content) {
         setViewMode('source');
       }
@@ -238,6 +244,33 @@ export function DocumentEditor() {
       controller.abort();
     };
   }, [id, title, loading]);
+
+  useEffect(() => {
+    if (!id || loading || visibility === lastPersistedVisibilityRef.current) return;
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      void fetch(`/api/docs/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility }),
+        signal: controller.signal,
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to update document visibility (${res.status})`);
+          lastPersistedVisibilityRef.current = visibility;
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          console.error('Failed to update document visibility:', error);
+        });
+    }, 300);
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [id, visibility, loading]);
 
   const handleContentChange = useCallback(
     (newContent: string) => {
@@ -448,6 +481,10 @@ export function DocumentEditor() {
           {!isMobile && desktopSidebarOpen && (
             <aside className="w-64 border-r flex flex-col">
               <div className="p-4 border-b">
+                <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+              </div>
+
+              <div className="p-4 border-b">
                 <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
                   <InstanceManager
                     instances={instances}
@@ -593,6 +630,10 @@ export function DocumentEditor() {
         title="Settings"
       >
         <div className="space-y-4">
+          <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+
+          <Separator />
+
           <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
             <InstanceManager
               instances={instances}

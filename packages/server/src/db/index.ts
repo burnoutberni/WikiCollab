@@ -19,7 +19,9 @@ sqlite.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     expiry TEXT,
-    mediawiki_instance_id TEXT
+    mediawiki_instance_id TEXT,
+    restored_version_id TEXT,
+    visibility TEXT NOT NULL DEFAULT 'public'
   );
 
   CREATE TABLE IF NOT EXISTS mediawiki_instances (
@@ -65,6 +67,13 @@ try {
 // Migration: add restored_version_id column to existing documents tables
 try {
   sqlite.exec(`ALTER TABLE documents ADD COLUMN restored_version_id TEXT`);
+} catch {
+  // Column already exists - expected on subsequent startups
+}
+
+// Migration: add visibility column to existing documents tables
+try {
+  sqlite.exec(`ALTER TABLE documents ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'`);
 } catch {
   // Column already exists - expected on subsequent startups
 }

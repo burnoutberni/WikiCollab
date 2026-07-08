@@ -1,3 +1,5 @@
+export type DocumentVisibility = 'public' | 'unlisted';
+
 /** Stored document shape returned by the server API. */
 export interface Document {
   id: string;
@@ -8,6 +10,7 @@ export interface Document {
   expiry: string | null;
   mediawiki_instance_id: string | null;
   restored_version_id: string | null;
+  visibility: DocumentVisibility;
 }
 
 /** Saved MediaWiki instance configuration used for preview and push workflows. */
@@ -46,6 +49,7 @@ export interface CreateDocumentRequest {
   title?: string;
   content?: string;
   slug?: string;
+  visibility?: DocumentVisibility;
 }
 
 /** Request body accepted when patching mutable document metadata. */
@@ -53,6 +57,7 @@ export interface UpdateDocumentRequest {
   title?: string;
   mediawiki_instance_id?: string | null;
   expiry?: string | null;
+  visibility?: DocumentVisibility;
 }
 
 /** Request body for creating or updating a MediaWiki instance entry. */

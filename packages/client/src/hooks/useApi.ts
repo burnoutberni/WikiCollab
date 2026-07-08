@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Document, MediaWikiInstance, Version } from 'shared';
+import type { Document, DocumentVisibility, MediaWikiInstance, Version } from 'shared';
 
 export type { Document, MediaWikiInstance, Version };
 
@@ -67,19 +67,27 @@ export function useDocuments() {
     setPendingDocs([]);
   }, [pendingDocs]);
 
-  const createDocument = useCallback(async (title?: string, slug?: string, content?: string) => {
-    const res = await fetch(`${API_BASE}/docs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, slug: slug || undefined, content: content || undefined }),
-    });
-    const doc = await res.json();
-    if (!res.ok) {
-      throw new Error(doc.error || 'Failed to create document');
-    }
-    setDocuments((prev) => [doc, ...prev]);
-    return doc;
-  }, []);
+  const createDocument = useCallback(
+    async (title?: string, slug?: string, content?: string, visibility?: DocumentVisibility) => {
+      const res = await fetch(`${API_BASE}/docs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          slug: slug || undefined,
+          content: content || undefined,
+          visibility: visibility || undefined,
+        }),
+      });
+      const doc = await res.json();
+      if (!res.ok) {
+        throw new Error(doc.error || 'Failed to create document');
+      }
+      setDocuments((prev) => [doc, ...prev]);
+      return doc;
+    },
+    []
+  );
 
   const deleteDocument = useCallback(async (id: string) => {
     await fetch(`${API_BASE}/docs/${id}`, { method: 'DELETE' });

@@ -30,6 +30,7 @@ describe('Shared types', () => {
       expiry: null,
       mediawiki_instance_id: null,
       restored_version_id: null,
+      visibility: 'public',
     };
     expect(doc.id).toBe('test');
     expect(doc.title).toBe('Test');

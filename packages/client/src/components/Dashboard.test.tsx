@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { DocumentVisibility } from 'shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -18,6 +19,7 @@ const mockDocuments = [
     expiry: null,
     mediawiki_instance_id: null,
     restored_version_id: null,
+    visibility: 'public' as DocumentVisibility,
   },
   {
     id: 'doc2',
@@ -28,6 +30,7 @@ const mockDocuments = [
     expiry: null,
     mediawiki_instance_id: null,
     restored_version_id: null,
+    visibility: 'public' as DocumentVisibility,
   },
   {
     id: 'doc3',
@@ -38,12 +41,14 @@ const mockDocuments = [
     expiry: null,
     mediawiki_instance_id: null,
     restored_version_id: null,
+    visibility: 'public' as DocumentVisibility,
   },
 ];
 
 const mockCreateDocument = vi.fn().mockResolvedValue(mockDocuments[0]);
 const mockLoadPending = vi.fn();
 const mockNavigate = vi.fn();
+let mockIsMobile = false;
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal();
@@ -57,15 +62,28 @@ vi.mock('@/hooks/useApi', () => ({
   useDocuments: vi.fn(),
 }));
 
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: () => mockIsMobile,
+}));
+
 vi.mock('lucide-react', () => {
   const m = (props: { className?: string }) =>
-    props?.className ? <div className={props.className} /> : <div />;
+    props?.className ? <span className={props.className} /> : <span />;
   return {
     default: m,
     ...Object.fromEntries(
-      ['ArrowDown', 'ArrowUpDown', 'Check', 'Clock', 'FileText', 'Plus', 'Search', 'Share2'].map(
-        (n) => [n, m]
-      )
+      [
+        'ArrowDown',
+        'ArrowUpDown',
+        'Check',
+        'ChevronDown',
+        'Clock',
+        'FileText',
+        'Link2',
+        'Plus',
+        'Search',
+        'Share2',
+      ].map((n) => [n, m])
     ),
   };
 });
@@ -83,6 +101,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsMobile = false;
     useDocumentsMock.mockReturnValue({
       documents: [],
       loading: false,
@@ -185,16 +204,49 @@ describe('Dashboard', () => {
     expect(revCards[0]).toHaveTextContent('Gamma Doc');
   });
 
-  it('create document button calls createDocument and navigates', async () => {
+  it('create document button opens chooser and creates a public document', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Dashboard />);
 
-    await user.click(screen.getByText('Create Document'));
+    await user.click(screen.getAllByRole('button', { name: 'New Document' })[0]);
+    await user.click(screen.getByRole('button', { name: /Public document/i }));
 
-    expect(mockCreateDocument).toHaveBeenCalledWith('Untitled', undefined, expect.any(String));
+    expect(mockCreateDocument).toHaveBeenCalledWith(
+      'Untitled',
+      undefined,
+      expect.any(String),
+      'public'
+    );
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1');
     });
+  });
+
+  it('creates an unlisted document from the chooser', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Dashboard />);
+
+    await user.click(screen.getAllByRole('button', { name: 'New Document' })[0]);
+    await user.click(screen.getByRole('button', { name: /Anyone with the link/i }));
+
+    expect(mockCreateDocument).toHaveBeenCalledWith(
+      'Untitled',
+      undefined,
+      expect.any(String),
+      'unlisted'
+    );
+  });
+
+  it('uses the mobile bottom sheet chooser on small screens', async () => {
+    const user = userEvent.setup();
+    mockIsMobile = true;
+
+    renderWithProviders(<Dashboard />);
+
+    await user.click(screen.getAllByRole('button', { name: 'New Document' })[0]);
+
+    expect(screen.getByRole('heading', { name: 'New Document' })).toBeInTheDocument();
+    expect(screen.getByText('Choose document type')).toBeInTheDocument();
   });
 
   it('clicking a document card navigates to it', async () => {

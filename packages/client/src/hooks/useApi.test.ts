@@ -14,6 +14,7 @@ function createDoc(overrides: Partial<Document> = {}): Document {
     expiry: null,
     mediawiki_instance_id: null,
     restored_version_id: null,
+    visibility: 'public',
     ...overrides,
   };
 }
@@ -99,6 +100,36 @@ describe('useDocuments', () => {
     expect(fetch).toHaveBeenCalledWith('/api/docs', expect.objectContaining({ method: 'POST' }));
     expect(result.current.documents).toHaveLength(2);
     expect(result.current.documents[0].id).toBe('2');
+  });
+
+  it('createDocument sends visibility when provided', async () => {
+    const newDoc = createDoc({ id: '2', visibility: 'unlisted' });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(newDoc) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.createDocument('Link only', undefined, 'Secret', 'unlisted');
+    });
+
+    expect(fetch).toHaveBeenLastCalledWith(
+      '/api/docs',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          title: 'Link only',
+          slug: undefined,
+          content: 'Secret',
+          visibility: 'unlisted',
+        }),
+      })
+    );
   });
 
   it('deleteDocument removes document from list', async () => {
