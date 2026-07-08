@@ -339,8 +339,8 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursor .cm-content ::selection { background-color: var(--cm-y-selection) !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }
 .cm-yLocalCursorLayer { pointer-events: none; }
-.cm-yLocalCursorLabel { position: absolute; }
-.cm-yLocalCursorLine { border-left: 1px solid; border-right: 1px solid; margin-left: -1px; margin-right: -1px; box-sizing: border-box; height: 100%; position: relative; }
+.cm-yLocalCursorLabel { position: absolute; pointer-events: auto; }
+.cm-yLocalCursorLine { border-left: 1px solid; border-right: 1px solid; margin-left: -1px; margin-right: -1px; box-sizing: border-box; height: 100%; position: relative; cursor: default; }
 .cm-yLocalCursorDot { position: absolute; width: .4em; height: .4em; top: -.2em; left: -.2em; border-radius: 50%; background-color: inherit; transition: transform .3s ease-in-out; animation: cm-y-blink 1.2s step-end infinite; }
 .cm-yLocalCursorLine:hover > .cm-yLocalCursorDot { transform: scale(0); }
 .cm-yLocalCursorInfo { position: absolute; top: -1.05em; left: -1px; font-size: .75em; font-style: normal; font-weight: normal; line-height: normal; user-select: none; color: white; padding-left: 2px; padding-right: 2px; z-index: 101; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; background-color: inherit; }
