@@ -170,9 +170,7 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
             </h2>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-6 safe-area-bottom">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">{children}</div>
       </div>
     </div>
   );
