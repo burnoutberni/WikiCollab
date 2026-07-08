@@ -29,10 +29,10 @@ import {
   highlightActiveLineGutter,
   highlightSpecialChars,
   keymap,
+  layer,
   lineNumbers,
   rectangularSelection,
   ViewPlugin,
-  WidgetType,
 } from '@codemirror/view';
 import {
   Ban,
@@ -72,78 +72,127 @@ import * as Y from 'yjs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
-/** Draws the local user's caret and label without relying on remote awareness rendering. */
-class LocalCursorWidget extends WidgetType {
-  constructor(
-    readonly color: string,
-    readonly name: string
-  ) {
-    super();
-  }
-  toDOM() {
-    const span = document.createElement('span');
-    span.className = 'cm-ySelectionCaret cm-yLocalCaret';
-    span.style.cssText = `background-color: ${this.color}; border-color: ${this.color}`;
-    span.textContent = '\u2060';
-    const dot = document.createElement('div');
-    dot.className = 'cm-ySelectionCaretDot';
-    span.appendChild(dot);
-    const info = document.createElement('div');
-    info.className = 'cm-ySelectionInfo';
-    info.textContent = this.name + ' (you)';
-    span.appendChild(info);
-    return span;
-  }
-  eq(other: LocalCursorWidget) {
-    return this.color === other.color && this.name === other.name;
-  }
-  compare(other: LocalCursorWidget) {
-    return this.color === other.color && this.name === other.name;
-  }
+/** Converts viewport-relative coords from `coordsAtPos` to scrollDOM-relative coords for the layer. */
+function getBase(view: EditorView) {
+  const rect = view.scrollDOM.getBoundingClientRect();
+  return {
+    left: rect.left - view.scrollDOM.scrollLeft * view.scaleX,
+    top: rect.top - view.scrollDOM.scrollTop * view.scaleY,
+  };
 }
 
-/** Mirrors the current selection as local-only decorations so the active user sees their own label. */
+/** Renders the local user's cursor label as a layer overlay (no widget decoration, so arrow keys work). */
 function localCursorPlugin(userName: string, userColor: string) {
   const colorLight = userColor + '33';
-  const cursorDeco = Decoration.widget({
-    widget: new LocalCursorWidget(userColor, userName),
-    side: 1,
-  });
   const selDeco = Decoration.mark({
     class: 'cm-ySelection',
     attributes: { style: `background-color: ${colorLight}` },
   });
-  return [
-    EditorView.editorAttributes.of({
-      class: 'cm-yLocalCursor',
-      style: `--cm-y-selection: ${colorLight}`,
-    }),
-    ViewPlugin.fromClass(
-      class {
-        decorations: DecorationSet;
-        constructor(view: EditorView) {
-          this.decorations = this.buildDecorations(view);
+
+  let flashActive = false;
+  let flashTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const cursorLabel = layer({
+    above: true,
+    class: 'cm-yLocalCursorLayer',
+    markers(view: EditorView) {
+      const sel = view.state.selection.main;
+      const rect = view.coordsAtPos(sel.head, 1);
+      if (!rect) return [];
+      const base = getBase(view);
+      const x = rect.left - base.left;
+      const y = rect.top - base.top;
+      const height = rect.bottom - rect.top;
+      return [
+        {
+          eq() {
+            return false;
+          },
+          draw() {
+            const container = document.createElement('div');
+            container.className = 'cm-yLocalCursorLabel';
+            container.style.cssText = `position:absolute;left:${x}px;top:${y}px;height:${height}px`;
+            const line = document.createElement('div');
+            line.className = 'cm-yLocalCursorLine';
+            line.style.cssText = `background-color:${userColor}; border-color:${userColor}`;
+            const dot = document.createElement('div');
+            dot.className = 'cm-yLocalCursorDot';
+            line.appendChild(dot);
+            const info = document.createElement('div');
+            info.className = 'cm-yLocalCursorInfo';
+            info.style.cssText = `background-color:${userColor}`;
+            info.textContent = userName + ' (you)';
+            line.appendChild(info);
+            container.appendChild(line);
+            if (flashActive) {
+              line.classList.add('cm-y-flash');
+            }
+            return container;
+          },
+        },
+      ];
+    },
+    update(update) {
+      return update.selectionSet || update.docChanged || update.viewportChanged;
+    },
+  });
+
+  function flash(name: string) {
+    flashActive = true;
+    if (flashTimeout !== null) {
+      clearTimeout(flashTimeout);
+      flashTimeout = null;
+    }
+    requestAnimationFrame(() => {
+      const localLabel = document.querySelector('.cm-yLocalCursorInfo');
+      if (localLabel && localLabel.textContent === name + ' (you)') {
+        const line = localLabel.closest('.cm-yLocalCursorLine');
+        if (line) {
+          line.classList.add('cm-y-flash');
         }
-        update(update: ViewUpdate) {
-          if (update.selectionSet || update.docChanged) {
-            this.decorations = this.buildDecorations(update.view);
-          }
-        }
-        buildDecorations(view: EditorView): DecorationSet {
-          const decos: Range<Decoration>[] = [];
-          const sel = view.state.selection.main;
-          if (sel.from !== sel.to) {
-            decos.push(selDeco.range(sel.from, sel.to));
-          }
-          decos.push(cursorDeco.range(sel.to));
-          return RangeSet.of(decos);
-        }
-      },
-      {
-        decorations: (v) => v.decorations,
       }
-    ),
-  ];
+      flashTimeout = setTimeout(() => {
+        flashActive = false;
+        flashTimeout = null;
+        document.querySelector('.cm-yLocalCursorLine.cm-y-flash')?.classList.remove('cm-y-flash');
+      }, 1500);
+    });
+  }
+
+  return {
+    extensions: [
+      EditorView.editorAttributes.of({
+        class: 'cm-yLocalCursor',
+        style: `--cm-y-selection: ${colorLight}`,
+      }),
+      ViewPlugin.fromClass(
+        class {
+          decorations: DecorationSet;
+          constructor(view: EditorView) {
+            this.decorations = this.buildDecorations(view);
+          }
+          update(update: ViewUpdate) {
+            if (update.selectionSet || update.docChanged) {
+              this.decorations = this.buildDecorations(update.view);
+            }
+          }
+          buildDecorations(view: EditorView): DecorationSet {
+            const decos: Range<Decoration>[] = [];
+            const sel = view.state.selection.main;
+            if (sel.from !== sel.to) {
+              decos.push(selDeco.range(sel.from, sel.to));
+            }
+            return RangeSet.of(decos);
+          }
+        },
+        {
+          decorations: (v) => v.decorations,
+        }
+      ),
+      cursorLabel,
+    ],
+    flash,
+  };
 }
 
 let registered = false;
@@ -181,6 +230,8 @@ export interface WikitextEditorHandle {
   jumpToPosition: (anchor: number, head?: number) => void;
   /** Scrolls a position into view without changing selection. */
   scrollToPosition: (pos: number) => void;
+  /** Flashes the local cursor label for the given peer name. */
+  flashLocalCursor: (name: string) => void;
 }
 
 /**
@@ -195,6 +246,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
     const [view, setView] = useState<EditorView | null>(null);
     const [undoRedo, setUndoRedo] = useState({ canUndo: false, canRedo: false });
     const undoManagerRef = useRef<Y.UndoManager | null>(null);
+    const flashRef = useRef<((name: string) => void) | null>(null);
     const isMobile = useIsMobile();
 
     useImperativeHandle(
@@ -218,6 +270,9 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
               effects: EditorView.scrollIntoView(pos),
             });
           }
+        },
+        flashLocalCursor(name: string) {
+          flashRef.current?.(name);
         },
       }),
       [view]
@@ -269,7 +324,13 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           ]),
           EditorView.lineWrapping,
           langExtension,
-          ...(userName && userColor ? [localCursorPlugin(userName, userColor)] : []),
+          ...(userName && userColor
+            ? (() => {
+                const plugin = localCursorPlugin(userName, userColor);
+                flashRef.current = plugin.flash;
+                return plugin.extensions;
+              })()
+            : []),
           yCollab(ytext, provider.awareness, { undoManager }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
@@ -319,12 +380,23 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
         <style>{`.cm-yLocalCursor .cm-cursor { display: none !important; }
 .cm-yLocalCursor .cm-selectionBackground { background-color: var(--cm-y-selection) !important; }
 .cm-yLocalCursor .cm-content ::selection { background-color: var(--cm-y-selection) !important; }
-.cm-ySelectionInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
-.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { opacity: 0.5 !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }
-.cm-yLocalCaret { animation: cm-blink 1.2s step-end infinite; }
-.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCaret { animation: none !important; }
-@keyframes cm-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }`}</style>
+.cm-yLocalCursorLayer { pointer-events: none; }
+.cm-yLocalCursorLabel { position: absolute; pointer-events: auto; }
+.cm-yLocalCursorLine { border-left: 1px solid; border-right: 1px solid; margin-left: -1px; margin-right: -1px; box-sizing: border-box; height: 100%; position: relative; cursor: default; }
+.cm-yLocalCursorDot { position: absolute; width: .4em; height: .4em; top: -.2em; left: -.2em; border-radius: 50%; background-color: inherit; transition: transform .3s ease-in-out; animation: cm-y-blink 1.2s step-end infinite; }
+.cm-yLocalCursorLine:hover > .cm-yLocalCursorDot { transform: scale(0); }
+.cm-yLocalCursorInfo { position: absolute; top: -1.05em; left: -1px; font-size: .75em; font-style: normal; font-weight: normal; line-height: normal; user-select: none; color: white; padding-left: 2px; padding-right: 2px; z-index: 101; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; background-color: inherit; }
+.cm-yLocalCursorLine:hover > .cm-yLocalCursorInfo { opacity: 1; transition-delay: 0s; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorDot { animation: none !important; opacity: 0.5 !important; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorLine { opacity: 0.5 !important; }
+.cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorInfo { opacity: 0 !important; }
+@keyframes cm-y-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionInfo { opacity: 1 !important; }
+.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionCaretDot { transform: scale(0) !important; }
+.cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorInfo { opacity: 1 !important; }
+.cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorDot { transform: scale(0) !important; }
+.cm-ySelectionInfo, .cm-yLocalCursorInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }`}</style>
         <Toolbar
           view={view}
           undoManager={undoManagerRef.current}

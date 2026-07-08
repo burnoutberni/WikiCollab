@@ -146,12 +146,28 @@ export function DocumentEditor() {
     { type: 'jump'; anchor: number; head?: number } | { type: 'scroll'; anchor: number } | null
   >(null);
 
+  const flashPeerCursor = useCallback((peerName: string) => {
+    requestAnimationFrame(() => {
+      // Flash remote cursor labels
+      const labels = document.querySelectorAll('.cm-ySelectionInfo');
+      for (const label of labels) {
+        if (label.textContent === peerName) {
+          const caret = label.closest('.cm-ySelectionCaret');
+          if (caret && !caret.classList.contains('cm-y-flash')) {
+            caret.classList.add('cm-y-flash');
+            setTimeout(() => caret.classList.remove('cm-y-flash'), 1500);
+          }
+          break;
+        }
+      }
+      // Flash local cursor label
+      editorRef.current?.flashLocalCursor(peerName);
+    });
+  }, []);
+
   const handleLocalCursorClicked = useCallback(() => {
     setMobileSheetOpen(false);
-    requestAnimationFrame(() => {
-      editorRef.current?.jumpToPosition(localCursor?.anchor ?? 0, localCursor?.head);
-    });
-  }, [localCursor]);
+  }, []);
 
   const handlePeerCursorClicked = useCallback(() => {
     setMobileSheetOpen(false);
@@ -327,6 +343,7 @@ export function DocumentEditor() {
               onScrollToCursor={scrollToCursor}
               onLocalCursorClicked={handleLocalCursorClicked}
               onPeerCursorClicked={handlePeerCursorClicked}
+              onFlashPeerCursor={flashPeerCursor}
             />
           </header>
         ) : (
@@ -485,6 +502,7 @@ export function DocumentEditor() {
                     onScrollToCursor={scrollToCursor}
                     onLocalCursorClicked={handleLocalCursorClicked}
                     onPeerCursorClicked={handlePeerCursorClicked}
+                    onFlashPeerCursor={flashPeerCursor}
                   />
                 )}
               </div>
@@ -558,6 +576,7 @@ export function DocumentEditor() {
                 onScrollToCursor={scrollToCursor}
                 onLocalCursorClicked={handleLocalCursorClicked}
                 onPeerCursorClicked={handlePeerCursorClicked}
+                onFlashPeerCursor={flashPeerCursor}
               />
             </div>
             <div className="flex items-center gap-4">
@@ -635,6 +654,7 @@ export function DocumentEditor() {
                 onScrollToCursor={scrollToCursor}
                 onLocalCursorClicked={handleLocalCursorClicked}
                 onPeerCursorClicked={handlePeerCursorClicked}
+                onFlashPeerCursor={flashPeerCursor}
               />
             )}
           </div>
