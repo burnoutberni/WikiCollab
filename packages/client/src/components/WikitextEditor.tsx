@@ -945,11 +945,15 @@ function insertText(view: EditorView, before: string, after = '', placeholder = 
 }
 
 function insertAtLine(view: EditorView, prefix: string) {
-  const { from } = view.state.selection.main;
-  const line = view.state.doc.lineAt(from);
-  view.dispatch({
-    changes: { from: line.from, to: line.from, insert: prefix },
-  });
+  const { from, to } = view.state.selection.main;
+  const firstLine = view.state.doc.lineAt(from);
+  const lastLine = view.state.doc.lineAt(to);
+  const changes: { from: number; to: number; insert: string }[] = [];
+  for (let i = firstLine.number; i <= lastLine.number; i++) {
+    const line = view.state.doc.line(i);
+    changes.push({ from: line.from, to: line.from, insert: prefix });
+  }
+  view.dispatch({ changes });
   view.focus();
 }
 
