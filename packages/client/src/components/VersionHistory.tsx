@@ -126,7 +126,7 @@ export function VersionHistory({
         </TooltipTrigger>
         <TooltipContent>Version history</TooltipContent>
       </Tooltip>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="md:max-w-lg grid-rows-[auto_1fr_auto] md:grid-rows-none">
         <DialogHeader>
           <DialogTitle>Version History</DialogTitle>
           <DialogDescription>
@@ -134,7 +134,7 @@ export function VersionHistory({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-[500px] relative">
+        <ScrollArea className="relative min-h-0 flex-1 md:h-[500px] md:flex-none">
           {loading ? (
             <div className="flex items-center justify-center p-8 text-muted-foreground">
               Loading versions...

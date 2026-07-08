@@ -36,7 +36,8 @@ export function DemoDisclaimer() {
   return (
     <Dialog open={open} onOpenChange={(v) => v && setOpen(true)}>
       <DialogContent
-        className="sm:max-w-md [&>button]:hidden"
+        className="md:max-w-md"
+        hideCloseButton
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -72,7 +73,7 @@ export function DemoDisclaimer() {
           </p>
         </div>
         <DialogFooter>
-          <Button onClick={handleAccept} className="w-full sm:w-auto">
+          <Button onClick={handleAccept} className="w-full md:w-auto">
             I understand
           </Button>
         </DialogFooter>

@@ -74,7 +74,7 @@ export class WSSharedDoc extends Y.Doc {
       syncProtocol.writeUpdate(encoder, update);
       const message = encoding.toUint8Array(encoder);
       doc.conns.forEach((_, conn) => send(doc, conn, message));
-    }) as any);
+    }) as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     this.initialized = runContentInitializor(this);
   }

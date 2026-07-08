@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WebsocketProvider } from 'y-websocket';
@@ -5,12 +6,12 @@ import type * as Y from 'yjs';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import defaultCss from '@/styles/wikipedia.css?inline';
 
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
-/** Props for the synchronized source editor and preview pane. */
 interface SplitPaneEditorProps {
   content: string;
   onChange: (value: string) => void;
@@ -26,9 +27,9 @@ interface SplitPaneEditorProps {
   onCursorChange?: (cursor: { anchor: number; head: number } | null) => void;
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
   onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
+  initialMobileTab?: 'source' | 'preview';
 }
 
-/** Extracts the site origin used to rewrite relative preview links and assets. */
 function getWikiBaseUrl(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
@@ -38,10 +39,6 @@ function getWikiBaseUrl(apiUrl: string): string {
   }
 }
 
-/**
- * Rewrites relative links in preview HTML so rendered output behaves like the target wiki.
- * Fragment-only links are preserved so in-preview anchors continue to target the current page.
- */
 function rewriteRelativeUrls(html: string, baseUrl: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -69,9 +66,6 @@ function rewriteRelativeUrls(html: string, baseUrl: string): string {
   return doc.body.innerHTML;
 }
 
-/**
- * Renders the collaborative editor beside a wiki preview and keeps preview refreshes throttled.
- */
 export function SplitPaneEditor({
   content,
   onChange,
@@ -86,11 +80,14 @@ export function SplitPaneEditor({
   onCursorChange,
   sendCustomMessage,
   onCustomMessage,
+  initialMobileTab = 'source',
 }: SplitPaneEditorProps) {
+  const isMobile = useIsMobile();
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextContentRefreshRef = useRef(true);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const apiUrlRef = useRef(apiUrl);
@@ -99,6 +96,11 @@ export function SplitPaneEditor({
   titleRef.current = title;
 
   const previewCss = instanceCss || defaultCss;
+
+  const sanitizePreviewHtml = useCallback(
+    (html: string) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
+    []
+  );
 
   const requestPreview = useCallback(() => {
     if (sendCustomMessage) {
@@ -121,13 +123,13 @@ export function SplitPaneEditor({
           if (currentApiUrl) {
             html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl));
           }
-          setPreviewHtml(html);
+          setPreviewHtml(sanitizePreviewHtml(html));
           setLoading(false);
         }
       }
     );
     return unsubscribe;
-  }, [onCustomMessage]);
+  }, [onCustomMessage, sanitizePreviewHtml]);
 
   const fetchPreview = useCallback(async () => {
     const wikitext = ytext ? ytext.toString() : content;
@@ -150,7 +152,7 @@ export function SplitPaneEditor({
         if (apiUrl) {
           html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl));
         }
-        setPreviewHtml(html);
+        setPreviewHtml(sanitizePreviewHtml(html));
       } else {
         setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
       }
@@ -162,7 +164,7 @@ export function SplitPaneEditor({
     } finally {
       setLoading(false);
     }
-  }, [ytext, apiUrl, title]);
+  }, [apiUrl, content, sanitizePreviewHtml, title, ytext]);
 
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
@@ -178,19 +180,43 @@ export function SplitPaneEditor({
     timerRef.current = setTimeout(refreshPreview, 500);
   }, [refreshPreview]);
 
+  const debouncedPreviewRef = useRef(debouncedPreview);
+  debouncedPreviewRef.current = debouncedPreview;
+  const refreshPreviewRef = useRef(refreshPreview);
+  refreshPreviewRef.current = refreshPreview;
+
   useEffect(() => {
-    refreshPreview();
-  }, [apiUrl, title]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isMobile && initialMobileTab !== 'preview') return;
+    skipNextContentRefreshRef.current = true;
+    refreshPreviewRef.current();
+  }, [apiUrl, title, isMobile, initialMobileTab]);
+
+  useEffect(() => {
+    if (ytext) return;
+    if (isMobile && initialMobileTab !== 'preview') return;
+    if (skipNextContentRefreshRef.current) {
+      skipNextContentRefreshRef.current = false;
+      return;
+    }
+    debouncedPreviewRef.current();
+  }, [content, ytext, isMobile, initialMobileTab]);
 
   useEffect(() => {
     if (!ytext) return;
-    const observer = () => debouncedPreview();
+    if (isMobile && initialMobileTab !== 'preview') return;
+    const observer = () => debouncedPreviewRef.current();
     ytext.observe(observer);
     return () => {
       ytext.unobserve(observer);
-      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [ytext, debouncedPreview]);
+  }, [ytext, isMobile, initialMobileTab]);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
+  );
 
   const handlePreviewClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -211,6 +237,63 @@ export function SplitPaneEditor({
       }
     }
   }, []);
+
+  if (isMobile) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          {initialMobileTab === 'source' && (
+            <WikitextEditor
+              ref={editorRef}
+              content={content}
+              onChange={onChange}
+              ytext={ytext}
+              provider={provider}
+              userName={userName}
+              userColor={userColor}
+              onCursorChange={onCursorChange}
+            />
+          )}
+          {initialMobileTab === 'preview' && (
+            <div className="h-full relative">
+              <div className="h-full overflow-auto overscroll-contain">
+                <style>{previewCss}</style>
+                <div
+                  ref={previewRef}
+                  className="mw-preview-container p-4"
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                  onClick={handlePreviewClick}
+                />
+              </div>
+              <div className="absolute bottom-3 right-3 safe-area-bottom">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={refreshPreview}
+                      disabled={loading}
+                      aria-label="Refresh preview"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Refresh preview</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+          )}
+        </div>
+        <PreviewLinkModal
+          url={linkModalUrl || ''}
+          open={linkModalUrl !== null}
+          onOpenChange={(open) => {
+            if (!open) setLinkModalUrl(null);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full">
@@ -239,7 +322,13 @@ export function SplitPaneEditor({
         <div className="absolute bottom-3 right-3">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="secondary" size="sm" onClick={refreshPreview} disabled={loading}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={refreshPreview}
+                disabled={loading}
+                aria-label="Refresh preview"
+              >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </TooltipTrigger>

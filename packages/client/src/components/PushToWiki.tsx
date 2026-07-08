@@ -110,7 +110,7 @@ export function PushToWiki({
       </TooltipProvider>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="md:max-w-md">
           <DialogHeader>
             <DialogTitle>Push to MediaWiki</DialogTitle>
           </DialogHeader>
