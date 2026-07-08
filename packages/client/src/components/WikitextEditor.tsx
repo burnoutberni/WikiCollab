@@ -343,6 +343,20 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
                 return true;
               },
             },
+            {
+              key: 'Mod-u',
+              run: (v) => {
+                insertText(v, '<u>', '</u>', 'underlined text');
+                return true;
+              },
+            },
+            {
+              key: 'Mod-k',
+              run: (v) => {
+                insertText(v, '[[', ']]', 'Page name');
+                return true;
+              },
+            },
             ...foldKeymap,
             ...completionKeymap,
           ]),
@@ -537,7 +551,7 @@ function Toolbar({
         id: 'underline',
         type: 'button',
         icon: <Underline className="h-3.5 w-3.5" />,
-        tip: 'Underline — <u>text</u>',
+        tip: `Underline — ${modKey}+U`,
         action: (v) => insertText(v, '<u>', '</u>', 'underlined text'),
       },
       {
@@ -610,7 +624,7 @@ function Toolbar({
         id: 'link',
         type: 'button',
         icon: <Link className="h-3.5 w-3.5" />,
-        tip: 'Internal link — [[Page name]]',
+        tip: `Internal link — ${modKey}+K`,
         action: (v) => insertText(v, '[[', ']]', 'Page name'),
       },
       {
