@@ -89,7 +89,7 @@ function localCursorPlugin(userName: string, userColor: string) {
     attributes: { style: `background-color: ${colorLight}` },
   });
 
-  let flashStart = 0;
+  let flashActive = false;
 
   const cursorLabel = layer({
     above: true,
@@ -123,7 +123,7 @@ function localCursorPlugin(userName: string, userColor: string) {
             info.textContent = userName + ' (you)';
             line.appendChild(info);
             container.appendChild(line);
-            if (flashStart && Date.now() - flashStart < 1500) {
+            if (flashActive) {
               line.classList.add('cm-y-flash');
             }
             return container;
@@ -137,19 +137,19 @@ function localCursorPlugin(userName: string, userColor: string) {
   });
 
   function flash(name: string) {
-    flashStart = Date.now();
+    flashActive = true;
     requestAnimationFrame(() => {
       const localLabel = document.querySelector('.cm-yLocalCursorInfo');
       if (localLabel && localLabel.textContent?.startsWith(name)) {
         const line = localLabel.closest('.cm-yLocalCursorLine');
         if (line) {
           line.classList.add('cm-y-flash');
-          setTimeout(() => {
-            line.classList.remove('cm-y-flash');
-            flashStart = 0;
-          }, 1500);
         }
       }
+      setTimeout(() => {
+        flashActive = false;
+        document.querySelector('.cm-yLocalCursorLine.cm-y-flash')?.classList.remove('cm-y-flash');
+      }, 1500);
     });
   }
 
