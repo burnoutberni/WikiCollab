@@ -329,6 +329,20 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
             ...closeBracketsKeymap,
             ...searchKeymap,
             ...yUndoManagerKeymap,
+            {
+              key: 'Mod-b',
+              run: (v) => {
+                insertText(v, "'''", "'''", 'bold');
+                return true;
+              },
+            },
+            {
+              key: 'Mod-i',
+              run: (v) => {
+                insertText(v, "''", "''", 'italic');
+                return true;
+              },
+            },
             ...foldKeymap,
             ...completionKeymap,
           ]),
@@ -502,14 +516,14 @@ function Toolbar({
         id: 'bold',
         type: 'button',
         icon: <Bold className="h-3.5 w-3.5" />,
-        tip: "Bold — '''text'''",
+        tip: `Bold — ${modKey}+B`,
         action: (v) => insertText(v, "'''", "'''", 'bold'),
       },
       {
         id: 'italic',
         type: 'button',
         icon: <Italic className="h-3.5 w-3.5" />,
-        tip: "Italic — ''text''",
+        tip: `Italic — ${modKey}+I`,
         action: (v) => insertText(v, "''", "''", 'italic'),
       },
       {
