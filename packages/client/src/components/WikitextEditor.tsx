@@ -112,7 +112,7 @@ function localCursorPlugin(userName: string, userColor: string) {
             container.style.cssText = `position:absolute;left:${x}px;top:${y}px;height:${height}px`;
             const line = document.createElement('div');
             line.className = 'cm-yLocalCursorLine';
-            line.style.cssText = `background-color:${userColor}`;
+            line.style.cssText = `background-color:${userColor}; border-color:${userColor}`;
             const dot = document.createElement('div');
             dot.className = 'cm-yLocalCursorDot';
             line.appendChild(dot);
@@ -341,16 +341,18 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursor:not(.cm-focused) .cm-ySelection { background-color: transparent !important; }
 .cm-yLocalCursorLayer { pointer-events: none; }
 .cm-yLocalCursorLabel { position: absolute; }
-.cm-yLocalCursorLine { width: 2px; height: 100%; border-radius: 1px; position: relative; animation: cm-y-blink 1.2s step-end infinite; }
+.cm-yLocalCursorLine { border-left: 1px solid; border-right: 1px solid; margin-left: -1px; margin-right: -1px; box-sizing: border-box; height: 100%; position: relative; animation: cm-y-blink 1.2s step-end infinite; }
 .cm-yLocalCursorDot { position: absolute; width: .4em; height: .4em; top: -.2em; left: -.2em; border-radius: 50%; background-color: inherit; transition: transform .3s ease-in-out; }
 .cm-yLocalCursorLine:hover > .cm-yLocalCursorDot { transform: scale(0); }
-.cm-yLocalCursorInfo { position: absolute; top: -1.05em; left: -1px; font-size: .75em; font-family: serif; font-style: normal; font-weight: normal; line-height: normal; user-select: none; color: white; padding-left: 2px; padding-right: 2px; z-index: 101; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; background-color: inherit; }
+.cm-yLocalCursorInfo { position: absolute; top: -1.05em; left: -1px; font-size: .75em; font-style: normal; font-weight: normal; line-height: normal; user-select: none; color: white; padding-left: 2px; padding-right: 2px; z-index: 101; white-space: nowrap; opacity: 0; transition: opacity .3s ease-in-out; background-color: inherit; }
 .cm-yLocalCursorLine:hover > .cm-yLocalCursorInfo { opacity: 1; transition-delay: 0s; }
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorLine { animation: none !important; opacity: 0.5 !important; }
 .cm-yLocalCursor:not(.cm-focused) .cm-yLocalCursorInfo { opacity: 0 !important; }
 @keyframes cm-y-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
 @keyframes cm-y-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
-.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionInfo { opacity: 1 !important; animation: cm-y-flash 1.5s ease-out forwards; }`}</style>
+.cm-ySelectionCaret.cm-y-flash > .cm-ySelectionInfo { opacity: 1 !important; animation: cm-y-flash 1.5s ease-out forwards; }
+.cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorInfo { opacity: 1 !important; animation: cm-y-flash 1.5s ease-out forwards; }
+.cm-ySelectionInfo, .cm-yLocalCursorInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }`}</style>
         <Toolbar
           view={view}
           undoManager={undoManagerRef.current}

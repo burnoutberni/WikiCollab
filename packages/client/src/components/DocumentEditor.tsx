@@ -146,19 +146,9 @@ export function DocumentEditor() {
     { type: 'jump'; anchor: number; head?: number } | { type: 'scroll'; anchor: number } | null
   >(null);
 
-  const handleLocalCursorClicked = useCallback(() => {
-    setMobileSheetOpen(false);
-    requestAnimationFrame(() => {
-      editorRef.current?.jumpToPosition(localCursor?.anchor ?? 0, localCursor?.head);
-    });
-  }, [localCursor]);
-
-  const handlePeerCursorClicked = useCallback(() => {
-    setMobileSheetOpen(false);
-  }, []);
-
   const flashPeerCursor = useCallback((peerName: string) => {
     requestAnimationFrame(() => {
+      // Flash remote cursor labels
       const labels = document.querySelectorAll('.cm-ySelectionInfo');
       for (const label of labels) {
         if (label.textContent === peerName) {
@@ -170,7 +160,28 @@ export function DocumentEditor() {
           break;
         }
       }
+      // Flash local cursor label
+      const localLabel = document.querySelector('.cm-yLocalCursorInfo');
+      if (localLabel && localLabel.textContent?.startsWith(peerName)) {
+        const line = localLabel.closest('.cm-yLocalCursorLine');
+        if (line && !line.classList.contains('cm-y-flash')) {
+          line.classList.add('cm-y-flash');
+          setTimeout(() => line.classList.remove('cm-y-flash'), 1500);
+        }
+      }
     });
+  }, []);
+
+  const handleLocalCursorClicked = useCallback(() => {
+    setMobileSheetOpen(false);
+    flashPeerCursor(userName);
+    requestAnimationFrame(() => {
+      editorRef.current?.jumpToPosition(localCursor?.anchor ?? 0, localCursor?.head);
+    });
+  }, [localCursor, userName, flashPeerCursor]);
+
+  const handlePeerCursorClicked = useCallback(() => {
+    setMobileSheetOpen(false);
   }, []);
 
   const jumpToCursor = useCallback(
