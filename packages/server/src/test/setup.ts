@@ -12,7 +12,8 @@ const SCHEMA_SQL = `
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     expiry TEXT,
     mediawiki_instance_id TEXT,
-    restored_version_id TEXT
+    restored_version_id TEXT,
+    visibility TEXT NOT NULL DEFAULT 'public'
   );
   CREATE TABLE IF NOT EXISTS mediawiki_instances (
     id TEXT PRIMARY KEY,

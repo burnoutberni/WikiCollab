@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DocumentVisibility } from 'shared';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useDocument, useInstances } from '@/hooks/useApi';
@@ -22,6 +23,7 @@ const mockDoc = {
   expiry: null,
   mediawiki_instance_id: null,
   restored_version_id: null,
+  visibility: 'public' as DocumentVisibility,
 };
 
 const mockNavigate = vi.fn();
@@ -121,6 +123,8 @@ vi.mock('lucide-react', () => {
         'Eye',
         'FileText',
         'FileCode',
+        'Globe',
+        'Link2',
         'RefreshCw',
         'Save',
         'Settings',
@@ -148,6 +152,10 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('DocumentEditor', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsMobile = false;
@@ -262,6 +270,47 @@ describe('DocumentEditor', () => {
 
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(await screen.findByTestId('instance-manager')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Changing this updates the visibility state for everyone/i)
+    ).toBeInTheDocument();
+  });
+
+  it('updates document visibility from desktop settings', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockDoc) });
+    vi.stubGlobal('fetch', fetch);
+
+    renderWithProviders(<DocumentEditor />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Link/i }));
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/docs/test-doc',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ visibility: 'unlisted' }),
+      })
+    );
+  });
+
+  it('reverts visibility on PATCH failure', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    vi.stubGlobal('fetch', fetch);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderWithProviders(<DocumentEditor />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Link/i }));
+    expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true');
+
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(fetch).toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith('Failed to update visibility:', expect.any(Error));
+
+    consoleError.mockRestore();
   });
 
   it('replays pending mobile scroll actions as scrolls after switching to source view', async () => {

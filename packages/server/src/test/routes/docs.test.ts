@@ -72,6 +72,19 @@ describe('Docs routes', () => {
     expect(data.title).toBe('Test Doc');
     expect(data.content).toBe('Hello world');
     expect(data.id).toBeDefined();
+    expect(data.visibility).toBe('public');
+  });
+
+  it('POST / creates an unlisted document', async () => {
+    const res = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Private-ish', visibility: 'unlisted' }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.visibility).toBe('unlisted');
   });
 
   it('GET /:id returns a document', async () => {
@@ -124,6 +137,62 @@ describe('Docs routes', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.title).toBe('Updated');
+  });
+
+  it('PATCH /:id updates document visibility', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Original' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visibility: 'unlisted' }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.visibility).toBe('unlisted');
+  });
+
+  it('GET / hides unlisted documents from the list', async () => {
+    await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Public doc', visibility: 'public' }),
+    });
+    const unlistedRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Link doc', visibility: 'unlisted' }),
+    });
+    const unlisted = await unlistedRes.json();
+
+    const res = await app.request('/api/docs');
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    expect(data).toHaveLength(1);
+    expect(data[0].title).toBe('Public doc');
+    expect(data.find((doc: { id: string }) => doc.id === unlisted.id)).toBeUndefined();
+  });
+
+  it('GET /:id still returns unlisted documents', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Link doc', visibility: 'unlisted' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}`);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.visibility).toBe('unlisted');
   });
 
   it('POST / creates document with custom slug', async () => {

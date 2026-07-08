@@ -30,6 +30,31 @@ describe('Database schema', () => {
     expect(result).toBeDefined();
     expect(result!.title).toBe('Test Document');
     expect(result!.content).toBe('Hello world');
+    expect(result!.visibility).toBe('public');
+  });
+
+  it('stores document visibility', () => {
+    const { db, close } = createTestDb();
+    cleanup = close;
+
+    db.insert(schema.documents)
+      .values({
+        id: 'unlisted-doc',
+        title: 'Unlisted',
+        content: 'content',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        visibility: 'unlisted',
+      })
+      .run();
+
+    const result = db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, 'unlisted-doc'))
+      .get();
+
+    expect(result?.visibility).toBe('unlisted');
   });
 
   it('can insert and query mediawiki_instances', () => {

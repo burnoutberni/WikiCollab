@@ -10,6 +10,7 @@ export const documents = sqliteTable('documents', {
   expiry: text('expiry'),
   mediawiki_instance_id: text('mediawiki_instance_id'),
   restored_version_id: text('restored_version_id'),
+  visibility: text('visibility').notNull().default('public'),
 });
 
 /** Configured MediaWiki targets used for preview and push operations. */

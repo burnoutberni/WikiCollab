@@ -15,7 +15,11 @@ import { setVersionStarred } from '../services/versions.js';
 const docs = new Hono();
 
 docs.get('/', (c) => {
-  const allDocs = db.select().from(schema.documents).all();
+  const allDocs = db
+    .select()
+    .from(schema.documents)
+    .where(eq(schema.documents.visibility, 'public'))
+    .all();
   return c.json(allDocs);
 });
 
@@ -44,6 +48,8 @@ docs.post('/', async (c) => {
     updated_at: now,
     expiry: body.expiry || null,
     mediawiki_instance_id: body.mediawiki_instance_id || null,
+    restored_version_id: null,
+    visibility: body.visibility || 'public',
   };
 
   db.insert(schema.documents).values(doc).run();
@@ -85,6 +91,7 @@ docs.patch('/:id', async (c) => {
   if (body.mediawiki_instance_id !== undefined)
     updates.mediawiki_instance_id = body.mediawiki_instance_id;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
+  if (body.visibility !== undefined) updates.visibility = body.visibility;
 
   const updateResult = db
     .update(schema.documents)
