@@ -72,12 +72,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import { yCollab } from 'y-codemirror.next';
+import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next';
 import type { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+
+const isMac = typeof navigator !== 'undefined' && navigator.platform?.includes('Mac');
+const modKey = isMac ? 'Cmd' : 'Ctrl';
 
 /** Converts viewport-relative coords from `coordsAtPos` to scrollDOM-relative coords for the layer. */
 function getBase(view: EditorView) {
@@ -322,7 +325,13 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           rectangularSelection(),
           crosshairCursor(),
           highlightActiveLine(),
-          keymap.of([...closeBracketsKeymap, ...searchKeymap, ...foldKeymap, ...completionKeymap]),
+          keymap.of([
+            ...closeBracketsKeymap,
+            ...searchKeymap,
+            ...yUndoManagerKeymap,
+            ...foldKeymap,
+            ...completionKeymap,
+          ]),
           EditorView.lineWrapping,
           langExtension,
           ...(userName && userColor
@@ -476,7 +485,7 @@ function Toolbar({
         id: 'undo',
         type: 'button',
         icon: <Undo2 className="h-3.5 w-3.5" />,
-        tip: 'Undo',
+        tip: `Undo — ${modKey}+Z`,
         action: () => undoManager?.undo(),
         disabled: !canUndo,
       },
@@ -484,7 +493,7 @@ function Toolbar({
         id: 'redo',
         type: 'button',
         icon: <Redo2 className="h-3.5 w-3.5" />,
-        tip: 'Redo',
+        tip: `Redo — ${isMac ? `${modKey}+Shift+Z` : `${modKey}+Y`}`,
         action: () => undoManager?.redo(),
         disabled: !canRedo,
       },
