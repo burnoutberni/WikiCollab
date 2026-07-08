@@ -4,10 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  undici@>=7.23.0 <7.28.0: 7.28.0
-  undici@>=8.0.0 <8.5.0: 8.5.0
-
 importers:
 
   .:
@@ -4784,7 +4780,7 @@ packages:
     resolution: {integrity: sha512-L5CRddaDi9raAd5AkODqlPs+0mwYgr9l2SbLwaRdFqY/Gmirfw2X31fXsjn1Ia1er7I3dCfLSYxnTAVzpnq/5g==}
     engines: {node: '>=20.18.1'}
     peerDependencies:
-      undici: 8.5.0
+      undici: ^8.1.0
 
   set-cookie-parser@2.7.2:
     resolution: {integrity: sha512-oeM1lpU/UvhTxw+g3cIfxXHyJRc/uidd3yK1P242gzHds0udQBYzs3y8j4gCCW+ZJ7ad0yctld8RYO+bdurlvw==}

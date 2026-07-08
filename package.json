@@ -1,7 +1,7 @@
 {
   "name": "wikicollab",
   "private": true,
-  "packageManager": "pnpm@10.34.4",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "dev": "pnpm --filter shared build && concurrently \"pnpm run dev:shared\" \"pnpm run dev:server\" \"pnpm run dev:client\"",
     "dev:shared": "pnpm --filter shared exec tsc --watch",
