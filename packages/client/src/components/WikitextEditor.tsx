@@ -6,7 +6,7 @@ import {
   closeBracketsKeymap,
   completionKeymap,
 } from '@codemirror/autocomplete';
-import { history, historyKeymap } from '@codemirror/commands';
+
 import {
   bracketMatching,
   defaultHighlightStyle,
@@ -44,15 +44,23 @@ import {
   Heading3,
   Heading4,
   Image,
+  Indent,
   Italic,
   Link,
+  List,
+  ListOrdered,
   Minus,
   MoreHorizontal,
   Quote,
   Redo2,
   Route,
+  Strikethrough,
+  Subscript,
+  Superscript,
   Table,
   Tag,
+  TextQuote,
+  Underline,
   Undo2,
 } from 'lucide-react';
 import {
@@ -302,7 +310,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           lineNumbers(),
           highlightActiveLineGutter(),
           highlightSpecialChars(),
-          history(),
+
           foldGutter(),
           drawSelection(),
           dropCursor(),
@@ -318,7 +326,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           keymap.of([
             ...closeBracketsKeymap,
             ...searchKeymap,
-            ...historyKeymap,
+
             ...foldKeymap,
             ...completionKeymap,
           ]),
@@ -502,7 +510,64 @@ function Toolbar({
         tip: "Italic — ''text''",
         action: (v) => insertText(v, "''", "''", 'italic'),
       },
+      {
+        id: 'strikethrough',
+        type: 'button',
+        icon: <Strikethrough className="h-3.5 w-3.5" />,
+        tip: 'Strikethrough — <s>text</s>',
+        action: (v) => insertText(v, '<s>', '</s>', 'struck text'),
+      },
+      {
+        id: 'underline',
+        type: 'button',
+        icon: <Underline className="h-3.5 w-3.5" />,
+        tip: 'Underline — <u>text</u>',
+        action: (v) => insertText(v, '<u>', '</u>', 'underlined text'),
+      },
+      {
+        id: 'superscript',
+        type: 'button',
+        icon: <Superscript className="h-3.5 w-3.5" />,
+        tip: 'Superscript — <sup>text</sup>',
+        action: (v) => insertText(v, '<sup>', '</sup>', 'superscript'),
+      },
+      {
+        id: 'subscript',
+        type: 'button',
+        icon: <Subscript className="h-3.5 w-3.5" />,
+        tip: 'Subscript — <sub>text</sub>',
+        action: (v) => insertText(v, '<sub>', '</sub>', 'subscript'),
+      },
       { id: 'sep2', type: 'separator' },
+      {
+        id: 'bulletlist',
+        type: 'button',
+        icon: <List className="h-3.5 w-3.5" />,
+        tip: 'Unordered list — * item',
+        action: (v) => insertAtLine(v, '* '),
+      },
+      {
+        id: 'orderedlist',
+        type: 'button',
+        icon: <ListOrdered className="h-3.5 w-3.5" />,
+        tip: 'Ordered list — # item',
+        action: (v) => insertAtLine(v, '# '),
+      },
+      {
+        id: 'indent',
+        type: 'button',
+        icon: <Indent className="h-3.5 w-3.5" />,
+        tip: 'Indent — : text',
+        action: (v) => insertAtLine(v, ': '),
+      },
+      {
+        id: 'blockquote',
+        type: 'button',
+        icon: <TextQuote className="h-3.5 w-3.5" />,
+        tip: 'Blockquote — <blockquote>text</blockquote>',
+        action: (v) => insertText(v, '<blockquote>\n', '\n</blockquote>', 'quoted text'),
+      },
+      { id: 'sep3', type: 'separator' },
       {
         id: 'h2',
         type: 'button',
@@ -524,7 +589,7 @@ function Toolbar({
         tip: 'Heading 4 — ==== text ====',
         action: (v) => wrapLine(v, '==== ', ' ===='),
       },
-      { id: 'sep3', type: 'separator' },
+      { id: 'sep4', type: 'separator' },
       {
         id: 'link',
         type: 'button',
@@ -539,7 +604,7 @@ function Toolbar({
         tip: 'External link — [http:// label]',
         action: (v) => insertText(v, '[', ']', 'http://example.com label'),
       },
-      { id: 'sep4', type: 'separator' },
+      { id: 'sep5', type: 'separator' },
       {
         id: 'template',
         type: 'button',
@@ -561,7 +626,7 @@ function Toolbar({
         tip: 'Image — [[File:Name.png|thumb]]',
         action: (v) => insertText(v, '[[File:', '|thumb|Caption]]', 'Example.png'),
       },
-      { id: 'sep5', type: 'separator' },
+      { id: 'sep6', type: 'separator' },
       {
         id: 'code',
         type: 'button',
@@ -583,7 +648,7 @@ function Toolbar({
         tip: 'Horizontal rule — ----',
         action: (v) => insertAtLine(v, '----\n'),
       },
-      { id: 'sep6', type: 'separator' },
+      { id: 'sep7', type: 'separator' },
       {
         id: 'table',
         type: 'button',
@@ -591,7 +656,7 @@ function Toolbar({
         tip: 'Table — {| class="wikitable" ... |}',
         action: (v) => insertText(v, '{| class="wikitable"\n|-\n| cell1 || cell2\n|}', ''),
       },
-      { id: 'sep7', type: 'separator' },
+      { id: 'sep8', type: 'separator' },
       {
         id: 'redirect',
         type: 'button',
