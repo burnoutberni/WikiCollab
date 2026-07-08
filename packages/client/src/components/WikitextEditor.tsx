@@ -89,6 +89,8 @@ function localCursorPlugin(userName: string, userColor: string) {
     attributes: { style: `background-color: ${colorLight}` },
   });
 
+  let flashUntil = 0;
+
   const cursorLabel = layer({
     above: true,
     class: 'cm-yLocalCursorLayer',
@@ -121,6 +123,9 @@ function localCursorPlugin(userName: string, userColor: string) {
             info.textContent = userName + ' (you)';
             line.appendChild(info);
             container.appendChild(line);
+            if (Date.now() < flashUntil) {
+              line.classList.add('cm-y-flash');
+            }
             return container;
           },
         },
@@ -131,37 +136,54 @@ function localCursorPlugin(userName: string, userColor: string) {
     },
   });
 
-  return [
-    EditorView.editorAttributes.of({
-      class: 'cm-yLocalCursor',
-      style: `--cm-y-selection: ${colorLight}`,
-    }),
-    ViewPlugin.fromClass(
-      class {
-        decorations: DecorationSet;
-        constructor(view: EditorView) {
-          this.decorations = this.buildDecorations(view);
+  function flash(name: string) {
+    flashUntil = Date.now() + 1500;
+    requestAnimationFrame(() => {
+      const localLabel = document.querySelector('.cm-yLocalCursorInfo');
+      if (localLabel && localLabel.textContent?.startsWith(name)) {
+        const line = localLabel.closest('.cm-yLocalCursorLine');
+        if (line && !line.classList.contains('cm-y-flash')) {
+          line.classList.add('cm-y-flash');
+          setTimeout(() => line.classList.remove('cm-y-flash'), 1500);
         }
-        update(update: ViewUpdate) {
-          if (update.selectionSet || update.docChanged) {
-            this.decorations = this.buildDecorations(update.view);
-          }
-        }
-        buildDecorations(view: EditorView): DecorationSet {
-          const decos: Range<Decoration>[] = [];
-          const sel = view.state.selection.main;
-          if (sel.from !== sel.to) {
-            decos.push(selDeco.range(sel.from, sel.to));
-          }
-          return RangeSet.of(decos);
-        }
-      },
-      {
-        decorations: (v) => v.decorations,
       }
-    ),
-    cursorLabel,
-  ];
+    });
+  }
+
+  return {
+    extensions: [
+      EditorView.editorAttributes.of({
+        class: 'cm-yLocalCursor',
+        style: `--cm-y-selection: ${colorLight}`,
+      }),
+      ViewPlugin.fromClass(
+        class {
+          decorations: DecorationSet;
+          constructor(view: EditorView) {
+            this.decorations = this.buildDecorations(view);
+          }
+          update(update: ViewUpdate) {
+            if (update.selectionSet || update.docChanged) {
+              this.decorations = this.buildDecorations(update.view);
+            }
+          }
+          buildDecorations(view: EditorView): DecorationSet {
+            const decos: Range<Decoration>[] = [];
+            const sel = view.state.selection.main;
+            if (sel.from !== sel.to) {
+              decos.push(selDeco.range(sel.from, sel.to));
+            }
+            return RangeSet.of(decos);
+          }
+        },
+        {
+          decorations: (v) => v.decorations,
+        }
+      ),
+      cursorLabel,
+    ],
+    flash,
+  };
 }
 
 let registered = false;
@@ -199,6 +221,8 @@ export interface WikitextEditorHandle {
   jumpToPosition: (anchor: number, head?: number) => void;
   /** Scrolls a position into view without changing selection. */
   scrollToPosition: (pos: number) => void;
+  /** Flashes the local cursor label for the given peer name. */
+  flashLocalCursor: (name: string) => void;
 }
 
 /**
@@ -213,6 +237,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
     const [view, setView] = useState<EditorView | null>(null);
     const [undoRedo, setUndoRedo] = useState({ canUndo: false, canRedo: false });
     const undoManagerRef = useRef<Y.UndoManager | null>(null);
+    const flashRef = useRef<((name: string) => void) | null>(null);
     const isMobile = useIsMobile();
 
     useImperativeHandle(
@@ -236,6 +261,9 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
               effects: EditorView.scrollIntoView(pos),
             });
           }
+        },
+        flashLocalCursor(name: string) {
+          flashRef.current?.(name);
         },
       }),
       [view]
@@ -287,7 +315,11 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
           ]),
           EditorView.lineWrapping,
           langExtension,
-          ...(userName && userColor ? [localCursorPlugin(userName, userColor)] : []),
+          ...(userName && userColor ? (() => {
+            const plugin = localCursorPlugin(userName, userColor);
+            flashRef.current = plugin.flash;
+            return plugin.extensions;
+          })() : []),
           yCollab(ytext, provider.awareness, { undoManager }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {

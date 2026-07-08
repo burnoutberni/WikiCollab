@@ -161,14 +161,7 @@ export function DocumentEditor() {
         }
       }
       // Flash local cursor label
-      const localLabel = document.querySelector('.cm-yLocalCursorInfo');
-      if (localLabel && localLabel.textContent?.startsWith(peerName)) {
-        const line = localLabel.closest('.cm-yLocalCursorLine');
-        if (line && !line.classList.contains('cm-y-flash')) {
-          line.classList.add('cm-y-flash');
-          setTimeout(() => line.classList.remove('cm-y-flash'), 1500);
-        }
-      }
+      editorRef.current?.flashLocalCursor(peerName);
     });
   }, []);
 
