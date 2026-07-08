@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -172,6 +173,68 @@ describe('SplitPaneEditor', () => {
     await vi.waitFor(() => {
       expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('refreshes when entering mobile preview mode', async () => {
+    mockIsMobile = true;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+
+    const { rerender } = renderWithProviders(
+      <SplitPaneEditor {...defaultProps} initialMobileTab="source" />
+    );
+
+    expect(vi.mocked(global.fetch)).not.toHaveBeenCalled();
+
+    rerender(
+      <TooltipProvider>
+        <SplitPaneEditor {...defaultProps} initialMobileTab="preview" />
+      </TooltipProvider>
+    );
+
+    await vi.waitFor(() => {
+      expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('debounces non-Yjs preview refreshes while typing', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+    global.fetch = fetchMock;
+
+    const { rerender } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <TooltipProvider>
+        <SplitPaneEditor {...defaultProps} content="Hello wikitext!" />
+      </TooltipProvider>
+    );
+    rerender(
+      <TooltipProvider>
+        <SplitPaneEditor {...defaultProps} content="Hello wikitext!!" />
+      </TooltipProvider>
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    vi.useRealTimers();
   });
 
   it('renders mobile source tab when requested', () => {

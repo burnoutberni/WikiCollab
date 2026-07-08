@@ -156,7 +156,7 @@ export function CollaboratorList({
       <div className="flex items-center gap-2 px-2 py-1.5 rounded-md relative group">
         <button
           ref={colorTriggerRef}
-          className="h-8 w-8 md:h-5 md:w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
+          className="h-11 w-11 md:h-5 md:w-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 cursor-pointer ring-1 ring-foreground/10"
           aria-label="Change user color"
           style={{ backgroundColor: userColor, color: textColor(userColor) }}
           onClick={(e) => {

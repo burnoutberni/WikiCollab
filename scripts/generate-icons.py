@@ -34,12 +34,12 @@ ICON_CONFIGS = [
 def convert_svg_to_png(svg_path, output_path, size=512):
     """Convert SVG to PNG using available converters."""
     # Read and modify SVG to use white color
-    with open(svg_path, 'r') as f:
+    with open(svg_path, 'r', encoding='utf-8') as f:
         svg_content = f.read()
     
     svg_content = svg_content.replace('stroke="currentColor"', 'stroke="white"')
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.svg', delete=False) as temp_svg:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.svg', delete=False, encoding='utf-8') as temp_svg:
         temp_svg.write(svg_content)
         temp_svg_path = temp_svg.name
     
@@ -47,10 +47,10 @@ def convert_svg_to_png(svg_path, output_path, size=512):
         # Try rsvg-convert first
         subprocess.run(
             ['rsvg-convert', '-w', str(size), '-h', str(size), temp_svg_path, '-o', output_path],
-            check=True, capture_output=True
+            check=True, capture_output=True, timeout=30
         )
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         pass
     
     try:
@@ -58,10 +58,10 @@ def convert_svg_to_png(svg_path, output_path, size=512):
         subprocess.run(
             ['inkscape', '--export-type=png', f'--export-width={size}',
              f'--export-height={size}', temp_svg_path, '-o', output_path],
-            check=True, capture_output=True
+            check=True, capture_output=True, timeout=30
         )
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         pass
     
     try:
@@ -69,10 +69,10 @@ def convert_svg_to_png(svg_path, output_path, size=512):
         subprocess.run(
             ['convert', '-background', 'none', '-resize', f'{size}x{size}',
              temp_svg_path, output_path],
-            check=True, capture_output=True
+            check=True, capture_output=True, timeout=30
         )
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         pass
     
     finally:

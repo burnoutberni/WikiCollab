@@ -87,6 +87,7 @@ export function SplitPaneEditor({
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextContentRefreshRef = useRef(true);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const apiUrlRef = useRef(apiUrl);
@@ -181,11 +182,24 @@ export function SplitPaneEditor({
 
   const debouncedPreviewRef = useRef(debouncedPreview);
   debouncedPreviewRef.current = debouncedPreview;
+  const refreshPreviewRef = useRef(refreshPreview);
+  refreshPreviewRef.current = refreshPreview;
 
   useEffect(() => {
     if (isMobile && initialMobileTab !== 'preview') return;
-    refreshPreview();
-  }, [apiUrl, title, isMobile, initialMobileTab, refreshPreview]);
+    skipNextContentRefreshRef.current = true;
+    refreshPreviewRef.current();
+  }, [apiUrl, title, isMobile, initialMobileTab]);
+
+  useEffect(() => {
+    if (ytext) return;
+    if (isMobile && initialMobileTab !== 'preview') return;
+    if (skipNextContentRefreshRef.current) {
+      skipNextContentRefreshRef.current = false;
+      return;
+    }
+    debouncedPreviewRef.current();
+  }, [content, ytext, isMobile, initialMobileTab]);
 
   useEffect(() => {
     if (!ytext) return;

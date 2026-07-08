@@ -55,7 +55,7 @@ AlertDialogHeader.displayName = 'AlertDialogHeader';
 const AlertDialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2 sticky bottom-0 bg-background -mx-6 px-6 -mb-6 pb-6 sm:static sm:m-0 sm:p-0 sm:bg-transparent',
+      'flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-2 sticky bottom-0 bg-background -mx-6 px-6 -mb-6 pb-6 md:static md:m-0 md:p-0 md:bg-transparent',
       className
     )}
     {...props}
@@ -101,7 +101,7 @@ const AlertDialogCancel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Cancel
     ref={ref}
-    className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0', className)}
+    className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 md:mt-0', className)}
     {...props}
   />
 ));

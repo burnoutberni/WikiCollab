@@ -135,7 +135,9 @@ export function DocumentEditor() {
     }
   }, []);
 
-  const pendingCursorRef = useRef<{ anchor: number; head?: number } | null>(null);
+  const pendingCursorRef = useRef<
+    { type: 'jump'; anchor: number; head?: number } | { type: 'scroll'; anchor: number } | null
+  >(null);
 
   const handleLocalCursorClicked = useCallback(() => {
     setMobileSheetOpen(false);
@@ -151,7 +153,7 @@ export function DocumentEditor() {
   const jumpToCursor = useCallback(
     (anchor: number, head?: number) => {
       if (isMobile && viewMode !== 'source') {
-        pendingCursorRef.current = { anchor, head };
+        pendingCursorRef.current = { type: 'jump', anchor, head };
         setViewMode('source');
       } else {
         editorRef.current?.jumpToPosition(anchor, head);
@@ -163,7 +165,7 @@ export function DocumentEditor() {
   const scrollToCursor = useCallback(
     (pos: number) => {
       if (isMobile && viewMode !== 'source') {
-        pendingCursorRef.current = { anchor: pos };
+        pendingCursorRef.current = { type: 'scroll', anchor: pos };
         setViewMode('source');
       } else {
         editorRef.current?.scrollToPosition(pos);
@@ -174,9 +176,13 @@ export function DocumentEditor() {
 
   useEffect(() => {
     if (viewMode === 'source' && pendingCursorRef.current) {
-      const { anchor, head } = pendingCursorRef.current;
+      const pendingCursor = pendingCursorRef.current;
       pendingCursorRef.current = null;
-      editorRef.current?.jumpToPosition(anchor, head);
+      if (pendingCursor.type === 'scroll') {
+        editorRef.current?.scrollToPosition(pendingCursor.anchor);
+      } else {
+        editorRef.current?.jumpToPosition(pendingCursor.anchor, pendingCursor.head);
+      }
     }
   }, [viewMode]);
 
@@ -298,8 +304,9 @@ export function DocumentEditor() {
           <header className="border-b px-3 py-2 flex items-center gap-2">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => navigate('/')}
+              className="h-11 w-11 shrink-0"
               aria-label="Back to dashboard"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -308,7 +315,7 @@ export function DocumentEditor() {
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
               maxLength={TITLE_MAX}
-              className="flex-1 font-semibold text-sm h-8"
+              className="h-11 flex-1 font-semibold text-sm"
               placeholder="Document title"
             />
             <ConnectionStatePopover
@@ -600,7 +607,7 @@ export function DocumentEditor() {
           <div>
             <button
               type="button"
-              className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
+              className="flex min-h-[44px] w-full items-center gap-1.5 py-2 text-left text-xs font-medium"
               onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
               aria-expanded={collaboratorsExpanded}
             >

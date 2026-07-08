@@ -67,44 +67,44 @@ export function MobileEditorBar({
 
   return (
     <div className="md:hidden border-t bg-background safe-area-bottom">
-      <div className="flex items-center py-1.5 px-2">
+      <div className="flex items-center gap-1 py-1.5 px-1.5 min-[360px]:gap-2 min-[360px]:px-2">
         <Button
           variant={sidebarOpen ? 'secondary' : 'ghost'}
           size="sm"
           onClick={onToggleSidebar}
-          className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 w-[4.5rem]"
+          className="flex h-auto min-h-[44px] w-12 flex-col items-center gap-0.5 px-2 py-1.5 min-[360px]:w-[4.5rem] min-[360px]:px-3"
           data-testid="mobile-toggle-settings"
           aria-label="Toggle settings panel"
           aria-haspopup="dialog"
           aria-expanded={sidebarOpen}
         >
           <Settings className="h-5 w-5" />
-          <span className="text-[10px]">Settings</span>
+          <span className="text-[10px] max-[359px]:sr-only">Settings</span>
         </Button>
 
-        <div className="flex-1 flex justify-center">
-          <div className="flex items-center border rounded-md shrink-0">
+        <div className="flex min-w-0 flex-1 justify-center">
+          <div className="flex min-w-0 items-center rounded-md border">
             <Button
               variant={viewMode === 'source' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('source')}
-              className="rounded-r-none h-11 min-h-[44px] px-4"
+              className="h-11 min-h-[44px] rounded-r-none px-3 min-[360px]:px-4"
               data-testid="mobile-view-source"
               aria-pressed={viewMode === 'source'}
             >
-              <FileCode className="h-4 w-4 mr-1.5" />
-              <span className="text-xs">Source</span>
+              <FileCode className="mr-0 h-4 w-4 min-[360px]:mr-1.5" />
+              <span className="text-xs max-[359px]:sr-only">Source</span>
             </Button>
             <Button
               variant={viewMode !== 'source' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('split')}
-              className="rounded-l-none h-11 min-h-[44px] px-4"
+              className="h-11 min-h-[44px] rounded-l-none px-3 min-[360px]:px-4"
               data-testid="mobile-view-preview"
               aria-pressed={viewMode !== 'source'}
             >
-              <Eye className="h-4 w-4 mr-1.5" />
-              <span className="text-xs">Preview</span>
+              <Eye className="mr-0 h-4 w-4 min-[360px]:mr-1.5" />
+              <span className="text-xs max-[359px]:sr-only">Preview</span>
             </Button>
           </div>
         </div>
@@ -113,12 +113,12 @@ export function MobileEditorBar({
           variant="ghost"
           size="sm"
           onClick={handleShare}
-          className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 w-[4.5rem]"
+          className="flex h-auto min-h-[44px] w-12 flex-col items-center gap-0.5 px-2 py-1.5 min-[360px]:w-[4.5rem] min-[360px]:px-3"
           data-testid="mobile-share"
           aria-label={copied ? 'Link copied' : 'Share document'}
         >
           {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
-          <span className="text-[10px]">{copied ? 'Copied!' : 'Share'}</span>
+          <span className="text-[10px] max-[359px]:sr-only">{copied ? 'Copied!' : 'Share'}</span>
         </Button>
       </div>
     </div>

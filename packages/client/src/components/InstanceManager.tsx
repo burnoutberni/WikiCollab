@@ -197,27 +197,33 @@ export function InstanceManager({
               autoCapitalize="off"
               spellCheck={false}
             />
-            {nameOpen && filteredPresets.length > 0 && (
+            {nameOpen && (
               <div
                 ref={listRef}
                 className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-0 shadow-md"
               >
-                {filteredPresets.map((preset, i) => (
-                  <button
-                    key={preset.api_url}
-                    type="button"
-                    className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
-                      i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
-                    }`}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      selectPreset(preset);
-                    }}
-                  >
-                    <span className="font-medium">{preset.name}</span>
-                    <span className="text-xs text-muted-foreground truncate">{preset.api_url}</span>
-                  </button>
-                ))}
+                {filteredPresets.length > 0 ? (
+                  filteredPresets.map((preset, i) => (
+                    <button
+                      key={preset.api_url}
+                      type="button"
+                      className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                        i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
+                      }`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectPreset(preset);
+                      }}
+                    >
+                      <span className="font-medium">{preset.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {preset.api_url}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">No matching presets</div>
+                )}
               </div>
             )}
           </div>

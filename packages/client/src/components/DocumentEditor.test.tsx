@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -25,6 +26,11 @@ const mockDoc = {
 
 const mockNavigate = vi.fn();
 const mockTakeOver = vi.fn();
+const mockEditorHandle = {
+  jumpToPosition: vi.fn(),
+  scrollToPosition: vi.fn(),
+};
+const mockConnectionStatePopover = vi.fn();
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal();
@@ -57,12 +63,32 @@ vi.mock('@/components/SplitPaneEditor', () => ({
   SplitPaneEditor: () => <div data-testid="split-pane-editor">SplitPaneEditor</div>,
 }));
 
+vi.mock('@/components/ConnectionStatePopover', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ConnectionStatePopover: (props: any) => {
+    mockConnectionStatePopover(props);
+    return (
+      <div data-testid="connection-state-popover-mock">
+        <button type="button" onClick={() => props.onScrollToCursor?.(42)}>
+          Trigger scroll cursor
+        </button>
+      </div>
+    );
+  },
+}));
+
 vi.mock('@/components/VersionHistory', () => ({
   VersionHistory: () => <div data-testid="version-history">VersionHistory</div>,
 }));
 
 vi.mock('@/components/WikitextEditor', () => ({
-  WikitextEditor: () => <div data-testid="wikitext-editor">WikitextEditor</div>,
+  WikitextEditor: React.forwardRef(function MockWikitextEditor(
+    _props,
+    ref: React.ForwardedRef<unknown>
+  ) {
+    React.useImperativeHandle(ref, () => mockEditorHandle);
+    return <div data-testid="wikitext-editor">WikitextEditor</div>;
+  }),
   WikitextEditorHandle: {},
 }));
 
@@ -125,6 +151,9 @@ describe('DocumentEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsMobile = false;
+    mockEditorHandle.jumpToPosition.mockReset();
+    mockEditorHandle.scrollToPosition.mockReset();
+    mockConnectionStatePopover.mockReset();
     localStorage.clear();
     useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument: vi.fn() });
     useInstancesMock.mockReturnValue({
@@ -233,5 +262,19 @@ describe('DocumentEditor', () => {
 
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(await screen.findByTestId('instance-manager')).toBeInTheDocument();
+  });
+
+  it('replays pending mobile scroll actions as scrolls after switching to source view', async () => {
+    const user = userEvent.setup();
+    mockIsMobile = true;
+
+    renderWithProviders(<DocumentEditor />);
+
+    await user.click(screen.getByRole('button', { name: 'Trigger scroll cursor' }));
+
+    await vi.waitFor(() => {
+      expect(mockEditorHandle.scrollToPosition).toHaveBeenCalledWith(42);
+    });
+    expect(mockEditorHandle.jumpToPosition).not.toHaveBeenCalled();
   });
 });
