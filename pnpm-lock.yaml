@@ -64,8 +64,8 @@ importers:
   packages/client:
     dependencies:
       '@bhsd/codemirror-mediawiki':
-        specifier: ^3.21.0
-        version: 3.21.0(@codemirror/autocomplete@6.20.3)(@codemirror/commands@6.10.3)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.11)(@codemirror/lang-javascript@6.2.5)(@codemirror/lang-vue@0.1.3)(@codemirror/language@6.12.3)(@codemirror/legacy-modes@6.5.3)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.0)(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)(stylelint-config-recommended@18.0.0(stylelint@17.13.0(typescript@6.0.3)))(stylelint@17.13.0(typescript@6.0.3))
+        specifier: ^4.1.0
+        version: 4.1.0(@codemirror/autocomplete@6.20.3)(@codemirror/commands@6.10.3)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.11)(@codemirror/lang-javascript@6.2.5)(@codemirror/lang-vue@0.1.3)(@codemirror/language@6.12.3)(@codemirror/legacy-modes@6.5.3)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.0)(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)(stylelint-config-recommended@18.0.0(stylelint@17.13.0(typescript@6.0.3)))(stylelint@17.13.0(typescript@6.0.3))
       '@codemirror/autocomplete':
         specifier: ^6.20.3
         version: 6.20.3
@@ -860,8 +860,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@bhsd/browser@0.5.0':
-    resolution: {integrity: sha512-eHKql4uHOwl0Fh+oxfZpAtXo+C8D4CcBkErZlhGjzLRZk+Uscxr+2nPOhubEXd5EAjsC3hSIEyHgaFpRFVu0gg==}
+  '@bhsd/browser@1.0.0':
+    resolution: {integrity: sha512-ezSi+/nfjcfYDlRe2GTA/RIJdurt2kHPyqZEgs+bOilRLa7qK1nWoY1N2IkTQvvCtbS2ld9GwWD1szxuo1VpqA==}
 
   '@bhsd/cm-util@2.2.0':
     resolution: {integrity: sha512-2BbTYlTEw+3FGf2fXCSysLuGG8/lzU6nGTRjxdXt5FyaLPpH7OB/UQ5SS0wpHbv8pza0i2RvXrT2WV4e4ytSmg==}
@@ -878,8 +878,8 @@ packages:
       '@codemirror/language': ^6.0.0
       '@codemirror/view': ^6.0.0
 
-  '@bhsd/codemirror-mediawiki@3.21.0':
-    resolution: {integrity: sha512-hLkWBQNdjyv6SARRuX8Ys7MeX3wrTdkHyyOtkIBp+guKyI6PCQgQ6Pg/zuWS9oFRGCNuzVS0xefwBg9kSVXNig==}
+  '@bhsd/codemirror-mediawiki@4.1.0':
+    resolution: {integrity: sha512-O+MCt+a2BhWf7StH/P0Yy1f18gV2nkFoq3rf+IxpRKdwZwqtm+WNP4VcR2rJFnpRluYlVH1ORHPyRYcelcR32g==}
     peerDependencies:
       '@codemirror/autocomplete': ^6.9.0
       '@codemirror/commands': ^6.5.0
@@ -952,9 +952,11 @@ packages:
 
   '@codemirror/fold@0.19.4':
     resolution: {integrity: sha512-0SNSkRSOa6gymD6GauHa3sxiysjPhUC0SRVyTlvL52o0gz9GHdc8kNqNQskm3fBtGGOiSriGwF/kAsajRiGhVw==}
+    deprecated: As of 0.20.0, this package has been merged into @codemirror/language
 
   '@codemirror/gutter@0.19.9':
     resolution: {integrity: sha512-PFrtmilahin1g6uL27aG5tM/rqR9DZzZYZsIrCXA5Uc2OFTFqx4owuhoU9hqfYxHp5ovfvBwQ+txFzqS4vog6Q==}
+    deprecated: As of 0.20.0, this package has been merged into @codemirror/view
 
   '@codemirror/lang-css@6.3.1':
     resolution: {integrity: sha512-kr5fwBGiGtmz6l0LSJIbno9QrifNMUusivHbnA1H6Dmqy4HZFte3UAICix1VuKo0lMPKQr2rqB+0BkKi/S3Ejg==}
@@ -982,6 +984,7 @@ packages:
 
   '@codemirror/rangeset@0.19.9':
     resolution: {integrity: sha512-V8YUuOvK+ew87Xem+71nKcqu1SXd5QROMRLMS/ljT5/3MCxtgrRie1Cvild0G/Z2f1fpWxzX78V0U4jjXBorBQ==}
+    deprecated: As of 0.20.0, this package has been merged into @codemirror/state
 
   '@codemirror/search@6.7.0':
     resolution: {integrity: sha512-ZvGm99wc/s2cITtMT15LFdn8aH/aS+V+DqyGq/N5ZlV5vWtH+nILvC2nw0zX7ByNoHHDZ2IxxdW38O0tc5nVHg==}
@@ -994,6 +997,7 @@ packages:
 
   '@codemirror/text@0.19.6':
     resolution: {integrity: sha512-T9jnREMIygx+TPC1bOuepz18maGq/92q2a+n4qTqObKwvNMg+8cMTslb8yxeEDEq7S3kpgGWxgO1UWbQRij0dA==}
+    deprecated: As of 0.20.0, this package has been merged into @codemirror/state
 
   '@codemirror/view@0.19.48':
     resolution: {integrity: sha512-0eg7D2Nz4S8/caetCTz61rK0tkHI17V/d15Jy0kLOT8dTLGGNJUponDnW28h2B6bERmPlVHKh8MJIr5OCp1nGw==}
@@ -4527,6 +4531,7 @@ packages:
   prebuild-install@7.1.3:
     resolution: {integrity: sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug==}
     engines: {node: '>=10'}
+    deprecated: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
     hasBin: true
 
   prelude-ls@1.2.1:
@@ -6428,7 +6433,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@bhsd/browser@0.5.0': {}
+  '@bhsd/browser@1.0.0': {}
 
   '@bhsd/cm-util@2.2.0': {}
 
@@ -6438,9 +6443,9 @@ snapshots:
       '@codemirror/language': 6.12.3
       '@codemirror/view': 6.43.1
 
-  '@bhsd/codemirror-mediawiki@3.21.0(@codemirror/autocomplete@6.20.3)(@codemirror/commands@6.10.3)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.11)(@codemirror/lang-javascript@6.2.5)(@codemirror/lang-vue@0.1.3)(@codemirror/language@6.12.3)(@codemirror/legacy-modes@6.5.3)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.0)(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)(stylelint-config-recommended@18.0.0(stylelint@17.13.0(typescript@6.0.3)))(stylelint@17.13.0(typescript@6.0.3))':
+  '@bhsd/codemirror-mediawiki@4.1.0(@codemirror/autocomplete@6.20.3)(@codemirror/commands@6.10.3)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.11)(@codemirror/lang-javascript@6.2.5)(@codemirror/lang-vue@0.1.3)(@codemirror/language@6.12.3)(@codemirror/legacy-modes@6.5.3)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.0)(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)(stylelint-config-recommended@18.0.0(stylelint@17.13.0(typescript@6.0.3)))(stylelint@17.13.0(typescript@6.0.3))':
     dependencies:
-      '@bhsd/browser': 0.5.0
+      '@bhsd/browser': 1.0.0
       '@bhsd/cm-util': 2.2.0
       '@bhsd/codemirror-css-color-picker': 8.0.0(@codemirror/language@6.12.3)(@codemirror/view@6.43.1)
       '@bhsd/common': 3.0.0

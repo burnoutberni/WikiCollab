@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@bhsd/codemirror-mediawiki": "^3.21.0",
+    "@bhsd/codemirror-mediawiki": "^4.1.0",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/fold": "^0.19.4",
