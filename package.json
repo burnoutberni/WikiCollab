@@ -8,7 +8,7 @@
     "dev:server": "pnpm --filter server dev",
     "dev:client": "pnpm --filter client dev",
     "build": "pnpm --filter shared build && pnpm --filter server build && pnpm --filter client build",
-    "start": "pnpm --filter server start",
+    "start": "node packages/server/dist/index.js",
     "audit": "pnpm audit && pnpm --dir packages/client audit && pnpm --dir packages/server audit && pnpm --dir packages/shared audit",
     "lint": "pnpm -r run lint",
     "lint:fix": "pnpm -r run lint:fix",
