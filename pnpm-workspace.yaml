@@ -4,7 +4,7 @@ packages:
 minimumReleaseAge: 0
 
 overrides:
-  undici@>=7.23.0 <7.28.0: 7.28.0
+  undici@>=7.23.0 <7.28.0: 8.8.0
   undici@>=8.0.0 <8.5.0: 8.7.0
   shell-quote@<1.8.5: 1.10.0
 
