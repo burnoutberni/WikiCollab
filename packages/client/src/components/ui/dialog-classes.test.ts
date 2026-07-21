@@ -10,5 +10,6 @@ describe('DIALOG_CONTENT_CLASSES', () => {
   it('keeps desktop dialogs inset from viewport edges and scrollable when content is tall', () => {
     expect(DIALOG_CONTENT_CLASSES.desktop).toContain('md:max-h-[calc(100dvh-2rem)]');
     expect(DIALOG_CONTENT_CLASSES.desktop).toContain('md:overflow-y-auto');
+    expect(DIALOG_CONTENT_CLASSES.desktop).toContain('md:overscroll-contain');
   });
 });
