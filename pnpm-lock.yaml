@@ -6,7 +6,7 @@ settings:
 
 overrides:
   undici@>=7.23.0 <7.28.0: 7.28.0
-  undici@>=8.0.0 <8.5.0: 8.7.0
+  undici@>=8.0.0 <8.5.0: 8.8.0
   shell-quote@<1.8.5: 1.10.0
 
 importers:
@@ -241,7 +241,7 @@ importers:
         version: 2.17.5
       server-fetch:
         specifier: ^1.0.10
-        version: 1.0.10(undici@8.7.0)
+        version: 1.0.10(undici@8.8.0)
       shared:
         specifier: workspace:*
         version: link:../shared
@@ -4785,7 +4785,7 @@ packages:
     resolution: {integrity: sha512-L5CRddaDi9raAd5AkODqlPs+0mwYgr9l2SbLwaRdFqY/Gmirfw2X31fXsjn1Ia1er7I3dCfLSYxnTAVzpnq/5g==}
     engines: {node: '>=20.18.1'}
     peerDependencies:
-      undici: 8.7.0
+      undici: 8.8.0
 
   set-cookie-parser@2.7.2:
     resolution: {integrity: sha512-oeM1lpU/UvhTxw+g3cIfxXHyJRc/uidd3yK1P242gzHds0udQBYzs3y8j4gCCW+ZJ7ad0yctld8RYO+bdurlvw==}
@@ -5236,8 +5236,8 @@ packages:
     resolution: {integrity: sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA==}
     engines: {node: '>=20.18.1'}
 
-  undici@8.7.0:
-    resolution: {integrity: sha512-N7iQtfyLhIMOFgQubvmLV26svHpO0bqKnAiWotTQCVKCmWrcGbBotPuW1x+xwYZ2VHdSTVUfPQQnlEt1/LouTQ==}
+  undici@8.8.0:
+    resolution: {integrity: sha512-ubshXMXwF3MQIMF1y/WxZdNBnjEKeSg2wF5mcGUtU55YTw34tnVVpKRlLf7ruDXZ5344KokPVX4RBx1wJm64Bw==}
     engines: {node: '>=22.19.0'}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
@@ -10306,9 +10306,9 @@ snapshots:
 
   serialize-javascript@7.0.7: {}
 
-  server-fetch@1.0.10(undici@8.7.0):
+  server-fetch@1.0.10(undici@8.8.0):
     dependencies:
-      undici: 8.7.0
+      undici: 8.8.0
 
   set-cookie-parser@2.7.2: {}
 
@@ -10836,7 +10836,7 @@ snapshots:
 
   undici@7.28.0: {}
 
-  undici@8.7.0: {}
+  undici@8.8.0: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
