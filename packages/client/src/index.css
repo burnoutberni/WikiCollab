@@ -108,6 +108,9 @@
   .safe-area-top-6 {
     padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
   }
+  .safe-area-bottom-6 {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+  }
   .touch-none {
     touch-action: none;
   }
