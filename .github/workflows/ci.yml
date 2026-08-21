@@ -43,7 +43,7 @@ jobs:
       - run: pnpm test
       - name: Coverage
         if: github.event_name == 'pull_request'
-        run: pnpm --filter server exec vitest run --coverage
+        run: pnpm --filter server test:coverage
       - name: Post coverage comment
         if: github.event_name == 'pull_request'
         env:

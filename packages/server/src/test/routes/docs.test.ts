@@ -345,13 +345,54 @@ describe('Docs routes', () => {
     const created = await res.json();
 
     expect(res.status).toBe(201);
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
-    const stored = mockDbModule.db
-      .select()
-      .from(schema.documents)
-      .where(eq(schema.documents.id, created.id))
-      .get();
-    expect(stored?.mediawiki_instance_css).toHaveLength(500_000);
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).toHaveLength(500_000);
+    });
+  });
+
+  it('strips external CSS url() references before storing MediaWiki CSS', async () => {
+    mockServerFetch
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ query: { skins: [{ code: 'vector', default: '' }] } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/css' },
+        text: () =>
+          Promise.resolve(
+            '.remote{background:url("https://remote.test/image.png")}.data{background:url(data:image/png;base64,abc)}.frag{filter:url(#shadow)}'
+          ),
+      })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) });
+
+    const res = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'External CSS URL',
+        mediawiki_instance_name: 'URL Wiki',
+        mediawiki_instance_api_url: 'https://wiki.example/w/api.php',
+      }),
+    });
+    const created = await res.json();
+
+    expect(res.status).toBe(201);
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).not.toContain('https://remote.test/image.png');
+      expect(stored?.mediawiki_instance_css).toContain('url(data:image/png;base64,abc)');
+      expect(stored?.mediawiki_instance_css).toContain('url(#shadow)');
+    });
   });
 
   it('rejects oversized ResourceLoader CSS before reading the body', async () => {
@@ -508,6 +549,59 @@ describe('Docs routes', () => {
       .where(eq(schema.documents.id, created.id))
       .get();
     expect(stored?.mediawiki_instance_css).toBeNull();
+    expect(mockServerFetch).toHaveBeenCalledTimes(1);
+
+    resolveSiteInfo({ json: () => Promise.resolve({ query: { skins: [] } }) });
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
+  });
+
+  it('skips duplicate CSS refreshes while one is already in flight for the document', async () => {
+    let resolveSiteInfo: (value: {
+      json: () => Promise<{ query: { skins: never[] } }>;
+    }) => void = () => {};
+    mockServerFetch
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSiteInfo = resolve;
+        })
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/css' },
+        text: () => Promise.resolve(''),
+      })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Dedupe CSS Refresh' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({
+        mediawiki_instance_name: 'Example',
+        mediawiki_instance_api_url: 'https://example.com/w/api.php',
+        mediawiki_instance_css: null,
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const first = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediawiki_instance_api_url: 'https://example.com/w/api.php' }),
+    });
+    const second = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediawiki_instance_api_url: 'https://example.com/w/api.php' }),
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
     expect(mockServerFetch).toHaveBeenCalledTimes(1);
 
     resolveSiteInfo({ json: () => Promise.resolve({ query: { skins: [] } }) });

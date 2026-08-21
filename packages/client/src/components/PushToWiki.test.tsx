@@ -88,6 +88,34 @@ describe('PushToWiki', () => {
     );
   });
 
+  it('updates the displayed target URL while the dialog is open', async () => {
+    const user = userEvent.setup();
+
+    const { rerender } = renderWithProviders(
+      <PushToWiki
+        title="First Page"
+        content="content"
+        instanceApiUrl="https://wiki.example/w/api.php"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+    expect(screen.getByText('https://wiki.example/wiki/First_Page')).toBeInTheDocument();
+
+    rerender(
+      <TooltipProvider>
+        <PushToWiki
+          title="Second Page"
+          content="content"
+          instanceApiUrl="https://wiki.example/w/api.php"
+        />
+      </TooltipProvider>
+    );
+
+    expect(screen.getByText('https://wiki.example/wiki/Second_Page')).toBeInTheDocument();
+    expect(screen.queryByText('https://wiki.example/wiki/First_Page')).not.toBeInTheDocument();
+  });
+
   it('shows an inline message when clipboard copy fails', async () => {
     const user = userEvent.setup();
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied'));

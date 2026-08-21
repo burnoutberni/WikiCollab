@@ -16,22 +16,24 @@ export interface MediaWikiJsonResult<T> {
   bodySnippet?: string;
 }
 
+type MediaWikiJsonResponse = {
+  ok: boolean;
+  status: number;
+  headers: { get: (name: string) => string | null };
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+};
+
 function isRateLimitResponse(status: number | undefined, body: string): boolean {
   return status === 429 || /"code"\s*:\s*"ratelimited"|too many requests/i.test(body);
 }
 
 export async function readMediaWikiJsonResult<T>(
-  response: {
-    ok?: boolean;
-    status?: number;
-    headers?: { get?: (name: string) => string | null };
-    json: () => Promise<unknown>;
-    text?: () => Promise<string>;
-  },
+  response: MediaWikiJsonResponse,
   context: string
 ): Promise<MediaWikiJsonResult<T>> {
   if (response.ok === false) {
-    const body = response.text ? await response.text().catch(() => '') : '';
+    const body = await response.text().catch(() => '');
     const bodySnippet = body.slice(0, 120);
     const rateLimited = isRateLimitResponse(response.status, body);
     console.warn(
@@ -42,7 +44,7 @@ export async function readMediaWikiJsonResult<T>(
 
   const contentType = response.headers?.get?.('content-type') || '';
   if (contentType && !contentType.toLowerCase().includes('json')) {
-    const body = response.text ? await response.text().catch(() => '') : '';
+    const body = await response.text().catch(() => '');
     const bodySnippet = body.slice(0, 120);
     const rateLimited = isRateLimitResponse(response.status, body);
     console.warn(
@@ -62,7 +64,7 @@ export async function readMediaWikiJsonResult<T>(
 }
 
 export async function readMediaWikiJson<T>(
-  response: Parameters<typeof readMediaWikiJsonResult<T>>[0],
+  response: MediaWikiJsonResponse,
   context: string
 ): Promise<T | null> {
   const result = await readMediaWikiJsonResult<T>(response, context);

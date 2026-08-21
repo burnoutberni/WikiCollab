@@ -204,7 +204,6 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
     }
     case 'preview_request': {
       const page = typeof payload.page === 'string' ? payload.page : '';
-      const requestId = typeof payload.requestId === 'string' ? payload.requestId : '';
 
       const key = `${doc.name}:${page}`;
       const existing = previewDebounces.get(key);
@@ -222,7 +221,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
             const storedDoc = getDocumentById(doc.name);
             const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
             const { html } = await generatePreview(wikitext, apiUrl, page || null, doc.name);
-            broadcastCustom(doc, encodeInnerPayload('preview_update', { html, page, requestId }));
+            broadcastCustom(doc, encodeInnerPayload('preview_update', { html, page }));
           } catch (err) {
             console.error('WS preview generation failed:', err);
           }

@@ -1,6 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('mediawiki-http', () => {
+  function jsonResponse(
+    overrides: Partial<{
+      ok: boolean;
+      status: number;
+      headers: { get: (name: string) => string | null };
+      json: () => Promise<unknown>;
+      text: () => Promise<string>;
+    }>
+  ) {
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({}),
+      text: async () => '',
+      ...overrides,
+    };
+  }
+
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
@@ -20,12 +39,11 @@ describe('mediawiki-http', () => {
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const result = await readMediaWikiJsonResult<{ ok: boolean }>(
-      {
+      jsonResponse({
         ok: false,
         status: 500,
-        json: async () => ({}),
         text: async () => 'This page mentions rate limit documentation.',
-      },
+      }),
       'preview'
     );
 
@@ -38,12 +56,11 @@ describe('mediawiki-http', () => {
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const result = await readMediaWikiJsonResult<{ ok: boolean }>(
-      {
+      jsonResponse({
         ok: false,
         status: 503,
-        json: async () => ({}),
         text: async () => '{"error":{"code":"ratelimited"}}',
-      },
+      }),
       'preview'
     );
 

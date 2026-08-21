@@ -58,25 +58,20 @@ export function PushToWiki({ title, content, instanceApiUrl }: PushToWikiProps) 
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
-  const [targetUrl, setTargetUrl] = useState('');
-  const defaultPageUrl = useMemo(
+  const targetUrl = useMemo(
     () => (instanceApiUrl && title ? getPageUrl(instanceApiUrl, title) : null),
     [instanceApiUrl, title]
   );
-  const canOpenTarget = isValidUrl(targetUrl);
   const targetEditUrl = instanceApiUrl && title ? getEditUrl(instanceApiUrl, title) : null;
+  const canOpenTarget = targetEditUrl !== null && isValidUrl(targetEditUrl);
 
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      setOpen(nextOpen);
-      if (nextOpen) {
-        setCopied(false);
-        setCopyError(false);
-        setTargetUrl(defaultPageUrl || '');
-      }
-    },
-    [defaultPageUrl]
-  );
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setCopied(false);
+      setCopyError(false);
+    }
+  }, []);
 
   const copyContent = useCallback(async () => {
     try {
@@ -137,7 +132,7 @@ export function PushToWiki({ title, content, instanceApiUrl }: PushToWikiProps) 
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-medium">2. Edit wiki page</div>
-                  {instanceApiUrl ? (
+                  {instanceApiUrl && targetUrl ? (
                     <p className="break-all text-xs text-muted-foreground">{targetUrl}</p>
                   ) : (
                     <p className="text-xs text-muted-foreground">

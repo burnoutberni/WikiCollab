@@ -3,7 +3,7 @@ import type { Document, DocumentVisibility, Version } from 'shared';
 
 export type { Document, Version };
 
-const API_BASE = '/api';
+export const API_BASE = '/api';
 
 /**
  * Loads the document list and keeps a separate queue of newly discovered documents until accepted.

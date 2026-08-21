@@ -46,6 +46,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('@/hooks/useApi', () => ({
+  API_BASE: '/api',
   useDocument: vi.fn(),
 }));
 

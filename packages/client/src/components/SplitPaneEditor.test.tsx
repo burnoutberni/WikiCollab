@@ -245,6 +245,36 @@ describe('SplitPaneEditor', () => {
     expect(getPreviewShadowRoot().textContent).not.toContain('Old preview');
   });
 
+  it('accepts websocket preview updates with peer request ids', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((_type, handler) => {
+      previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    act(() => {
+      previewUpdate({ html: '<p>Peer preview</p>', page: 'Same Page', requestId: 'peer-request' });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('Peer preview');
+  });
+
   it('link click opens PreviewLinkModal for external links', async () => {
     const user = userEvent.setup();
 

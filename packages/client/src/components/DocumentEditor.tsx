@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDocument } from '@/hooks/useApi';
+import { API_BASE, useDocument } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { usePersistField } from '@/hooks/usePersistField';
@@ -59,7 +59,7 @@ function delay(ms: number): Promise<void> {
 async function fetchRefreshedInstanceCss(id: string): Promise<Document | null> {
   for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
-    const res = await fetch(`/api/docs/${id}`);
+    const res = await fetch(`${API_BASE}/docs/${id}`);
     if (!res.ok) return null;
     const doc = (await res.json()) as Document;
     if (doc.mediawiki_instance_css) return doc;
@@ -293,7 +293,7 @@ export function DocumentEditor() {
       setInstanceName(name);
       setInstanceSaving(true);
       try {
-        const res = await fetch(`/api/docs/${id}`, {
+        const res = await fetch(`${API_BASE}/docs/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
