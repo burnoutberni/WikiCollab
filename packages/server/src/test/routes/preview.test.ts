@@ -571,6 +571,100 @@ describe('Preview route sanitization', () => {
       consoleWarn.mockRestore();
     });
 
+    it('reuses latest remote preview for rate limits within the same document', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockServerFetch
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({ parse: { text: { '*': '<p>Latest for doc1</p>' } } }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          headers: { get: () => 'text/plain' },
+          text: () => Promise.resolve('You are making too many requests. Please wait.'),
+          json: () => Promise.reject(new Error('not json')),
+        });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const first = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'first', page: 'Page' }),
+      });
+      await expect(first.json()).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Latest for doc1</p>' })
+      );
+
+      const second = app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'second', page: 'Page' }),
+      });
+      await vi.advanceTimersByTimeAsync(1500);
+      const data = await (await second).json();
+
+      expect(data.html).toContain('<p>Latest for doc1</p>');
+      expect(data.html).not.toContain('Remote wiki preview is temporarily rate limited');
+      consoleWarn.mockRestore();
+    });
+
+    it('does not reuse latest remote preview across documents when rate limited', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockServerFetch
+        .mockResolvedValueOnce({
+          json: () =>
+            Promise.resolve({ parse: { text: { '*': '<p>Private draft from doc1</p>' } } }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          headers: { get: () => 'text/plain' },
+          text: () => Promise.resolve('You are making too many requests. Please wait.'),
+          json: () => Promise.reject(new Error('not json')),
+        });
+      await app.request('/api/docs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: 'doc2', title: 'Second Preview Doc' }),
+      });
+      for (const id of ['doc1', 'doc2']) {
+        mockDbModule.db
+          .update(schema.documents)
+          .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+          .where(eq(schema.documents.id, id))
+          .run();
+      }
+
+      const first = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'doc1 private draft', page: 'Page' }),
+      });
+      await expect(first.json()).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Private draft from doc1</p>' })
+      );
+
+      const second = app.request('/api/docs/doc2/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'doc2 draft', page: 'Page' }),
+      });
+      await vi.advanceTimersByTimeAsync(1500);
+      const data = await (await second).json();
+
+      expect(data.html).toContain('Remote wiki preview is temporarily rate limited');
+      expect(data.html).not.toContain('Private draft from doc1');
+      consoleWarn.mockRestore();
+    });
+
     it('falls back to local parser when the configured instance is broken', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');

@@ -220,7 +220,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
             const wikitext = doc.getText('wikitext').toString();
             const storedDoc = getDocumentById(doc.name);
             const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
-            const { html } = await generatePreview(wikitext, apiUrl, page || null);
+            const { html } = await generatePreview(wikitext, apiUrl, page || null, doc.name);
             broadcastCustom(doc, encodeInnerPayload('preview_update', { html, page }));
           } catch (err) {
             console.error('WS preview generation failed:', err);

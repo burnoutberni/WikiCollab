@@ -162,7 +162,8 @@ docs.post('/:id/preview', async (c) => {
     const { html, sourceMap } = await generatePreview(
       wikitext,
       doc.mediawiki_instance_api_url,
-      page
+      page,
+      id
     );
     return c.json({ html, sourceMap, css: doc.mediawiki_instance_css });
   } catch (err) {

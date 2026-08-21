@@ -37,6 +37,14 @@ function remotePreviewTargetKey(apiUrl: string, page: string | null | undefined)
   return `${apiUrl}\0${page || ''}`;
 }
 
+function remotePreviewLatestKey(
+  apiUrl: string,
+  page: string | null | undefined,
+  documentId: string | null | undefined
+): string | null {
+  return documentId ? `${apiUrl}\0${page || ''}\0${documentId}` : null;
+}
+
 function evictRemotePreviewCache(now: number): void {
   for (const [key, value] of remotePreviewCache) {
     if (value.expiresAt <= now) remotePreviewCache.delete(key);
@@ -247,13 +255,15 @@ export interface PreviewResult {
 async function fetchRemotePreview(
   apiUrl: string,
   wikitext: string,
-  page?: string | null
+  page?: string | null,
+  documentId?: string | null
 ): Promise<RemotePreviewResult> {
   const now = Date.now();
   evictRemotePreviewCache(now);
 
   const cacheKey = remotePreviewKey(apiUrl, page, wikitext);
   const targetKey = remotePreviewTargetKey(apiUrl, page);
+  const latestKey = remotePreviewLatestKey(apiUrl, page, documentId);
   const cached = remotePreviewCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return { status: 'ok', html: cached.html };
 
@@ -293,7 +303,7 @@ async function fetchRemotePreview(
       }>(res, 'preview');
 
       if (result.rateLimited || result.data?.error?.code === 'ratelimited') {
-        const latest = remotePreviewLatestByTarget.get(targetKey);
+        const latest = latestKey ? remotePreviewLatestByTarget.get(latestKey) : undefined;
         return latest && latest.expiresAt > Date.now()
           ? { status: 'rate_limited', html: latest.html }
           : { status: 'rate_limited' };
@@ -304,7 +314,7 @@ async function fetchRemotePreview(
 
       const expiresAt = Date.now() + REMOTE_PREVIEW_CACHE_TTL_MS;
       remotePreviewCache.set(cacheKey, { html, expiresAt });
-      remotePreviewLatestByTarget.set(targetKey, { html, expiresAt });
+      if (latestKey) remotePreviewLatestByTarget.set(latestKey, { html, expiresAt });
       return { status: 'ok', html };
     });
 
@@ -332,7 +342,8 @@ async function fetchRemotePreview(
 export async function generatePreview(
   wikitext?: string | null,
   api_url?: string | null,
-  page?: string | null
+  page?: string | null,
+  documentId?: string | null
 ): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
   const root = Parser.parse(wikitext || '', page || 'API');
@@ -340,7 +351,7 @@ export async function generatePreview(
 
   if (api_url) {
     try {
-      const remotePreview = await fetchRemotePreview(api_url, wikitext || '', page);
+      const remotePreview = await fetchRemotePreview(api_url, wikitext || '', page, documentId);
       if ('html' in remotePreview && remotePreview.html) {
         return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true), sourceMap };
       }
