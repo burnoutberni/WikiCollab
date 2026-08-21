@@ -3,6 +3,8 @@ import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as schema from '../../db/schema.js';
+import { generatePreview, resetRemotePreviewStateForTests } from '../../preview.js';
+import docsRoutes from '../../routes/docs.js';
 import { createTestDb } from '../setup.js';
 
 const { mockDbModule } = vi.hoisted(() => ({
@@ -31,9 +33,6 @@ const mockParser = {
 };
 vi.mock('wikiparser-node', () => ({ default: mockParser }));
 
-import docsRoutes from '../../routes/docs.js';
-import { generatePreview, resetRemotePreviewStateForTests } from '../../preview.js';
-
 describe('Preview route sanitization', () => {
   let app: Hono;
   let closeDb: (() => void) | undefined;
@@ -48,11 +47,12 @@ describe('Preview route sanitization', () => {
     closeDb = testDb.close;
     app = new Hono();
     app.route('/api/docs', docsRoutes);
-    await app.request('/api/docs', {
+    const created = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug: 'doc1', title: 'Preview Doc' }),
     });
+    expect(created.status).toBe(201);
   });
 
   afterEach(() => {
@@ -594,11 +594,14 @@ describe('Preview route sanitization', () => {
 
     it('deduplicates concurrent identical remote preview requests', async () => {
       let resolveJson: (value: { parse: { text: { '*': string } } }) => void = () => {};
-      mockServerFetch.mockResolvedValue({
-        json: () =>
+      const json = vi.fn(
+        () =>
           new Promise((resolve) => {
             resolveJson = resolve;
-          }),
+          })
+      );
+      mockServerFetch.mockResolvedValue({
+        json,
       });
 
       const first = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page');
@@ -606,6 +609,7 @@ describe('Preview route sanitization', () => {
 
       await vi.waitFor(() => {
         expect(mockServerFetch).toHaveBeenCalledTimes(1);
+        expect(json).toHaveBeenCalledTimes(1);
       });
       resolveJson({ parse: { text: { '*': '<p>Remote</p>' } } });
 
@@ -615,6 +619,7 @@ describe('Preview route sanitization', () => {
 
     it('queues rapid different remote preview requests instead of falling back locally', async () => {
       vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
       mockServerFetch
         .mockResolvedValueOnce({
@@ -631,10 +636,10 @@ describe('Preview route sanitization', () => {
       await expect(first).resolves.toEqual(expect.objectContaining({ html: '<p>Remote 1</p>' }));
 
       const second = generatePreview('two', 'https://wiki.example.com/w/api.php', 'Page');
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1000);
       expect(mockServerFetch).toHaveBeenCalledTimes(1);
 
-      await vi.advanceTimersByTimeAsync(1500);
+      await vi.advanceTimersByTimeAsync(500);
       await expect(second).resolves.toEqual(expect.objectContaining({ html: '<p>Remote 2</p>' }));
       expect(mockServerFetch).toHaveBeenCalledTimes(2);
     });

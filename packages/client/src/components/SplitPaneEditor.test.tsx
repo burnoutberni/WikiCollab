@@ -141,6 +141,7 @@ describe('SplitPaneEditor', () => {
       <SplitPaneEditor
         {...defaultProps}
         content=""
+        previewBusy
         previewLoadingLabel="Updating wiki settings..."
       />
     );
@@ -190,9 +191,7 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
-    await vi.waitFor(() =>
-      expect(getPreviewShadowRoot().textContent).toContain('go to section 1')
-    );
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('go to section 1'));
 
     await user.click(getPreviewShadowRoot().querySelector('a')!);
 
@@ -223,6 +222,55 @@ describe('SplitPaneEditor', () => {
     await vi.waitFor(() => {
       expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('disables refresh while externally busy', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} previewBusy />);
+
+    expect(screen.getByRole('button', { name: /refresh preview/i })).toBeDisabled();
+  });
+
+  it('ignores stale preview responses after a newer request completes', async () => {
+    let resolveFirst: (value: Response) => void = () => {};
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        })
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ html: '<p>New preview</p>' }),
+      } as Response);
+    global.fetch = fetchMock;
+
+    const { rerender } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <TooltipProvider>
+        <SplitPaneEditor {...defaultProps} documentId="doc2" />
+      </TooltipProvider>
+    );
+
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('New preview'));
+
+    await act(async () => {
+      resolveFirst({
+        ok: true,
+        json: async () => ({ html: '<p>Old preview</p>' }),
+      } as Response);
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('New preview');
+    expect(getPreviewShadowRoot().textContent).not.toContain('Old preview');
   });
 
   it('refreshes preview when previewRefreshKey changes with the same API URL', async () => {
@@ -257,6 +305,37 @@ describe('SplitPaneEditor', () => {
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('refreshes preview when documentId changes with the same title and API URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+    global.fetch = fetchMock;
+
+    const { rerender } = renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Title"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <TooltipProvider>
+        <SplitPaneEditor
+          {...defaultProps}
+          documentId="doc2"
+          title="Same Title"
+          apiUrl="https://en.wikipedia.org/w/api.php"
+        />
+      </TooltipProvider>
+    );
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 
   it('refreshes when entering mobile preview mode', async () => {

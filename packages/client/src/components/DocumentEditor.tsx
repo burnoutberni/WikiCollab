@@ -291,6 +291,7 @@ export function DocumentEditor() {
         setInstanceName(previous.name);
         setInstanceApiUrl(previous.apiUrl);
         setInstanceCss(previous.css);
+        throw error;
       } finally {
         setInstanceSaving(false);
       }
@@ -486,11 +487,7 @@ export function DocumentEditor() {
             <Suspense
               fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
             >
-              <PushToWiki
-                title={title}
-                content={content}
-                instanceApiUrl={instanceApiUrl}
-              />
+              <PushToWiki title={title} content={content} instanceApiUrl={instanceApiUrl} />
             </Suspense>
 
             <Tooltip>
@@ -590,6 +587,7 @@ export function DocumentEditor() {
                 apiUrl={instanceApiUrl}
                 instanceCss={instanceCss}
                 previewRefreshKey={previewRefreshKey}
+                previewBusy={instanceSaving}
                 previewLoadingLabel={instanceSaving ? 'Updating wiki settings...' : undefined}
                 ytext={ytext}
                 provider={provider}
@@ -733,11 +731,7 @@ export function DocumentEditor() {
             <Suspense
               fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
             >
-              <PushToWiki
-                title={title}
-                content={content}
-                instanceApiUrl={instanceApiUrl}
-              />
+              <PushToWiki title={title} content={content} instanceApiUrl={instanceApiUrl} />
             </Suspense>
 
             <Button

@@ -49,6 +49,14 @@ describe('InstanceManager', () => {
     expect(screen.getByText('https://en.wikipedia.org/w/api.php')).toBeInTheDocument();
   });
 
+  it('hides external link for invalid configured URLs', () => {
+    renderWithProviders(
+      <InstanceManager {...defaultProps} name="Invalid Wiki" apiUrl="javascript:alert(1)" />
+    );
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('opens configure dialog when clicking Configure Instance', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);
@@ -73,10 +81,7 @@ describe('InstanceManager', () => {
 
     await user.click(within(dialog).getByText('Save'));
 
-    expect(defaultProps.onChange).toHaveBeenCalledWith(
-      'My Wiki',
-      'https://my.wiki/w/api.php'
-    );
+    expect(defaultProps.onChange).toHaveBeenCalledWith('My Wiki', 'https://my.wiki/w/api.php');
   });
 
   it('disables save button when fields are empty', async () => {
@@ -106,6 +111,45 @@ describe('InstanceManager', () => {
     expect(within(dialog).queryByText('English Wikipedia')).not.toBeInTheDocument();
   });
 
+  it('exposes preset dropdown combobox semantics', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<InstanceManager {...defaultProps} />);
+
+    await user.click(screen.getByText('Configure Instance'));
+
+    const dialog = await screen.findByRole('dialog');
+    const nameInput = within(dialog).getByRole('combobox', { name: 'Name' });
+    await user.click(nameInput);
+    await user.keyboard('{ArrowDown}');
+
+    expect(nameInput).toHaveAttribute('aria-expanded', 'true');
+    expect(within(dialog).getByRole('listbox')).toBeInTheDocument();
+    expect(within(dialog).getByRole('option', { name: /english wikipedia/i })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+  });
+
+  it('keeps dialog open and shows save errors', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        onChange={vi.fn().mockRejectedValue(new Error('Save failed'))}
+      />
+    );
+
+    await user.click(screen.getByText('Configure Instance'));
+
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Name'), 'My Wiki');
+    await user.type(within(dialog).getByLabelText('API URL'), 'https://my.wiki/w/api.php');
+    await user.click(within(dialog).getByText('Save'));
+
+    expect(await within(dialog).findByText('Save failed')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('opens edit dialog with existing values', async () => {
     const user = userEvent.setup();
     renderWithProviders(
@@ -116,9 +160,7 @@ describe('InstanceManager', () => {
       />
     );
 
-    const card = screen.getByText('English Wikipedia').closest('.rounded-md')!;
-    const editButton = card.querySelector('button:not([class*="text-destructive"])')!;
-    await user.click(editButton);
+    await user.click(screen.getByRole('button', { name: 'Edit instance' }));
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByLabelText('Name')).toHaveValue('English Wikipedia');
@@ -137,9 +179,7 @@ describe('InstanceManager', () => {
       />
     );
 
-    const card = screen.getByText('English Wikipedia').closest('.rounded-md')!;
-    const clearButton = card.querySelector('button[class*="text-destructive"]')!;
-    await user.click(clearButton);
+    await user.click(screen.getByRole('button', { name: 'Clear instance' }));
 
     expect(defaultProps.onChange).toHaveBeenCalledWith(null, null);
   });

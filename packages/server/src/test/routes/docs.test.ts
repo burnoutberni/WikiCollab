@@ -78,6 +78,52 @@ describe('Docs routes', () => {
     expect(data.mediawiki_instance_css).toBeNull();
   });
 
+  it('POST / persists initial MediaWiki settings and refreshes CSS asynchronously', async () => {
+    mockServerFetch
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            query: { skins: [{ code: 'vector-2022', name: 'Vector', default: '' }] },
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/css' },
+        text: () => Promise.resolve('.mw-parser-output{font-size:14px}'),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ query: { pages: {} } }),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ query: { pages: {} } }),
+      });
+
+    const res = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Instance Doc',
+        mediawiki_instance_name: 'English Wikipedia',
+        mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.mediawiki_instance_name).toBe('English Wikipedia');
+    expect(data.mediawiki_instance_api_url).toBe('https://en.wikipedia.org/w/api.php');
+    expect(data.mediawiki_instance_css).toBeNull();
+
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, data.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).toContain('.mw-parser-output{font-size:14px}');
+    });
+  });
+
   it('POST / creates an unlisted document', async () => {
     const res = await app.request('/api/docs', {
       method: 'POST',
@@ -161,7 +207,7 @@ describe('Docs routes', () => {
     expect(data.visibility).toBe('unlisted');
   });
 
-  it('PATCH /:id saves document MediaWiki instance fields and ResourceLoader CSS', async () => {
+  it('PATCH /:id saves document MediaWiki instance fields and refreshes ResourceLoader CSS asynchronously', async () => {
     mockServerFetch
       .mockResolvedValueOnce({
         json: () =>
@@ -169,7 +215,14 @@ describe('Docs routes', () => {
             query: { skins: [{ code: 'vector-2022', name: 'Vector', default: '' }] },
           }),
       })
-      .mockResolvedValueOnce({ text: () => Promise.resolve('.mw-parser-output{font-size:14px}') })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/css; charset=utf-8' },
+        text: () =>
+          Promise.resolve(
+            '.mw-parser-output{font-size:14px}</style>a{background:url(javascript:alert(1))}'
+          ),
+      })
       .mockResolvedValueOnce({
         json: () =>
           Promise.resolve({
@@ -203,17 +256,67 @@ describe('Docs routes', () => {
     const data = await res.json();
     expect(data.mediawiki_instance_name).toBe('English Wikipedia');
     expect(data.mediawiki_instance_api_url).toBe('https://en.wikipedia.org/w/api.php');
-    expect(data.mediawiki_instance_css).toContain('ResourceLoader: vector-2022');
-    expect(data.mediawiki_instance_css).toContain('.mw-parser-output{font-size:14px}');
-    expect(data.mediawiki_instance_css).toContain('MediaWiki:Common.css');
-    expect(data.mediawiki_instance_css).toContain('.common{color:red}');
-    expect(data.mediawiki_instance_css).toContain('MediaWiki:vector-2022.css');
-    expect(data.mediawiki_instance_css).toContain('.vector{color:blue}');
+    expect(data.mediawiki_instance_css).toBeNull();
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).toContain('ResourceLoader: vector-2022');
+      expect(stored?.mediawiki_instance_css).toContain('.mw-parser-output{font-size:14px}');
+      expect(stored?.mediawiki_instance_css).not.toContain('</style>');
+      expect(stored?.mediawiki_instance_css).not.toContain('javascript:');
+      expect(stored?.mediawiki_instance_css).toContain('MediaWiki:Common.css');
+      expect(stored?.mediawiki_instance_css).toContain('.common{color:red}');
+      expect(stored?.mediawiki_instance_css).toContain('MediaWiki:vector-2022.css');
+      expect(stored?.mediawiki_instance_css).toContain('.vector{color:blue}');
+    });
     expect(mockServerFetch.mock.calls[1][0]).toContain('https://en.wikipedia.org/w/load.php?');
     expect(mockServerFetch.mock.calls[1][0]).toContain('skin=vector-2022');
     expect(mockServerFetch.mock.calls[1][0]).toContain('only=styles');
     expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
     expect(mockServerFetch.mock.calls[1][1].headers['User-Agent']).toContain('WikiCollab/');
+  });
+
+  it('PATCH /:id preserves existing CSS when async refresh returns null', async () => {
+    mockServerFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ query: { skins: [] } }),
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Cached CSS' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({
+        mediawiki_instance_name: 'Example',
+        mediawiki_instance_api_url: 'https://example.com/w/api.php',
+        mediawiki_instance_css: '.cached{}',
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: 'Example renamed',
+        mediawiki_instance_api_url: 'https://example.com/w/api.php',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalled());
+    const stored = mockDbModule.db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, created.id))
+      .get();
+    expect(stored?.mediawiki_instance_css).toBe('.cached{}');
   });
 
   it('PATCH /:id clears document MediaWiki instance fields', async () => {

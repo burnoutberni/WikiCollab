@@ -20,7 +20,9 @@ interface PushToWikiProps {
 function getPageUrl(apiUrl: string, title: string): string | null {
   try {
     const url = new URL(apiUrl);
-    const pathPrefix = url.pathname.replace(/\/w\/api\.php$/, '/wiki/').replace(/\/api\.php$/, '/wiki/');
+    const pathPrefix = url.pathname
+      .replace(/\/w\/api\.php$/, '/wiki/')
+      .replace(/\/api\.php$/, '/wiki/');
     url.pathname = `${pathPrefix}${encodeURIComponent(title.replaceAll(' ', '_'))}`;
     url.search = '';
     return url.toString();
@@ -29,18 +31,16 @@ function getPageUrl(apiUrl: string, title: string): string | null {
   }
 }
 
-function getEditUrlFromPageUrl(pageUrl: string): string {
+function getEditUrl(apiUrl: string, title: string): string | null {
   try {
-    const url = new URL(pageUrl);
-    const wikiMatch = url.pathname.match(/^(.*)\/wiki\/(.+)$/);
-    if (!wikiMatch) return pageUrl;
-    url.pathname = `${wikiMatch[1]}/w/index.php`;
+    const url = new URL(apiUrl);
+    url.pathname = url.pathname.replace(/\/api\.php$/, '/index.php');
     url.search = '';
-    url.searchParams.set('title', decodeURIComponent(wikiMatch[2]).replaceAll('_', ' '));
+    url.searchParams.set('title', title);
     url.searchParams.set('action', 'edit');
     return url.toString();
   } catch {
-    return pageUrl;
+    return null;
   }
 }
 
@@ -54,35 +54,39 @@ function isValidUrl(value: string): boolean {
 }
 
 /** Manual publishing helper: copy wikitext, open the target wiki editor, publish there. */
-export function PushToWiki({
-  title,
-  content,
-  instanceApiUrl,
-}: PushToWikiProps) {
+export function PushToWiki({ title, content, instanceApiUrl }: PushToWikiProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [targetUrl, setTargetUrl] = useState('');
   const defaultPageUrl = useMemo(
     () => (instanceApiUrl && title ? getPageUrl(instanceApiUrl, title) : null),
     [instanceApiUrl, title]
   );
   const canOpenTarget = isValidUrl(targetUrl);
-  const targetEditUrl = canOpenTarget ? getEditUrlFromPageUrl(targetUrl) : '';
+  const targetEditUrl = instanceApiUrl && title ? getEditUrl(instanceApiUrl, title) : null;
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-        setOpen(nextOpen);
-        if (nextOpen) {
-          setCopied(false);
+      setOpen(nextOpen);
+      if (nextOpen) {
+        setCopied(false);
+        setCopyError(false);
         setTargetUrl(defaultPageUrl || '');
-        }
-      },
+      }
+    },
     [defaultPageUrl]
   );
 
   const copyContent = useCallback(async () => {
-    await navigator.clipboard.writeText(content);
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setCopyError(false);
+    } catch {
+      setCopied(false);
+      setCopyError(true);
+    }
   }, [content]);
 
   return (
@@ -113,13 +117,20 @@ export function PushToWiki({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-medium">1. Copy</div>
-                  <p className="text-xs text-muted-foreground">Copy the latest wikitext from this pad.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Copy the latest wikitext from this pad.
+                  </p>
                 </div>
                 <Button size="sm" onClick={copyContent}>
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                   {copied ? 'Copied' : 'Copy'}
                 </Button>
               </div>
+              {copyError && (
+                <p className="text-xs text-destructive">
+                  Copy failed. Select and copy the wikitext manually.
+                </p>
+              )}
             </div>
 
             <div className="rounded-md border p-3 space-y-2">
@@ -135,7 +146,7 @@ export function PushToWiki({
                   )}
                 </div>
                 <div className="shrink-0">
-                  {canOpenTarget ? (
+                  {canOpenTarget && targetEditUrl ? (
                     <Button size="sm" variant="outline" asChild>
                       <a href={targetEditUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="h-4 w-4 mr-2" />
@@ -155,7 +166,8 @@ export function PushToWiki({
             <div className="rounded-md border p-3">
               <div className="text-sm font-medium">3. Paste and go</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Paste the copied wikitext into the wiki editor, preview it if desired, then publish manually on the wiki.
+                Paste the copied wikitext into the wiki editor, preview it if desired, then publish
+                manually on the wiki.
               </p>
             </div>
           </div>

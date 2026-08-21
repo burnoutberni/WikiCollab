@@ -31,6 +31,7 @@ interface SplitPaneEditorProps {
   onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
   initialMobileTab?: 'source' | 'preview';
   previewRefreshKey?: number;
+  previewBusy?: boolean;
   previewLoadingLabel?: string;
 }
 
@@ -87,6 +88,7 @@ export function SplitPaneEditor({
   onCustomMessage,
   initialMobileTab = 'source',
   previewRefreshKey = 0,
+  previewBusy: externalPreviewBusy = false,
   previewLoadingLabel,
 }: SplitPaneEditorProps) {
   const isMobile = useIsMobile();
@@ -95,6 +97,7 @@ export function SplitPaneEditor({
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextContentRefreshRef = useRef(true);
+  const previewRequestIdRef = useRef(0);
 
   const apiUrlRef = useRef(apiUrl);
   apiUrlRef.current = apiUrl;
@@ -102,7 +105,7 @@ export function SplitPaneEditor({
   titleRef.current = title;
 
   const previewCss = instanceCss ? `${defaultCss}\n${instanceCss}` : defaultCss;
-  const previewBusy = loading || Boolean(previewLoadingLabel);
+  const previewBusy = loading || externalPreviewBusy;
   const previewBusyLabel = previewLoadingLabel || 'Rendering preview...';
 
   const sanitizePreviewHtml = useCallback(
@@ -139,10 +142,13 @@ export function SplitPaneEditor({
   }, [onCustomMessage, sanitizePreviewHtml]);
 
   const fetchPreview = useCallback(async () => {
+    const requestId = ++previewRequestIdRef.current;
     const wikitext = ytext ? ytext.toString() : content;
     if (!wikitext.trim()) {
-      setPreviewHtml('');
-      setLoading(false);
+      if (requestId === previewRequestIdRef.current) {
+        setPreviewHtml('');
+        setLoading(false);
+      }
       return;
     }
     setLoading(true);
@@ -159,17 +165,25 @@ export function SplitPaneEditor({
         if (apiUrl) {
           html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl));
         }
-        setPreviewHtml(sanitizePreviewHtml(html));
+        if (requestId === previewRequestIdRef.current) {
+          setPreviewHtml(sanitizePreviewHtml(html));
+        }
       } else {
-        setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
+        if (requestId === previewRequestIdRef.current) {
+          setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
+        }
       }
     } catch (err) {
       console.error('Failed to fetch preview:', err);
-      setPreviewHtml(
-        '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
-      );
+      if (requestId === previewRequestIdRef.current) {
+        setPreviewHtml(
+          '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
+        );
+      }
     } finally {
-      setLoading(false);
+      if (requestId === previewRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [apiUrl, content, documentId, sanitizePreviewHtml, title, ytext]);
 
@@ -196,7 +210,7 @@ export function SplitPaneEditor({
     if (isMobile && initialMobileTab !== 'preview') return;
     skipNextContentRefreshRef.current = true;
     refreshPreviewRef.current();
-  }, [apiUrl, title, previewRefreshKey, isMobile, initialMobileTab]);
+  }, [apiUrl, title, documentId, previewRefreshKey, isMobile, initialMobileTab]);
 
   useEffect(() => {
     if (ytext) return;
@@ -265,14 +279,14 @@ export function SplitPaneEditor({
                 />
               </div>
               {previewLoadingOverlay}
-              <div className="absolute bottom-3 right-3 safe-area-bottom">
+              <div className="absolute bottom-3 right-3 z-20 safe-area-bottom">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={refreshPreview}
-                      disabled={loading}
+                      disabled={previewBusy}
                       aria-label="Refresh preview"
                     >
                       <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -319,14 +333,14 @@ export function SplitPaneEditor({
           />
         </div>
         {previewLoadingOverlay}
-        <div className="absolute bottom-3 right-3">
+        <div className="absolute bottom-3 right-3 z-20">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={refreshPreview}
-                disabled={loading}
+                disabled={previewBusy}
                 aria-label="Refresh preview"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />

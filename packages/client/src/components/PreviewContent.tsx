@@ -23,7 +23,12 @@ export function PreviewContent({ html, css, className = '', onExternalLink }: Pr
     const shadow = shadowRef.current;
     if (!shadow) return;
 
-    shadow.innerHTML = `<style>${css}</style><div class="mw-preview-container">${html}</div>`;
+    const style = document.createElement('style');
+    style.textContent = css;
+    const content = document.createElement('div');
+    content.className = 'mw-preview-container';
+    content.innerHTML = html;
+    shadow.replaceChildren(style, content);
   }, [css, html]);
 
   useEffect(() => {

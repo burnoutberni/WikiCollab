@@ -1,4 +1,6 @@
-export const MEDIAWIKI_USER_AGENT = `WikiCollab/${process.env.APP_VERSION || 'dev'} (MediaWiki preview; local development)`;
+const MEDIAWIKI_CONTACT =
+  process.env.APP_CONTACT_URL || 'https://github.com/burnoutberni/WikiCollab';
+export const MEDIAWIKI_USER_AGENT = `WikiCollab/${process.env.APP_VERSION || 'dev'} (MediaWiki preview; ${MEDIAWIKI_CONTACT})`;
 
 export function mediaWikiHeaders(headers: Record<string, string> = {}): Record<string, string> {
   return {
@@ -15,10 +17,7 @@ export interface MediaWikiJsonResult<T> {
 }
 
 function isRateLimitResponse(status: number | undefined, body: string): boolean {
-  return (
-    status === 429 ||
-    /rate\s*limit|too many requests|you are mak/i.test(body)
-  );
+  return status === 429 || /"code"\s*:\s*"ratelimited"|too many requests/i.test(body);
 }
 
 export async function readMediaWikiJsonResult<T>(

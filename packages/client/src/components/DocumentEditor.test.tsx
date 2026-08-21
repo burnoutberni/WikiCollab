@@ -166,6 +166,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('DocumentEditor', () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   beforeEach(() => {
@@ -277,10 +278,9 @@ describe('DocumentEditor', () => {
 
     let savePromise: Promise<void> | undefined;
     React.act(() => {
-      savePromise = mockInstanceManager.mock.calls.at(-1)?.[0].onChange(
-        'English Wikipedia',
-        'https://en.wikipedia.org/w/api.php'
-      );
+      savePromise = mockInstanceManager.mock.calls
+        .at(-1)?.[0]
+        .onChange('English Wikipedia', 'https://en.wikipedia.org/w/api.php');
     });
 
     expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
@@ -288,6 +288,7 @@ describe('DocumentEditor', () => {
         apiUrl: null,
         instanceCss: null,
         previewRefreshKey: 0,
+        previewBusy: true,
         previewLoadingLabel: 'Updating wiki settings...',
       })
     );
@@ -310,12 +311,44 @@ describe('DocumentEditor', () => {
         apiUrl: 'https://en.wikipedia.org/w/api.php',
         instanceCss: '.remote-css{}',
         previewRefreshKey: 1,
+        previewBusy: false,
         previewLoadingLabel: undefined,
       })
     );
     expect(setDocument).toHaveBeenCalledWith(
       expect.objectContaining({ mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php' })
     );
+  });
+
+  it('rolls back instance preview props when PATCH fails', async () => {
+    const setDocument = vi.fn();
+    useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        json: async () => ({ error: 'Instance update failed' }),
+      }))
+    );
+
+    renderWithProviders(<DocumentEditor />);
+
+    await expect(
+      mockInstanceManager.mock.calls
+        .at(-1)?.[0]
+        .onChange('German Wikipedia', 'https://de.wikipedia.org/w/api.php')
+    ).rejects.toThrow('Instance update failed');
+
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        apiUrl: 'https://en.wikipedia.org/w/api.php',
+        instanceCss: '.mw-parser-output { color: red; }',
+        previewRefreshKey: 0,
+        previewBusy: false,
+        previewLoadingLabel: undefined,
+      })
+    );
+    expect(setDocument).not.toHaveBeenCalled();
   });
 
   it('view mode toggling (source/split)', async () => {

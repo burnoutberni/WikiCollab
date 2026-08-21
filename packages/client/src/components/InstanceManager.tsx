@@ -38,12 +38,12 @@ interface InstanceManagerProps {
   onChange: (name: string | null, apiUrl: string | null) => Promise<void> | void;
 }
 
-function getWikiBaseUrl(apiUrl: string): string {
+function getWikiBaseUrl(apiUrl: string): string | null {
   try {
     const url = new URL(apiUrl);
-    return url.origin;
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : null;
   } catch {
-    return apiUrl.replace(/\/w\/api\.php$/, '');
+    return null;
   }
 }
 
@@ -54,11 +54,16 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   const [draftApiUrl, setDraftApiUrl] = useState('');
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const justSelectedRef = useRef(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const configured = Boolean(name && apiUrl);
+  const wikiBaseUrl = apiUrl ? getWikiBaseUrl(apiUrl) : null;
+  const nameListboxId = 'instance-name-presets';
+  const activePresetId =
+    nameOpen && nameIndex >= 0 ? `instance-name-preset-${nameIndex}` : undefined;
   const filteredPresets = WIKI_PRESETS.filter(
     (preset) =>
       preset.name.toLowerCase().includes(draftName.toLowerCase()) ||
@@ -70,6 +75,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
     setDraftApiUrl(apiUrl || '');
     setNameIndex(-1);
     setNameOpen(false);
+    setSaveError(null);
     setDialogOpen(true);
   };
 
@@ -127,8 +133,13 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
 
   const handleSave = async () => {
     if (!draftName || !draftApiUrl) return;
-    await onChange(draftName, draftApiUrl);
-    setDialogOpen(false);
+    setSaveError(null);
+    try {
+      await onChange(draftName, draftApiUrl);
+      setDialogOpen(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save MediaWiki instance');
+    }
   };
 
   const handleClear = async () => {
@@ -148,20 +159,28 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium truncate">{name}</span>
-                <a
-                  href={getWikiBaseUrl(apiUrl!)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                {wikiBaseUrl && (
+                  <a
+                    href={wikiBaseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
               <div className="text-xs text-muted-foreground truncate mt-0.5">{apiUrl}</div>
             </div>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={openDialog} className="h-7 w-7 p-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openDialog}
+                  className="h-7 w-7 p-0"
+                  aria-label="Edit instance"
+                >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -175,6 +194,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                   onClick={handleClear}
                   disabled={saving}
                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                  aria-label="Clear instance"
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -222,16 +242,25 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
+                role="combobox"
+                aria-expanded={nameOpen && filteredPresets.length > 0}
+                aria-controls={nameListboxId}
+                aria-activedescendant={activePresetId}
               />
               {nameOpen && filteredPresets.length > 0 && (
                 <div
                   ref={listRef}
+                  id={nameListboxId}
+                  role="listbox"
                   className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-0 shadow-md"
                 >
                   {filteredPresets.map((preset, i) => (
                     <button
                       key={preset.api_url}
+                      id={`instance-name-preset-${i}`}
                       type="button"
+                      role="option"
+                      aria-selected={i === nameIndex}
                       className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left text-sm ${
                         i === nameIndex ? 'bg-accent' : 'hover:bg-accent'
                       }`}
@@ -241,7 +270,9 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                       }}
                     >
                       <span className="font-medium">{preset.name}</span>
-                      <span className="text-xs text-muted-foreground truncate">{preset.api_url}</span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {preset.api_url}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -256,6 +287,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                 placeholder="https://wiki.example.com/w/api.php"
               />
             </div>
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>

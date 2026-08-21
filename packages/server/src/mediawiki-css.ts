@@ -2,6 +2,8 @@ import { serverFetch, SsrfError } from 'server-fetch';
 
 import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
 
+const MAX_MEDIAWIKI_CSS_BYTES = 500_000;
+
 const RESOURCE_LOADER_MODULES = [
   'mediawiki.skinning.interface',
   'mediawiki.skinning.content',
@@ -19,6 +21,45 @@ function getLoadPhpUrl(apiUrl: string): string {
   url.pathname = loadPath === url.pathname ? '/w/load.php' : loadPath;
   url.search = '';
   return url.toString();
+}
+
+function sanitizeCss(css: string): string {
+  return css
+    .slice(0, MAX_MEDIAWIKI_CSS_BYTES)
+    .replace(/<\/style/gi, '')
+    .replace(/@import\b[^;]*(?:;|$)/gi, '')
+    .replace(/javascript\s*:/gi, '')
+    .replace(/expression\s*\(/gi, '')
+    .replace(/url\s*\(\s*['"]?\s*javascript\s*:/gi, 'url(')
+    .replace(/-moz-binding\s*:[^;]*(?:;|$)/gi, '')
+    .replace(/behavior\s*:[^;]*(?:;|$)/gi, '');
+}
+
+async function readCssResponse(
+  response: {
+    ok?: boolean;
+    status?: number;
+    headers?: { get?: (name: string) => string | null };
+    text: () => Promise<string>;
+  },
+  context: string
+): Promise<string | null> {
+  if (response.ok === false) {
+    console.warn(`MediaWiki ${context} CSS returned HTTP ${response.status || 'error'}`);
+    return null;
+  }
+
+  const contentType = response.headers?.get?.('content-type')?.toLowerCase() || '';
+  if (contentType && !/(^|;)\s*(text\/css|text\/plain|application\/x-css)\b/.test(contentType)) {
+    console.warn(`MediaWiki ${context} CSS returned unexpected content type ${contentType}`);
+    return null;
+  }
+
+  const css = await response.text();
+  if (css.length > MAX_MEDIAWIKI_CSS_BYTES) {
+    console.warn(`MediaWiki ${context} CSS exceeded ${MAX_MEDIAWIKI_CSS_BYTES} bytes; truncating`);
+  }
+  return sanitizeCss(css);
 }
 
 /** Fetches common and default-skin MediaWiki CSS for a document-scoped instance. */
@@ -47,8 +88,8 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
       const res = await serverFetch(loadUrl.toString(), {
         headers: mediaWikiHeaders({ Accept: 'text/css,*/*;q=0.1' }),
       });
-      const css = await res.text();
-      if (css.trim()) cssParts.push(`/* ResourceLoader: ${skinCode} */\n${css}`);
+      const css = await readCssResponse(res, 'ResourceLoader');
+      if (css?.trim()) cssParts.push(`/* ResourceLoader: ${skinCode} */\n${css}`);
     } catch (err) {
       if (err instanceof SsrfError) throw err;
       console.error('Failed to fetch ResourceLoader CSS:', err);
@@ -65,7 +106,7 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
         }>(res, `CSS page ${page}`);
         const pages = data?.query?.pages;
         const content = pages ? Object.values(pages)[0]?.revisions?.[0]?.['*'] : null;
-        if (content) cssParts.push(`/* ${page} */\n${content}`);
+        if (content) cssParts.push(`/* ${page} */\n${sanitizeCss(content)}`);
       } catch (err) {
         if (err instanceof SsrfError) throw err;
         console.error(`Failed to fetch CSS page ${page}:`, err);

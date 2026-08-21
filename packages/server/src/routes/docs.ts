@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'shared';
@@ -13,6 +13,27 @@ import { setVersionStarred } from '../services/versions.js';
 
 /** REST endpoints for document CRUD, preview, and versioning. */
 const docs = new Hono();
+
+async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
+  const css = await fetchMediaWikiCss(apiUrl);
+  if (css === null) return;
+
+  db.update(schema.documents)
+    .set({ mediawiki_instance_css: css })
+    .where(
+      and(
+        eq(schema.documents.id, documentId),
+        eq(schema.documents.mediawiki_instance_api_url, apiUrl)
+      )
+    )
+    .run();
+}
+
+function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: string): void {
+  void refreshDocumentMediaWikiCss(documentId, apiUrl).catch((err) => {
+    console.error('Failed to refresh MediaWiki CSS:', err);
+  });
+}
 
 docs.get('/', (c) => {
   const allDocs = db
@@ -47,14 +68,19 @@ docs.post('/', async (c) => {
     created_at: now,
     updated_at: now,
     expiry: body.expiry || null,
-    mediawiki_instance_name: null,
-    mediawiki_instance_api_url: null,
+    mediawiki_instance_name: body.mediawiki_instance_api_url
+      ? (body.mediawiki_instance_name ?? null)
+      : null,
+    mediawiki_instance_api_url: body.mediawiki_instance_api_url ?? null,
     mediawiki_instance_css: null,
     restored_version_id: null,
     visibility: body.visibility || 'public',
   };
 
   db.insert(schema.documents).values(doc).run();
+  if (doc.mediawiki_instance_api_url) {
+    refreshDocumentMediaWikiCssInBackground(doc.id, doc.mediawiki_instance_api_url);
+  }
   return c.json(doc, 201);
 });
 
@@ -101,7 +127,6 @@ docs.patch('/:id', async (c) => {
     } else {
       updates.mediawiki_instance_api_url = body.mediawiki_instance_api_url;
       updates.mediawiki_instance_name = body.mediawiki_instance_name ?? null;
-      updates.mediawiki_instance_css = await fetchMediaWikiCss(body.mediawiki_instance_api_url);
     }
   } else if (body.mediawiki_instance_name !== undefined) {
     updates.mediawiki_instance_name = body.mediawiki_instance_name;
@@ -118,6 +143,9 @@ docs.patch('/:id', async (c) => {
   }
 
   const doc = getDocumentById(id);
+  if (body.mediawiki_instance_api_url) {
+    refreshDocumentMediaWikiCssInBackground(id, body.mediawiki_instance_api_url);
+  }
   return c.json(doc);
 });
 

@@ -44,15 +44,49 @@ describe('PushToWiki', () => {
     );
   });
 
-  it('disables target URL editing and opening without a configured instance', async () => {
+  it('maps root-level api.php instances to root-level index.php editors', async () => {
     const user = userEvent.setup();
 
     renderWithProviders(
       <PushToWiki
         title="Ada Lovelace"
         content="'''Ada'''"
-        instanceApiUrl={null}
+        instanceApiUrl="https://wiki.example/api.php"
       />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+
+    expect(screen.getByText('https://wiki.example/wiki/Ada_Lovelace')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open editor/i })).toHaveAttribute(
+      'href',
+      'https://wiki.example/index.php?title=Ada+Lovelace&action=edit'
+    );
+  });
+
+  it('shows an inline message when clipboard copy fails', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied'));
+
+    renderWithProviders(
+      <PushToWiki
+        title="Ada Lovelace"
+        content="'''Ada'''"
+        instanceApiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+    await user.click(screen.getByRole('button', { name: /^copy$/i }));
+
+    expect(screen.getByText(/copy failed/i)).toBeInTheDocument();
+  });
+
+  it('disables target URL editing and opening without a configured instance', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <PushToWiki title="Ada Lovelace" content="'''Ada'''" instanceApiUrl={null} />
     );
 
     await user.click(screen.getByRole('button', { name: /publish/i }));

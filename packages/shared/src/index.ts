@@ -110,10 +110,6 @@ export {
   messageCustom,
   wrapCustomMessage,
 } from './protocol.js';
-export {
-  CreateDocumentSchema,
-  PreviewSchema,
-  UpdateDocumentSchema,
-} from './schemas.js';
+export { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from './schemas.js';
 export { replaceYText } from './yjs.js';
 export type { z } from 'zod';

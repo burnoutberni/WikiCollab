@@ -21,12 +21,16 @@ const remotePreviewLastRequest = new Map<string, number>();
 const remotePreviewTargetQueues = new Map<string, Promise<unknown>>();
 
 type RemotePreviewResult =
-  | { status: 'ok'; html: string }
-  | { status: 'rate_limited'; html?: string }
-  | { status: 'broken' };
+  { status: 'ok'; html: string } | { status: 'rate_limited'; html?: string } | { status: 'broken' };
 
-function remotePreviewKey(apiUrl: string, page: string | null | undefined, wikitext: string): string {
-  return createHash('sha256').update(`${apiUrl}\0${page || ''}\0${wikitext}`).digest('base64url');
+function remotePreviewKey(
+  apiUrl: string,
+  page: string | null | undefined,
+  wikitext: string
+): string {
+  return createHash('sha256')
+    .update(`${apiUrl}\0${page || ''}\0${wikitext}`)
+    .digest('base64url');
 }
 
 function remotePreviewTargetKey(apiUrl: string, page: string | null | undefined): string {
@@ -37,10 +41,26 @@ function evictRemotePreviewCache(now: number): void {
   for (const [key, value] of remotePreviewCache) {
     if (value.expiresAt <= now) remotePreviewCache.delete(key);
   }
+  for (const [key, value] of remotePreviewLatestByTarget) {
+    if (value.expiresAt <= now) remotePreviewLatestByTarget.delete(key);
+  }
+  for (const [key, lastRequest] of remotePreviewLastRequest) {
+    if (lastRequest + REMOTE_PREVIEW_CACHE_TTL_MS <= now) remotePreviewLastRequest.delete(key);
+  }
   while (remotePreviewCache.size > MAX_REMOTE_PREVIEW_CACHE_ENTRIES) {
     const oldest = remotePreviewCache.keys().next().value;
     if (!oldest) break;
     remotePreviewCache.delete(oldest);
+  }
+  while (remotePreviewLatestByTarget.size > MAX_REMOTE_PREVIEW_CACHE_ENTRIES) {
+    const oldest = remotePreviewLatestByTarget.keys().next().value;
+    if (!oldest) break;
+    remotePreviewLatestByTarget.delete(oldest);
+  }
+  while (remotePreviewLastRequest.size > MAX_REMOTE_PREVIEW_CACHE_ENTRIES) {
+    const oldest = remotePreviewLastRequest.keys().next().value;
+    if (!oldest) break;
+    remotePreviewLastRequest.delete(oldest);
   }
 }
 
@@ -336,7 +356,10 @@ export async function generatePreview(
       if (err instanceof SsrfError) {
         console.error(`SSRF blocked: ${err.url}`);
       } else {
-        console.warn('MediaWiki preview request failed; falling back because instance appears broken.', err);
+        console.warn(
+          'MediaWiki preview request failed; falling back because instance appears broken.',
+          err
+        );
       }
     }
   }
