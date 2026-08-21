@@ -1,7 +1,7 @@
 {
   "name": "wikicollab",
   "private": true,
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
     "dev": "pnpm --filter shared build && concurrently \"pnpm run dev:shared\" \"pnpm run dev:server\" \"pnpm run dev:client\"",
     "dev:shared": "pnpm --filter shared exec tsc --watch",
@@ -17,21 +17,21 @@
     "test:coverage": "pnpm -r run test:coverage"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/github": "^12.0.9",
     "@semantic-release/release-notes-generator": "^14.1.1",
-    "@vitest/coverage-v8": "^4.1.10",
-    "concurrently": "^10.0.3",
-    "eslint": "^9.39.4",
+    "@vitest/coverage-v8": "^4.1.11",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-simple-import-sort": "^13.0.0",
-    "prettier": "^3.9.4",
-    "semantic-release": "^25.0.5",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.10"
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "prettier": "^3.9.6",
+    "semantic-release": "^25.0.9",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
   }
 }

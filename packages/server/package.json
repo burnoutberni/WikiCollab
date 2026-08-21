@@ -14,34 +14,35 @@
     "test:coverage": "vitest run --coverage"
   },
   "engines": {
-    "node": ">=24.13.0"
+    "node": ">=24.19.0"
   },
   "dependencies": {
-    "@hono/node-server": "^2.0.8",
-    "better-sqlite3": "^12.11.1",
+    "@hono/node-server": "^2.1.1",
+    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.28",
+    "hono": "^4.13.3",
     "lib0": "^0.2.117",
-    "nanoid": "^5.1.16",
-    "sanitize-html": "^2.17.5",
+    "nanoid": "^6.0.1",
+    "sanitize-html": "^2.17.7",
     "server-fetch": "^1.0.10",
     "shared": "workspace:*",
-    "wikiparser-node": "^1.45.0",
-    "ws": "^8.21.0",
+    "wikiparser-node": "^1.46.3",
+    "ws": "^8.21.3",
     "y-protocols": "^1.0.7",
-    "yjs": "^13.6.31",
+    "yjs": "^13.6.32",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/cors": "^2.8.19",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.2.0",
     "@types/sanitize-html": "^2.16.1",
     "@types/ws": "^8.18.1",
-    "eslint-plugin-simple-import-sort": "^13.0.0",
-    "tsx": "^4.23.0",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "tsx": "^4.23.12",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.11"
   }
 }

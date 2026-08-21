@@ -19,13 +19,14 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "eslint-plugin-simple-import-sort": "^13.0.0",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "lib0": "^0.2.117",
-    "yjs": "^13.6.31",
+    "yjs": "^13.6.32",
     "zod": "^4.4.3"
   }
 }
