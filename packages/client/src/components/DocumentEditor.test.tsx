@@ -6,7 +6,7 @@ import type { DocumentVisibility } from 'shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useDocument, useInstances } from '@/hooks/useApi';
+import { useDocument } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useYjs } from '@/hooks/useYjs';
 
@@ -21,7 +21,9 @@ const mockDoc = {
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-02T00:00:00Z',
   expiry: null,
-  mediawiki_instance_id: null,
+  mediawiki_instance_name: 'English Wikipedia',
+  mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+  mediawiki_instance_css: '.mw-parser-output { color: red; }',
   restored_version_id: null,
   visibility: 'public' as DocumentVisibility,
 };
@@ -45,7 +47,6 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 vi.mock('@/hooks/useApi', () => ({
   useDocument: vi.fn(),
-  useInstances: vi.fn(),
 }));
 
 vi.mock('@/hooks/useEditorLock', () => ({
@@ -61,8 +62,14 @@ vi.mock('@/hooks/useMediaQuery', () => ({
   useMediaQuery: (query: string) => (query === '(min-width: 768px)' ? !mockIsMobile : mockIsMobile),
 }));
 
+const mockSplitPaneEditor = vi.fn();
+
 vi.mock('@/components/SplitPaneEditor', () => ({
-  SplitPaneEditor: () => <div data-testid="split-pane-editor">SplitPaneEditor</div>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  SplitPaneEditor: (props: any) => {
+    mockSplitPaneEditor(props);
+    return <div data-testid="split-pane-editor">SplitPaneEditor</div>;
+  },
 }));
 
 vi.mock('@/components/ConnectionStatePopover', () => ({
@@ -98,8 +105,14 @@ vi.mock('@/components/CollaboratorList', () => ({
   CollaboratorList: () => <div data-testid="collaborator-list">CollaboratorList</div>,
 }));
 
+const mockInstanceManager = vi.fn();
+
 vi.mock('@/components/InstanceManager', () => ({
-  InstanceManager: () => <div data-testid="instance-manager">InstanceManager</div>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  InstanceManager: (props: any) => {
+    mockInstanceManager(props);
+    return <div data-testid="instance-manager">InstanceManager</div>;
+  },
 }));
 
 vi.mock('@/components/PushToWiki', () => ({
@@ -139,7 +152,6 @@ vi.mock('lucide-react', () => {
 });
 
 const useDocumentMock = vi.mocked(useDocument);
-const useInstancesMock = vi.mocked(useInstances);
 const useEditorLockMock = vi.mocked(useEditorLock);
 const useYjsMock = vi.mocked(useYjs);
 
@@ -162,15 +174,10 @@ describe('DocumentEditor', () => {
     mockEditorHandle.jumpToPosition.mockReset();
     mockEditorHandle.scrollToPosition.mockReset();
     mockConnectionStatePopover.mockReset();
+    mockSplitPaneEditor.mockReset();
+    mockInstanceManager.mockReset();
     localStorage.clear();
     useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument: vi.fn() });
-    useInstancesMock.mockReturnValue({
-      instances: [],
-      loading: false,
-      createInstance: vi.fn(),
-      deleteInstance: vi.fn(),
-      updateInstance: vi.fn(),
-    });
     useEditorLockMock.mockReturnValue({
       lockedByOther: null,
       takeOver: mockTakeOver,
@@ -224,6 +231,91 @@ describe('DocumentEditor', () => {
   it('renders editor when doc is loaded', () => {
     renderWithProviders(<DocumentEditor />);
     expect(screen.getByDisplayValue('Test Document')).toBeInTheDocument();
+  });
+
+  it('passes per-document MediaWiki instance props to editor and settings', () => {
+    renderWithProviders(<DocumentEditor />);
+
+    expect(mockSplitPaneEditor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: 'test-doc',
+        apiUrl: 'https://en.wikipedia.org/w/api.php',
+        instanceCss: '.mw-parser-output { color: red; }',
+      })
+    );
+    expect(mockInstanceManager).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'English Wikipedia',
+        apiUrl: 'https://en.wikipedia.org/w/api.php',
+      })
+    );
+  });
+
+  it('does not pass a new instance API URL to preview until PATCH succeeds', async () => {
+    const emptyInstanceDoc = {
+      ...mockDoc,
+      mediawiki_instance_name: null,
+      mediawiki_instance_api_url: null,
+      mediawiki_instance_css: null,
+    };
+    const setDocument = vi.fn();
+    useDocumentMock.mockReturnValue({ document: emptyInstanceDoc, loading: false, setDocument });
+    let resolvePatch: (value: Response) => void = () => {};
+    const fetch = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolvePatch = resolve;
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+
+    renderWithProviders(<DocumentEditor />);
+
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({ apiUrl: null, instanceCss: null, previewRefreshKey: 0 })
+    );
+
+    let savePromise: Promise<void> | undefined;
+    React.act(() => {
+      savePromise = mockInstanceManager.mock.calls.at(-1)?.[0].onChange(
+        'English Wikipedia',
+        'https://en.wikipedia.org/w/api.php'
+      );
+    });
+
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        apiUrl: null,
+        instanceCss: null,
+        previewRefreshKey: 0,
+        previewLoadingLabel: 'Updating wiki settings...',
+      })
+    );
+
+    await React.act(async () => {
+      resolvePatch({
+        ok: true,
+        json: async () => ({
+          ...emptyInstanceDoc,
+          mediawiki_instance_name: 'English Wikipedia',
+          mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+          mediawiki_instance_css: '.remote-css{}',
+        }),
+      } as Response);
+      await savePromise;
+    });
+
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        apiUrl: 'https://en.wikipedia.org/w/api.php',
+        instanceCss: '.remote-css{}',
+        previewRefreshKey: 1,
+        previewLoadingLabel: undefined,
+      })
+    );
+    expect(setDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php' })
+    );
   });
 
   it('view mode toggling (source/split)', async () => {

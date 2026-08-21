@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDocument, useInstances } from '@/hooks/useApi';
+import { useDocument } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { usePersistField } from '@/hooks/usePersistField';
@@ -54,8 +54,7 @@ export type ViewMode = 'source' | 'split';
 export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { document: doc, loading } = useDocument(id || null);
-  const { instances, loading: instancesLoading, createInstance, deleteInstance } = useInstances();
+  const { document: doc, loading, setDocument } = useDocument(id || null);
   const { lockedByOther, takeOver } = useEditorLock(id || null);
   const {
     ytext,
@@ -95,8 +94,22 @@ export function DocumentEditor() {
   const linkCopiedTimeoutRef = useRef<number | null>(null);
   const lastPersistedTitleRef = useRef<string | null>(null);
   const lastPersistedVisibilityRef = useRef<DocumentVisibility | null>(null);
+  const lastPersistedInstanceRef = useRef<{
+    name: string | null;
+    apiUrl: string | null;
+    css: string | null;
+  }>({
+    name: null,
+    apiUrl: null,
+    css: null,
+  });
   const collaboratorCount = peers.length + 1;
   const [visibility, setVisibility] = useState<DocumentVisibility>('public');
+  const [instanceName, setInstanceName] = useState<string | null>(null);
+  const [instanceApiUrl, setInstanceApiUrl] = useState<string | null>(null);
+  const [instanceCss, setInstanceCss] = useState<string | null>(null);
+  const [instanceSaving, setInstanceSaving] = useState(false);
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
   useEffect(() => {
     if (doc) {
@@ -104,8 +117,16 @@ export function DocumentEditor() {
       setWikiTitle(doc.title);
       setContentState(doc.content);
       setVisibility(doc.visibility);
+      setInstanceName(doc.mediawiki_instance_name);
+      setInstanceApiUrl(doc.mediawiki_instance_api_url);
+      setInstanceCss(doc.mediawiki_instance_css);
       lastPersistedTitleRef.current = doc.title;
       lastPersistedVisibilityRef.current = doc.visibility;
+      lastPersistedInstanceRef.current = {
+        name: doc.mediawiki_instance_name,
+        apiUrl: doc.mediawiki_instance_api_url,
+        css: doc.mediawiki_instance_css,
+      };
       if (isMobile && !doc.content) {
         setViewMode('source');
       }
@@ -237,6 +258,45 @@ export function DocumentEditor() {
 
   const revertTitle = useCallback((v: string) => setTitle(v), []);
   const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
+
+  const updateInstance = useCallback(
+    async (name: string | null, apiUrl: string | null) => {
+      if (!id) return;
+      const previous = lastPersistedInstanceRef.current;
+      setInstanceName(name);
+      setInstanceSaving(true);
+      try {
+        const res = await fetch(`/api/docs/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mediawiki_instance_name: name,
+            mediawiki_instance_api_url: apiUrl,
+          }),
+        });
+        const updatedDoc = await res.json();
+        if (!res.ok) throw new Error(updatedDoc.error || 'Failed to update MediaWiki instance');
+        setInstanceName(updatedDoc.mediawiki_instance_name);
+        setInstanceApiUrl(updatedDoc.mediawiki_instance_api_url);
+        setInstanceCss(updatedDoc.mediawiki_instance_css);
+        setPreviewRefreshKey((key) => key + 1);
+        lastPersistedInstanceRef.current = {
+          name: updatedDoc.mediawiki_instance_name,
+          apiUrl: updatedDoc.mediawiki_instance_api_url,
+          css: updatedDoc.mediawiki_instance_css,
+        };
+        setDocument(updatedDoc);
+      } catch (error) {
+        console.error('Failed to update MediaWiki instance:', error);
+        setInstanceName(previous.name);
+        setInstanceApiUrl(previous.apiUrl);
+        setInstanceCss(previous.css);
+      } finally {
+        setInstanceSaving(false);
+      }
+    },
+    [id, setDocument]
+  );
 
   usePersistField(id || null, loading, title, lastPersistedTitleRef, 'title', revertTitle);
   usePersistField(
@@ -427,12 +487,12 @@ export function DocumentEditor() {
               fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
             >
               <PushToWiki
-                documentId={id!}
                 title={title}
                 wikiTitle={wikiTitle}
                 onWikiTitleChange={setWikiTitle}
                 content={content}
-                instance={instances[0] || null}
+                instanceName={instanceName}
+                instanceApiUrl={instanceApiUrl}
               />
             </Suspense>
 
@@ -464,10 +524,10 @@ export function DocumentEditor() {
               <div className="p-4 border-b">
                 <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
                   <InstanceManager
-                    instances={instances}
-                    loading={instancesLoading}
-                    createInstance={createInstance}
-                    deleteInstance={deleteInstance}
+                    name={instanceName}
+                    apiUrl={instanceApiUrl}
+                    saving={instanceSaving}
+                    onChange={updateInstance}
                   />
                 </Suspense>
               </div>
@@ -530,8 +590,10 @@ export function DocumentEditor() {
                 onChange={handleContentChange}
                 documentId={id!}
                 title={wikiTitle}
-                apiUrl={instances[0]?.api_url}
-                instanceCss={instances[0]?.css}
+                apiUrl={instanceApiUrl}
+                instanceCss={instanceCss}
+                previewRefreshKey={previewRefreshKey}
+                previewLoadingLabel={instanceSaving ? 'Updating wiki settings...' : undefined}
                 ytext={ytext}
                 provider={provider}
                 userName={userName}
@@ -615,10 +677,10 @@ export function DocumentEditor() {
 
           <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
             <InstanceManager
-              instances={instances}
-              loading={instancesLoading}
-              createInstance={createInstance}
-              deleteInstance={deleteInstance}
+              name={instanceName}
+              apiUrl={instanceApiUrl}
+              saving={instanceSaving}
+              onChange={updateInstance}
             />
           </Suspense>
 
@@ -675,12 +737,12 @@ export function DocumentEditor() {
               fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
             >
               <PushToWiki
-                documentId={id!}
                 title={title}
                 wikiTitle={wikiTitle}
                 onWikiTitleChange={setWikiTitle}
                 content={content}
-                instance={instances[0] || null}
+                instanceName={instanceName}
+                instanceApiUrl={instanceApiUrl}
               />
             </Suspense>
 

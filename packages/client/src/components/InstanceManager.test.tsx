@@ -3,18 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { MediaWikiInstance } from '@/hooks/useApi';
 
 import { InstanceManager } from './InstanceManager';
-
-const mockInstance: MediaWikiInstance = {
-  id: 'test123',
-  name: 'English Wikipedia',
-  api_url: 'https://en.wikipedia.org/w/api.php',
-  token: null,
-  configured_at: '2025-01-01T00:00:00Z',
-  css: null,
-};
 
 function renderWithProviders(ui: React.ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
@@ -22,58 +12,68 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe('InstanceManager', () => {
   const defaultProps = {
-    instances: [] as MediaWikiInstance[],
-    loading: false,
-    createInstance: vi.fn().mockResolvedValue(mockInstance),
-    deleteInstance: vi.fn().mockResolvedValue(undefined),
+    name: null as string | null,
+    apiUrl: null as string | null,
+    saving: false,
+    onChange: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows loading state', () => {
-    renderWithProviders(<InstanceManager {...defaultProps} loading={true} />);
-    expect(screen.getByText('Loading instances...')).toBeInTheDocument();
+  it('shows saving state', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<InstanceManager {...defaultProps} saving={true} />);
+
+    await user.click(screen.getByText('Configure Instance'));
+
+    expect(screen.getByText('Saving...')).toBeDisabled();
   });
 
-  it('shows add button when no instances', () => {
+  it('shows configure button when no instance is set', () => {
     renderWithProviders(<InstanceManager {...defaultProps} />);
     expect(screen.getByText('MediaWiki Instance')).toBeInTheDocument();
-    expect(screen.getByText('Add Instance')).toBeInTheDocument();
+    expect(screen.getByText('Configure Instance')).toBeInTheDocument();
   });
 
   it('shows instance when configured', () => {
-    renderWithProviders(<InstanceManager {...defaultProps} instances={[mockInstance]} />);
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        name="English Wikipedia"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
     expect(screen.getByText('English Wikipedia')).toBeInTheDocument();
-    expect(screen.getByText(mockInstance.api_url)).toBeInTheDocument();
+    expect(screen.getByText('https://en.wikipedia.org/w/api.php')).toBeInTheDocument();
   });
 
-  it('opens add dialog when clicking Add Instance', async () => {
+  it('opens configure dialog when clicking Configure Instance', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);
 
-    await user.click(screen.getByText('Add Instance'));
+    await user.click(screen.getByText('Configure Instance'));
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Add MediaWiki Instance')).toBeInTheDocument();
+    expect(within(dialog).getByText('Document MediaWiki Instance')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Name')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('API URL')).toBeInTheDocument();
   });
 
-  it('calls createInstance with form values on save', async () => {
+  it('calls onChange with form values on save', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);
 
-    await user.click(screen.getByText('Add Instance'));
+    await user.click(screen.getByText('Configure Instance'));
 
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByLabelText('Name'), 'My Wiki');
     await user.type(within(dialog).getByLabelText('API URL'), 'https://my.wiki/w/api.php');
 
-    await user.click(within(dialog).getByText('Add'));
+    await user.click(within(dialog).getByText('Save'));
 
-    expect(defaultProps.createInstance).toHaveBeenCalledWith(
+    expect(defaultProps.onChange).toHaveBeenCalledWith(
       'My Wiki',
       'https://my.wiki/w/api.php'
     );
@@ -83,18 +83,17 @@ describe('InstanceManager', () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);
 
-    await user.click(screen.getByText('Add Instance'));
+    await user.click(screen.getByText('Configure Instance'));
 
     const dialog = await screen.findByRole('dialog');
-    const addButton = within(dialog).getByText('Add').closest('button')!;
-    expect(addButton).toBeDisabled();
+    expect(within(dialog).getByText('Save')).toBeDisabled();
   });
 
   it('hides the preset dropdown when no preset matches the search', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);
 
-    await user.click(screen.getByText('Add Instance'));
+    await user.click(screen.getByText('Configure Instance'));
 
     const dialog = await screen.findByRole('dialog');
     const nameInput = within(dialog).getByLabelText('Name');
@@ -107,43 +106,41 @@ describe('InstanceManager', () => {
     expect(within(dialog).queryByText('English Wikipedia')).not.toBeInTheDocument();
   });
 
-  it('opens delete confirmation when clicking trash icon', async () => {
+  it('opens edit dialog with existing values', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<InstanceManager {...defaultProps} instances={[mockInstance]} />);
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        name="English Wikipedia"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
 
     const card = screen.getByText('English Wikipedia').closest('.rounded-md')!;
-    const trashButton = card.querySelector('button[class*="text-destructive"]')!;
-    await user.click(trashButton);
+    const editButton = card.querySelector('button:not([class*="text-destructive"])')!;
+    await user.click(editButton);
 
-    const confirmDialog = await screen.findByRole('alertdialog');
-    expect(within(confirmDialog).getByText('Remove instance?')).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('English Wikipedia');
+    expect(within(dialog).getByLabelText('API URL')).toHaveValue(
+      'https://en.wikipedia.org/w/api.php'
+    );
   });
 
-  it('calls deleteInstance on confirm', async () => {
+  it('clears instance when clicking clear', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<InstanceManager {...defaultProps} instances={[mockInstance]} />);
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        name="English Wikipedia"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
 
     const card = screen.getByText('English Wikipedia').closest('.rounded-md')!;
-    const trashButton = card.querySelector('button[class*="text-destructive"]')!;
-    await user.click(trashButton);
+    const clearButton = card.querySelector('button[class*="text-destructive"]')!;
+    await user.click(clearButton);
 
-    const confirmDialog = await screen.findByRole('alertdialog');
-    await user.click(within(confirmDialog).getByText('Remove'));
-
-    expect(defaultProps.deleteInstance).toHaveBeenCalledWith('test123');
-  });
-
-  it('does not call deleteInstance on cancel', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<InstanceManager {...defaultProps} instances={[mockInstance]} />);
-
-    const card = screen.getByText('English Wikipedia').closest('.rounded-md')!;
-    const trashButton = card.querySelector('button[class*="text-destructive"]')!;
-    await user.click(trashButton);
-
-    const confirmDialog = await screen.findByRole('alertdialog');
-    await user.click(within(confirmDialog).getByText('Cancel'));
-
-    expect(defaultProps.deleteInstance).not.toHaveBeenCalled();
+    expect(defaultProps.onChange).toHaveBeenCalledWith(null, null);
   });
 });

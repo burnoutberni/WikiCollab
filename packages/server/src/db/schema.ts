@@ -8,19 +8,11 @@ export const documents = sqliteTable('documents', {
   created_at: text('created_at').notNull().default(new Date().toISOString()),
   updated_at: text('updated_at').notNull().default(new Date().toISOString()),
   expiry: text('expiry'),
-  mediawiki_instance_id: text('mediawiki_instance_id'),
+  mediawiki_instance_name: text('mediawiki_instance_name'),
+  mediawiki_instance_api_url: text('mediawiki_instance_api_url'),
+  mediawiki_instance_css: text('mediawiki_instance_css'),
   restored_version_id: text('restored_version_id'),
   visibility: text('visibility').notNull().default('public'),
-});
-
-/** Configured MediaWiki targets used for preview and push operations. */
-export const mediawikiInstances = sqliteTable('mediawiki_instances', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  api_url: text('api_url').notNull(),
-  token: text('token'),
-  css: text('css'),
-  configured_at: text('configured_at').notNull().default(new Date().toISOString()),
 });
 
 /** Immutable revision snapshots stored as base64-encoded Yjs updates. */
@@ -32,15 +24,4 @@ export const documentRevisions = sqliteTable('document_revisions', {
   yjs_state: text('yjs_state'),
   starred: integer('starred', { mode: 'boolean' }).notNull().default(false),
   created_at: text('created_at').notNull().default(new Date().toISOString()),
-});
-
-/** Cached template payloads fetched from remote MediaWiki instances. */
-export const templateCache = sqliteTable('template_cache', {
-  id: text('id').primaryKey(),
-  instance_id: text('instance_id')
-    .notNull()
-    .references(() => mediawikiInstances.id),
-  template_name: text('template_name').notNull(),
-  template_data: text('template_data').notNull(),
-  fetched_at: text('fetched_at').notNull().default(new Date().toISOString()),
 });

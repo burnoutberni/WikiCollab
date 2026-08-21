@@ -7,6 +7,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { SplitPaneEditor } from './SplitPaneEditor';
 
+vi.mock('@/styles/wikipedia.css?inline', () => ({ default: '.mw-preview-container{}' }));
+
 let mockIsMobile = false;
 
 vi.mock('@/hooks/useMediaQuery', () => ({
@@ -95,10 +97,10 @@ describe('SplitPaneEditor', () => {
 
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/instances/preview',
+        '/api/docs/doc1/preview',
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('Hello wikitext'),
+          body: JSON.stringify({ wikitext: 'Hello wikitext', page: null }),
         })
       );
     });
@@ -106,6 +108,50 @@ describe('SplitPaneEditor', () => {
     await vi.waitFor(() => {
       expect(screen.getByText('Preview HTML')).toBeInTheDocument();
     });
+  });
+
+  it('layers instance CSS on top of bundled preview CSS', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ html: '' }),
+    } as Response);
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} instanceCss=".instance-css-marker{}" />);
+
+    await vi.waitFor(() => {
+      const styles = Array.from(document.querySelectorAll('style')).map(
+        (style) => style.textContent || ''
+      );
+      const previewStyle = styles.find(
+        (text) => text.includes('.mw-preview-container') && text.includes('.instance-css-marker{}')
+      );
+      expect(previewStyle).toBeDefined();
+    });
+  });
+
+  it('dims preview and shows external loading label', () => {
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        content=""
+        previewLoadingLabel="Updating wiki settings..."
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Updating wiki settings...');
+    expect(document.querySelector('.mw-preview-container')).toHaveClass('opacity-45');
+    expect(document.querySelector('.mw-preview-container')).toHaveClass('pointer-events-none');
+  });
+
+  it('dims preview and shows rendering label while preview request is pending', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockReturnValueOnce(new Promise<Response>(() => {}));
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
+    expect(document.querySelector('.mw-preview-container')).toHaveClass('opacity-45');
   });
 
   it('link click opens PreviewLinkModal for external links', async () => {
@@ -172,6 +218,40 @@ describe('SplitPaneEditor', () => {
 
     await vi.waitFor(() => {
       expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('refreshes preview when previewRefreshKey changes with the same API URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+    global.fetch = fetchMock;
+
+    const { rerender } = renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        apiUrl="https://en.wikipedia.org/w/api.php"
+        previewRefreshKey={0}
+      />
+    );
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <TooltipProvider>
+        <SplitPaneEditor
+          {...defaultProps}
+          apiUrl="https://en.wikipedia.org/w/api.php"
+          previewRefreshKey={1}
+        />
+      </TooltipProvider>
+    );
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });
 

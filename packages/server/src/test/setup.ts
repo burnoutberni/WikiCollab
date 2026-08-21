@@ -11,17 +11,11 @@ const SCHEMA_SQL = `
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     expiry TEXT,
-    mediawiki_instance_id TEXT,
+    mediawiki_instance_name TEXT,
+    mediawiki_instance_api_url TEXT,
+    mediawiki_instance_css TEXT,
     restored_version_id TEXT,
     visibility TEXT NOT NULL DEFAULT 'public'
-  );
-  CREATE TABLE IF NOT EXISTS mediawiki_instances (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    api_url TEXT NOT NULL,
-    token TEXT,
-    css TEXT,
-    configured_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS document_revisions (
     id TEXT PRIMARY KEY,
@@ -29,13 +23,6 @@ const SCHEMA_SQL = `
     yjs_state TEXT,
     starred INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE TABLE IF NOT EXISTS template_cache (
-    id TEXT PRIMARY KEY,
-    instance_id TEXT NOT NULL REFERENCES mediawiki_instances(id) ON DELETE CASCADE,
-    template_name TEXT NOT NULL,
-    template_data TEXT NOT NULL,
-    fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `;
 

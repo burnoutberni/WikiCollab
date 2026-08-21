@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import type { Document, MediaWikiInstance, Version } from 'shared';
+import type { Document, Version } from 'shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useDocument, useDocuments, useInstances, useVersions } from './useApi';
+import { useDocument, useDocuments, useVersions } from './useApi';
 
 function createDoc(overrides: Partial<Document> = {}): Document {
   return {
@@ -12,21 +12,11 @@ function createDoc(overrides: Partial<Document> = {}): Document {
     created_at: '2025-01-01T00:00:00.000Z',
     updated_at: '2025-01-01T00:00:00.000Z',
     expiry: null,
-    mediawiki_instance_id: null,
+    mediawiki_instance_name: null,
+    mediawiki_instance_api_url: null,
+    mediawiki_instance_css: null,
     restored_version_id: null,
     visibility: 'public',
-    ...overrides,
-  };
-}
-
-function createInstance(overrides: Partial<MediaWikiInstance> = {}): MediaWikiInstance {
-  return {
-    id: 'inst-1',
-    name: 'Test Wiki',
-    api_url: 'https://wiki.example/w/api.php',
-    token: null,
-    configured_at: '2025-01-01T00:00:00.000Z',
-    css: null,
     ...overrides,
   };
 }
@@ -262,131 +252,6 @@ describe('useDocument', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.document).toBeNull();
-  });
-});
-
-describe('useInstances', () => {
-  it('loads instances from localStorage on mount', () => {
-    const instances = [createInstance(), createInstance({ id: 'inst-2', name: 'Wiki 2' })];
-    localStorage.setItem('wikicollab-instances', JSON.stringify(instances));
-
-    const { result } = renderHook(() => useInstances());
-
-    expect(result.current.instances).toEqual(instances);
-    expect(result.current.loading).toBe(false);
-  });
-
-  it('handles empty localStorage', () => {
-    const { result } = renderHook(() => useInstances());
-
-    expect(result.current.instances).toEqual([]);
-    expect(result.current.loading).toBe(false);
-  });
-
-  it('handles non-array localStorage value', () => {
-    localStorage.setItem('wikicollab-instances', JSON.stringify({ id: 'single' }));
-
-    const { result } = renderHook(() => useInstances());
-
-    expect(result.current.instances).toHaveLength(1);
-  });
-
-  it('handles invalid JSON in localStorage', () => {
-    localStorage.setItem('wikicollab-instances', 'not-json');
-
-    const { result } = renderHook(() => useInstances());
-
-    expect(result.current.instances).toEqual([]);
-  });
-
-  it('createInstance adds to instances and persists to localStorage', async () => {
-    const { result } = renderHook(() => useInstances());
-
-    await act(async () => {
-      await result.current.createInstance('My Wiki', 'https://wiki.example/w/api.php');
-    });
-
-    expect(result.current.instances).toHaveLength(1);
-    expect(result.current.instances[0].name).toBe('My Wiki');
-    expect(result.current.instances[0].api_url).toBe('https://wiki.example/w/api.php');
-
-    const stored = JSON.parse(localStorage.getItem('wikicollab-instances')!);
-    expect(stored).toEqual(result.current.instances);
-  });
-
-  it('deleteInstance removes instance', async () => {
-    localStorage.setItem(
-      'wikicollab-instances',
-      JSON.stringify([createInstance({ id: '1' }), createInstance({ id: '2' })])
-    );
-
-    const { result } = renderHook(() => useInstances());
-
-    await act(async () => {
-      await result.current.deleteInstance('1');
-    });
-
-    expect(result.current.instances).toHaveLength(1);
-    expect(result.current.instances[0].id).toBe('2');
-  });
-
-  it('updateInstance updates instance fields', async () => {
-    const { result } = renderHook(() => useInstances());
-
-    await act(async () => {
-      await result.current.createInstance('Original', 'https://wiki.example/w/api.php');
-    });
-
-    const id = result.current.instances[0].id;
-
-    await act(async () => {
-      await result.current.updateInstance(id, { name: 'Updated' });
-    });
-
-    const stored = JSON.parse(localStorage.getItem('wikicollab-instances')!);
-    const updatedInstance = stored.find((i: { id: string }) => i.id === id);
-    expect(updatedInstance?.name).toBe('Updated');
-  });
-
-  it('updateInstance throws for unknown id', async () => {
-    const { result } = renderHook(() => useInstances());
-
-    await expect(
-      act(async () => {
-        await result.current.updateInstance('nonexistent', { name: 'Nope' });
-      })
-    ).rejects.toThrow('Instance not found');
-  });
-
-  it('handles storage events from other tabs', () => {
-    const { result } = renderHook(() => useInstances());
-
-    const newInstances = [createInstance({ id: 'from-other-tab' })];
-    act(() => {
-      window.dispatchEvent(
-        new StorageEvent('storage', {
-          key: 'wikicollab-instances',
-          newValue: JSON.stringify(newInstances),
-        })
-      );
-    });
-
-    expect(result.current.instances).toEqual(newInstances);
-  });
-
-  it('ignores storage events for other keys', () => {
-    const { result } = renderHook(() => useInstances());
-
-    act(() => {
-      window.dispatchEvent(
-        new StorageEvent('storage', {
-          key: 'other-key',
-          newValue: JSON.stringify([createInstance()]),
-        })
-      );
-    });
-
-    expect(result.current.instances).toEqual([]);
   });
 });
 

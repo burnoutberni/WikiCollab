@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Document, DocumentVisibility, MediaWikiInstance, Version } from 'shared';
+import type { Document, DocumentVisibility, Version } from 'shared';
 
-export type { Document, MediaWikiInstance, Version };
+export type { Document, Version };
 
 const API_BASE = '/api';
 
@@ -153,96 +153,6 @@ export function useDocument(id: string | null) {
   }, [id]);
 
   return { document, loading, setDocument };
-}
-
-/**
- * Persists MediaWiki instances in `localStorage` and keeps tabs in sync via the `storage` event.
- */
-export function useInstances() {
-  const [instances, setInstances] = useState<MediaWikiInstance[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('wikicollab-instances');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
-      }
-    } catch (err) {
-      console.error('Failed to load instances from localStorage:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key !== 'wikicollab-instances') return;
-      try {
-        const parsed = e.newValue ? JSON.parse(e.newValue) : [];
-        setInstances(Array.isArray(parsed) ? parsed : parsed ? [parsed] : []);
-      } catch (err) {
-        console.error('Failed to parse instances from storage event:', err);
-        setInstances([]);
-      }
-    };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
-  }, []);
-
-  const persist = useCallback(
-    (nextOrUpdater: MediaWikiInstance[] | ((prev: MediaWikiInstance[]) => MediaWikiInstance[])) => {
-      setInstances((prev) => {
-        const next = typeof nextOrUpdater === 'function' ? nextOrUpdater(prev) : nextOrUpdater;
-        localStorage.setItem('wikicollab-instances', JSON.stringify(next));
-        return next;
-      });
-    },
-    []
-  );
-
-  const createInstance = useCallback(
-    async (name: string, apiUrl: string, token?: string) => {
-      const id = crypto.randomUUID().slice(0, 7);
-      const instance: MediaWikiInstance = {
-        id,
-        name,
-        api_url: apiUrl,
-        token: token || null,
-        configured_at: new Date().toISOString(),
-        css: null,
-      };
-      persist((prev) => [...prev, instance]);
-      return instance;
-    },
-    [persist]
-  );
-
-  const deleteInstance = useCallback(
-    async (id: string) => {
-      persist((prev) => prev.filter((i) => i.id !== id));
-    },
-    [persist]
-  );
-
-  const updateInstance = useCallback(
-    async (id: string, updates: { name?: string; api_url?: string; token?: string }) => {
-      let updated: MediaWikiInstance | undefined;
-      const next = instances.map((i) => {
-        if (i.id !== id) return i;
-        updated = { ...i, ...updates };
-        return updated;
-      });
-      setInstances(next);
-      localStorage.setItem('wikicollab-instances', JSON.stringify(next));
-      if (!updated) throw new Error('Instance not found');
-      return updated;
-    },
-    [instances]
-  );
-
-  return { instances, loading, createInstance, deleteInstance, updateInstance };
 }
 
 /**

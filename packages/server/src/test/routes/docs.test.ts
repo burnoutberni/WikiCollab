@@ -73,6 +73,9 @@ describe('Docs routes', () => {
     expect(data.content).toBe('Hello world');
     expect(data.id).toBeDefined();
     expect(data.visibility).toBe('public');
+    expect(data.mediawiki_instance_name).toBeNull();
+    expect(data.mediawiki_instance_api_url).toBeNull();
+    expect(data.mediawiki_instance_css).toBeNull();
   });
 
   it('POST / creates an unlisted document', async () => {
@@ -156,6 +159,94 @@ describe('Docs routes', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.visibility).toBe('unlisted');
+  });
+
+  it('PATCH /:id saves document MediaWiki instance fields and ResourceLoader CSS', async () => {
+    mockServerFetch
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            query: { skins: [{ code: 'vector-2022', name: 'Vector', default: '' }] },
+          }),
+      })
+      .mockResolvedValueOnce({ text: () => Promise.resolve('.mw-parser-output{font-size:14px}') })
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            query: { pages: { 1: { revisions: [{ '*': '.common{color:red}' }] } } },
+          }),
+      })
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            query: { pages: { 2: { revisions: [{ '*': '.vector{color:blue}' }] } } },
+          }),
+      });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Instance Doc' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: 'English Wikipedia',
+        mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.mediawiki_instance_name).toBe('English Wikipedia');
+    expect(data.mediawiki_instance_api_url).toBe('https://en.wikipedia.org/w/api.php');
+    expect(data.mediawiki_instance_css).toContain('ResourceLoader: vector-2022');
+    expect(data.mediawiki_instance_css).toContain('.mw-parser-output{font-size:14px}');
+    expect(data.mediawiki_instance_css).toContain('MediaWiki:Common.css');
+    expect(data.mediawiki_instance_css).toContain('.common{color:red}');
+    expect(data.mediawiki_instance_css).toContain('MediaWiki:vector-2022.css');
+    expect(data.mediawiki_instance_css).toContain('.vector{color:blue}');
+    expect(mockServerFetch.mock.calls[1][0]).toContain('https://en.wikipedia.org/w/load.php?');
+    expect(mockServerFetch.mock.calls[1][0]).toContain('skin=vector-2022');
+    expect(mockServerFetch.mock.calls[1][0]).toContain('only=styles');
+    expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
+    expect(mockServerFetch.mock.calls[1][1].headers['User-Agent']).toContain('WikiCollab/');
+  });
+
+  it('PATCH /:id clears document MediaWiki instance fields', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Clear Instance' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({
+        mediawiki_instance_name: 'Example',
+        mediawiki_instance_api_url: 'https://example.com/w/api.php',
+        mediawiki_instance_css: '.cached{}',
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: null,
+        mediawiki_instance_api_url: null,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.mediawiki_instance_name).toBeNull();
+    expect(data.mediawiki_instance_api_url).toBeNull();
+    expect(data.mediawiki_instance_css).toBeNull();
   });
 
   it('GET / hides unlisted documents from the list', async () => {
@@ -243,131 +334,60 @@ describe('Docs routes', () => {
     expect(Array.isArray(data)).toBe(true);
   });
 
-  it('POST /:id/push returns 400 without api_url', async () => {
+  it('POST /:id/preview returns preview for a document', async () => {
     const createRes = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Push Test' }),
+      body: JSON.stringify({ title: 'Preview Test' }),
     });
     const created = await createRes.json();
 
-    const res = await app.request(`/api/docs/${created.id}/push`, {
+    const res = await app.request(`/api/docs/${created.id}/preview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ wikitext: "'''Bold'''", page: 'Preview Test' }),
     });
-    expect(res.status).toBe(400);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.html).toBeDefined();
+    expect(data.sourceMap).toBeDefined();
+    expect(data.css).toBeNull();
   });
 
-  it('POST /:id/push returns 400 without token', async () => {
-    const createRes = await app.request('/api/docs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Push Test' }),
-    });
-    const created = await createRes.json();
-
-    const res = await app.request(`/api/docs/${created.id}/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_url: 'https://example.com/w/api.php' }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('POST /:id/push returns 404 for missing doc', async () => {
-    const res = await app.request('/api/docs/nonexistent/push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_url: 'https://example.com/w/api.php', token: 'abc' }),
-    });
-    expect(res.status).toBe(404);
-  });
-
-  it('POST /:id/push calls serverFetch with correct params', async () => {
+  it('POST /:id/preview uses document MediaWiki instance and returns CSS', async () => {
     mockServerFetch.mockResolvedValue({
-      json: () => Promise.resolve({ edit: { result: 'Success' } }),
+      json: () => Promise.resolve({ parse: { text: { '*': '<p>Remote preview</p>' } } }),
     });
 
     const createRes = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Push Success' }),
+      body: JSON.stringify({ title: 'Remote Preview' }),
     });
     const created = await createRes.json();
+    const db = mockDbModule.db;
+    db.update(schema.documents)
+      .set({
+        mediawiki_instance_name: 'Example Wiki',
+        mediawiki_instance_api_url: 'https://example.com/w/api.php',
+        mediawiki_instance_css: 'body { color: red; }',
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
 
-    const res = await app.request(`/api/docs/${created.id}/push`, {
+    const res = await app.request(`/api/docs/${created.id}/preview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_url: 'https://en.wikipedia.org/w/api.php',
-        token: 'test-token',
-      }),
+      body: JSON.stringify({ wikitext: 'Hello', page: 'Remote Preview' }),
     });
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.result).toBe('Success');
+    expect(data.html).toContain('<p>Remote preview</p>');
+    expect(data.css).toBe('body { color: red; }');
     expect(mockServerFetch).toHaveBeenCalledOnce();
-    expect(mockServerFetch.mock.calls[0][0]).toBe('https://en.wikipedia.org/w/api.php');
-
-    const [, options] = mockServerFetch.mock.calls[0];
-    expect(options.method).toBe('POST');
-    expect(options.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
-
-    const payload = new URLSearchParams(options.body);
-    expect(payload.get('action')).toBe('edit');
-    expect(payload.get('title')).toBe('Push Success');
-    expect(payload.get('token')).toBe('test-token');
-    expect(payload.get('format')).toBe('json');
-  });
-
-  it('POST /:id/push handles wiki API error response', async () => {
-    mockServerFetch.mockResolvedValue({
-      json: () => Promise.resolve({ error: { info: 'Invalid token' } }),
-    });
-
-    const createRes = await app.request('/api/docs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Push Error' }),
-    });
-    const created = await createRes.json();
-
-    const res = await app.request(`/api/docs/${created.id}/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_url: 'https://en.wikipedia.org/w/api.php',
-        token: 'bad-token',
-      }),
-    });
-    expect(res.status).toBe(500);
-    const data = await res.json();
-    expect(data.error).toBe('Invalid token');
-  });
-
-  it('POST /:id/push handles network failure', async () => {
-    mockServerFetch.mockRejectedValue(new Error('Network error'));
-
-    const createRes = await app.request('/api/docs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Push Network Error' }),
-    });
-    const created = await createRes.json();
-
-    const res = await app.request(`/api/docs/${created.id}/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_url: 'https://en.wikipedia.org/w/api.php',
-        token: 'test-token',
-      }),
-    });
-    expect(res.status).toBe(500);
-    const data = await res.json();
-    expect(data.error).toBe('Failed to push to wiki');
+    expect(mockServerFetch.mock.calls[0][0]).toBe('https://example.com/w/api.php');
+    expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
   });
 
   it('POST /:id/versions/:v/star stars a version', async () => {

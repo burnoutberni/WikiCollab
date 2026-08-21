@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import defaultCss from '@/styles/wikipedia.css?inline';
 
+import { LoadingSpinner } from './LoadingSpinner';
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
@@ -28,6 +29,8 @@ interface SplitPaneEditorProps {
   sendCustomMessage?: (type: string, payload: Record<string, string | boolean>) => void;
   onCustomMessage?: <T>(type: string, handler: (data: T) => void) => () => void;
   initialMobileTab?: 'source' | 'preview';
+  previewRefreshKey?: number;
+  previewLoadingLabel?: string;
 }
 
 function getWikiBaseUrl(apiUrl: string): string {
@@ -69,6 +72,7 @@ function rewriteRelativeUrls(html: string, baseUrl: string): string {
 export function SplitPaneEditor({
   content,
   onChange,
+  documentId,
   apiUrl,
   title,
   instanceCss,
@@ -81,6 +85,8 @@ export function SplitPaneEditor({
   sendCustomMessage,
   onCustomMessage,
   initialMobileTab = 'source',
+  previewRefreshKey = 0,
+  previewLoadingLabel,
 }: SplitPaneEditorProps) {
   const isMobile = useIsMobile();
   const [previewHtml, setPreviewHtml] = useState('');
@@ -95,7 +101,9 @@ export function SplitPaneEditor({
   const titleRef = useRef(title);
   titleRef.current = title;
 
-  const previewCss = instanceCss || defaultCss;
+  const previewCss = instanceCss ? `${defaultCss}\n${instanceCss}` : defaultCss;
+  const previewBusy = loading || Boolean(previewLoadingLabel);
+  const previewBusyLabel = previewLoadingLabel || 'Rendering preview...';
 
   const sanitizePreviewHtml = useCallback(
     (html: string) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
@@ -105,20 +113,19 @@ export function SplitPaneEditor({
   const requestPreview = useCallback(() => {
     if (sendCustomMessage) {
       sendCustomMessage('preview_request', {
-        api_url: apiUrl || '',
         page: title || '',
       });
     }
-  }, [sendCustomMessage, apiUrl, title]);
+  }, [sendCustomMessage, title]);
 
   useEffect(() => {
     if (!onCustomMessage) return;
     const unsubscribe = onCustomMessage(
       'preview_update',
-      (payload: { html: string; api_url: string; page: string }) => {
+      (payload: { html: string; page: string }) => {
         const currentApiUrl = apiUrlRef.current || '';
         const currentTitle = titleRef.current || '';
-        if (payload.api_url === currentApiUrl && payload.page === currentTitle) {
+        if (payload.page === currentTitle) {
           let html = payload.html;
           if (currentApiUrl) {
             html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl));
@@ -140,10 +147,10 @@ export function SplitPaneEditor({
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/instances/preview', {
+      const res = await fetch(`/api/docs/${documentId}/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext, api_url: apiUrl || null, page: title || null }),
+        body: JSON.stringify({ wikitext, page: title || null }),
       });
 
       if (res.ok) {
@@ -164,7 +171,7 @@ export function SplitPaneEditor({
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, content, sanitizePreviewHtml, title, ytext]);
+  }, [apiUrl, content, documentId, sanitizePreviewHtml, title, ytext]);
 
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
@@ -189,7 +196,7 @@ export function SplitPaneEditor({
     if (isMobile && initialMobileTab !== 'preview') return;
     skipNextContentRefreshRef.current = true;
     refreshPreviewRef.current();
-  }, [apiUrl, title, isMobile, initialMobileTab]);
+  }, [apiUrl, title, previewRefreshKey, isMobile, initialMobileTab]);
 
   useEffect(() => {
     if (ytext) return;
@@ -238,6 +245,15 @@ export function SplitPaneEditor({
     }
   }, []);
 
+  const previewLoadingOverlay = previewBusy ? (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
+      <LoadingSpinner
+        label={previewBusyLabel}
+        className="rounded-md border bg-background/95 px-4 py-3 shadow-sm"
+      />
+    </div>
+  ) : null;
+
   if (isMobile) {
     return (
       <div className="h-full flex flex-col">
@@ -260,11 +276,12 @@ export function SplitPaneEditor({
                 <style>{previewCss}</style>
                 <div
                   ref={previewRef}
-                  className="mw-preview-container p-4"
+                  className={`mw-preview-container p-4 transition-opacity ${previewBusy ? 'opacity-45 pointer-events-none' : ''}`}
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                   onClick={handlePreviewClick}
                 />
               </div>
+              {previewLoadingOverlay}
               <div className="absolute bottom-3 right-3 safe-area-bottom">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -314,11 +331,12 @@ export function SplitPaneEditor({
           <style>{previewCss}</style>
           <div
             ref={previewRef}
-            className="mw-preview-container p-4"
+            className={`mw-preview-container p-4 transition-opacity ${previewBusy ? 'opacity-45 pointer-events-none' : ''}`}
             dangerouslySetInnerHTML={{ __html: previewHtml }}
             onClick={handlePreviewClick}
           />
         </div>
+        {previewLoadingOverlay}
         <div className="absolute bottom-3 right-3">
           <Tooltip>
             <TooltipTrigger asChild>

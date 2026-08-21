@@ -57,26 +57,32 @@ describe('Database schema', () => {
     expect(result?.visibility).toBe('unlisted');
   });
 
-  it('can insert and query mediawiki_instances', () => {
+  it('can store per-document MediaWiki instance fields', () => {
     const { db, close } = createTestDb();
     cleanup = close;
 
-    db.insert(schema.mediawikiInstances)
+    db.insert(schema.documents)
       .values({
-        id: 'inst1',
-        name: 'Wikipedia',
-        api_url: 'https://en.wikipedia.org/w/api.php',
-        configured_at: '2025-01-01T00:00:00Z',
+        id: 'doc-instance',
+        title: 'Wikipedia Doc',
+        content: 'Hello',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        mediawiki_instance_name: 'Wikipedia',
+        mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+        mediawiki_instance_css: '.mw-parser-output{}',
       })
       .run();
 
     const result = db
       .select()
-      .from(schema.mediawikiInstances)
-      .where(eq(schema.mediawikiInstances.id, 'inst1'))
+      .from(schema.documents)
+      .where(eq(schema.documents.id, 'doc-instance'))
       .get();
     expect(result).toBeDefined();
-    expect(result!.name).toBe('Wikipedia');
+    expect(result!.mediawiki_instance_name).toBe('Wikipedia');
+    expect(result!.mediawiki_instance_api_url).toBe('https://en.wikipedia.org/w/api.php');
+    expect(result!.mediawiki_instance_css).toBe('.mw-parser-output{}');
   });
 
   it('can insert and query document_revisions', () => {
@@ -124,23 +130,6 @@ describe('Database schema', () => {
           document_id: 'nonexistent',
           starred: false,
           created_at: '2025-01-01T00:00:00Z',
-        })
-        .run();
-    }).toThrow();
-  });
-
-  it('enforces template_cache foreign key constraint', () => {
-    const { db, close } = createTestDb();
-    cleanup = close;
-
-    expect(() => {
-      db.insert(schema.templateCache)
-        .values({
-          id: 'tc1',
-          instance_id: 'nonexistent',
-          template_name: 'Infobox',
-          template_data: '{}',
-          fetched_at: '2025-01-01T00:00:00Z',
         })
         .run();
     }).toThrow();

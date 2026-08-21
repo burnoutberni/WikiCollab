@@ -1,5 +1,15 @@
+import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import * as schema from '../../db/schema.js';
+import { createTestDb } from '../setup.js';
+
+const { mockDbModule } = vi.hoisted(() => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockDbModule: { db: null as any, schema: null as any },
+}));
+vi.mock('../../db/index.js', () => mockDbModule);
 
 const { mockServerFetch } = vi.hoisted(() => ({
   mockServerFetch: vi.fn(),
@@ -21,23 +31,41 @@ const mockParser = {
 };
 vi.mock('wikiparser-node', () => ({ default: mockParser }));
 
-import instancesRoutes from '../../routes/instances.js';
+import docsRoutes from '../../routes/docs.js';
+import { generatePreview, resetRemotePreviewStateForTests } from '../../preview.js';
 
 describe('Preview route sanitization', () => {
   let app: Hono;
+  let closeDb: (() => void) | undefined;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    resetRemotePreviewStateForTests();
     mockParser.parse.mockReturnValue({ childNodes: [] });
+    const testDb = createTestDb();
+    mockDbModule.db = testDb.db;
+    mockDbModule.schema = schema;
+    closeDb = testDb.close;
     app = new Hono();
-    app.route('/api/instances', instancesRoutes);
+    app.route('/api/docs', docsRoutes);
+    await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: 'doc1', title: 'Preview Doc' }),
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    closeDb?.();
+    closeDb = undefined;
   });
 
   describe('XSS payloads stripped', () => {
     it('strips <script> tags', async () => {
       mockParser.toHtml.mockReturnValue('<p>Hello</p><script>alert("xss")</script>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -52,7 +80,7 @@ describe('Preview route sanitization', () => {
     it('strips <iframe> tags', async () => {
       mockParser.toHtml.mockReturnValue('<p>Text</p><iframe src="https://evil.com"></iframe>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -66,7 +94,7 @@ describe('Preview route sanitization', () => {
     it('strips onerror event handler from <img>', async () => {
       mockParser.toHtml.mockReturnValue('<img src="x" onerror="alert(1)">');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -80,7 +108,7 @@ describe('Preview route sanitization', () => {
     it('strips onclick event handler from <div>', async () => {
       mockParser.toHtml.mockReturnValue('<div onclick="alert(1)">Click me</div>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -95,7 +123,7 @@ describe('Preview route sanitization', () => {
     it('strips javascript: URIs from links', async () => {
       mockParser.toHtml.mockReturnValue('<a href="javascript:alert(1)">Click</a>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -109,7 +137,7 @@ describe('Preview route sanitization', () => {
     it('strips <object> tags', async () => {
       mockParser.toHtml.mockReturnValue('<object data="evil.swf"></object>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -122,7 +150,7 @@ describe('Preview route sanitization', () => {
     it('strips <embed> tags', async () => {
       mockParser.toHtml.mockReturnValue('<embed src="evil.swf">');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -137,7 +165,7 @@ describe('Preview route sanitization', () => {
         '<form action="https://evil.com"><input type="submit"></form>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -151,7 +179,7 @@ describe('Preview route sanitization', () => {
     it('strips <svg onload> XSS', async () => {
       mockParser.toHtml.mockReturnValue('<svg onload="alert(1)"></svg>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -167,7 +195,7 @@ describe('Preview route sanitization', () => {
     it('preserves headings', async () => {
       mockParser.toHtml.mockReturnValue('<h1>Title</h1><h2>Subtitle</h2>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -182,7 +210,7 @@ describe('Preview route sanitization', () => {
     it('preserves safe links', async () => {
       mockParser.toHtml.mockReturnValue('<a href="https://example.com" class="external">Link</a>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -198,7 +226,7 @@ describe('Preview route sanitization', () => {
         '<img src="https://example.com/img.png" alt="Photo" width="100" height="200">'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -215,7 +243,7 @@ describe('Preview route sanitization', () => {
         '<table class="wikitable"><tr><th colspan="2">Header</th></tr><tr><td rowspan="2">Cell</td><td>Other</td></tr></table>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -230,7 +258,7 @@ describe('Preview route sanitization', () => {
     it('preserves class and id attributes', async () => {
       mockParser.toHtml.mockReturnValue('<div id="toc" class="toc" style="width:200px">TOC</div>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -245,7 +273,7 @@ describe('Preview route sanitization', () => {
     it('preserves lists', async () => {
       mockParser.toHtml.mockReturnValue('<ul><li>One</li><li>Two</li></ul><ol><li>First</li></ol>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -262,7 +290,7 @@ describe('Preview route sanitization', () => {
         '<b>Bold</b> <i>Italic</i> <strong>Strong</strong> <em>Emphasis</em>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -283,7 +311,7 @@ describe('Preview route sanitization', () => {
           '<syntaxhighlight lang="javascript">var x = 1;</syntaxhighlight>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -295,6 +323,23 @@ describe('Preview route sanitization', () => {
       expect(data.html).toContain('<math>');
       expect(data.html).toContain('<syntaxhighlight');
     });
+
+    it('strips local parser TemplateStyles style tags', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<style data-mw-deduplicate="TemplateStyles:r1">.mw-parser-output .navbox{border:1px solid #a2a9b1}</style><div class="navbox">Nav</div>'
+      );
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('<style');
+      expect(data.html).not.toContain('.mw-parser-output .navbox');
+      expect(data.html).toContain('<div class="navbox">Nav</div>');
+    });
   });
 
   describe('dangerous CSS stripped', () => {
@@ -303,7 +348,7 @@ describe('Preview route sanitization', () => {
         '<div style="background:url(javascript:alert(1))">Styled</div>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -317,7 +362,7 @@ describe('Preview route sanitization', () => {
     it('strips expression() from style attributes', async () => {
       mockParser.toHtml.mockReturnValue('<div style="width:expression(alert(1))">Styled</div>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -331,7 +376,7 @@ describe('Preview route sanitization', () => {
     it('preserves safe inline styles', async () => {
       mockParser.toHtml.mockReturnValue('<span style="color:red;font-size:12px">Red text</span>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -347,7 +392,7 @@ describe('Preview route sanitization', () => {
         '<div style="background:\\6a\\61vascript:alert(1)">Styled</div>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -364,7 +409,7 @@ describe('Preview route sanitization', () => {
         '<div style="width:\\65xpression\\28 alert(1)">Styled</div>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -381,7 +426,7 @@ describe('Preview route sanitization', () => {
         '<div style="back\\67round:url(javascript:alert(1))">Styled</div>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -396,7 +441,7 @@ describe('Preview route sanitization', () => {
     it('strips non-hex-escaped javascript: in style attributes (\\java\\script:)', async () => {
       mockParser.toHtml.mockReturnValue('<div style="\\java\\script:alert(1)">Styled</div>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -411,7 +456,7 @@ describe('Preview route sanitization', () => {
     it('strips line-continuation-escaped javascript: in style attributes (ja\\[newline]vascript:)', async () => {
       mockParser.toHtml.mockReturnValue('<div style="ja\\\nvascript:alert(1)">Styled</div>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -427,7 +472,7 @@ describe('Preview route sanitization', () => {
         '<div style="background:\\00006a\\000061vascript:alert(1)">Styled</div>'
       );
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -438,13 +483,32 @@ describe('Preview route sanitization', () => {
       expect(data.html).not.toContain('\\00006a\\000061vascript:');
       expect(data.html).toContain('Styled');
     });
+
+    it('strips local parser style tags', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<style>@import url(https://evil.example/x.css); .x{background:url(javascript:alert(1)); behavior:url(x.htc);}</style><div class="x">Styled</div>'
+      );
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('<style');
+      expect(data.html).not.toContain('@import');
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('behavior');
+      expect(data.html).toContain('Styled');
+    });
   });
 
   describe('both code paths sanitized', () => {
     it('sanitizes HTML from wikiparser fallback path', async () => {
       mockParser.toHtml.mockReturnValue('<p>Safe</p><script>evil()</script>');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: 'test' }),
@@ -460,23 +524,185 @@ describe('Preview route sanitization', () => {
         json: () =>
           Promise.resolve({ parse: { text: { '*': '<p>Content</p><script>hack()</script>' } } }),
       });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext: 'test', api_url: 'https://wiki.example.com/w/api.php' }),
+        body: JSON.stringify({ wikitext: 'test' }),
       });
       const data = await res.json();
 
       expect(data.html).toContain('<p>Content</p>');
       expect(data.html).not.toContain('<script>');
       expect(data.html).not.toContain('hack');
+      expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
+    });
+
+    it('does not fall back to local parser for remote rate limits', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
+      mockServerFetch.mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: { get: () => 'text/plain' },
+        text: () => Promise.resolve('You are making too many requests. Please wait.'),
+        json: () => Promise.reject(new Error('not json')),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('Remote wiki preview is temporarily rate limited');
+      expect(data.html).not.toContain('Built-in fallback');
+      consoleWarn.mockRestore();
+    });
+
+    it('falls back to local parser when the configured instance is broken', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
+      mockServerFetch.mockRejectedValue(new Error('connection failed'));
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('<p>Built-in fallback</p>');
+      consoleWarn.mockRestore();
+    });
+
+    it('deduplicates concurrent identical remote preview requests', async () => {
+      let resolveJson: (value: { parse: { text: { '*': string } } }) => void = () => {};
+      mockServerFetch.mockResolvedValue({
+        json: () =>
+          new Promise((resolve) => {
+            resolveJson = resolve;
+          }),
+      });
+
+      const first = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page');
+      const second = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page');
+
+      await vi.waitFor(() => {
+        expect(mockServerFetch).toHaveBeenCalledTimes(1);
+      });
+      resolveJson({ parse: { text: { '*': '<p>Remote</p>' } } });
+
+      await expect(first).resolves.toEqual(expect.objectContaining({ html: '<p>Remote</p>' }));
+      await expect(second).resolves.toEqual(expect.objectContaining({ html: '<p>Remote</p>' }));
+    });
+
+    it('queues rapid different remote preview requests instead of falling back locally', async () => {
+      vi.useFakeTimers();
+      mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
+      mockServerFetch
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({ parse: { text: { '*': '<p>Remote 1</p>' } } }),
+        })
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({ parse: { text: { '*': '<p>Remote 2</p>' } } }),
+        });
+
+      const first = generatePreview('one', 'https://wiki.example.com/w/api.php', 'Page');
+      await vi.waitFor(() => {
+        expect(mockServerFetch).toHaveBeenCalledTimes(1);
+      });
+      await expect(first).resolves.toEqual(expect.objectContaining({ html: '<p>Remote 1</p>' }));
+
+      const second = generatePreview('two', 'https://wiki.example.com/w/api.php', 'Page');
+      await Promise.resolve();
+      expect(mockServerFetch).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1500);
+      await expect(second).resolves.toEqual(expect.objectContaining({ html: '<p>Remote 2</p>' }));
+      expect(mockServerFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('preserves remote MediaWiki TemplateStyles style tags', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: () =>
+          Promise.resolve({
+            parse: {
+              text: {
+                '*': '<style data-mw-deduplicate="TemplateStyles:r1">.mw-parser-output .navbox{border:1px solid #a2a9b1}</style><div class="navbox">Nav</div>',
+              },
+            },
+          }),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('<style data-mw-deduplicate="TemplateStyles:r1">');
+      expect(data.html).toContain('.mw-parser-output .navbox');
+      expect(data.html).toContain('<div class="navbox">Nav</div>');
+    });
+
+    it('sanitizes remote MediaWiki style tag contents', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: () =>
+          Promise.resolve({
+            parse: {
+              text: {
+                '*': '<style>@import url(https://evil.example/x.css); .x{background:url(javascript:alert(1)); behavior:url(x.htc);}</style><div class="x">Styled</div>',
+              },
+            },
+          }),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('<style>');
+      expect(data.html).not.toContain('@import');
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('behavior');
+      expect(data.html).toContain('Styled');
     });
 
     it('returns sanitized empty-ish result for empty wikitext', async () => {
       mockParser.toHtml.mockReturnValue('');
 
-      const res = await app.request('/api/instances/preview', {
+      const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext: '' }),
