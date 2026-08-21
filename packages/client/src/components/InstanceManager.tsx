@@ -222,7 +222,14 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="md:max-w-md grid-rows-[auto_1fr_auto] md:grid-rows-none">
+        <DialogContent
+          className="md:max-w-md grid-rows-[auto_1fr_auto] md:grid-rows-none"
+          onEscapeKeyDown={(event) => {
+            if (!nameOpen) return;
+            event.preventDefault();
+            closeDropdown();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Document MediaWiki Instance</DialogTitle>
             <DialogDescription>

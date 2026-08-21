@@ -1,15 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
-
-import { MEDIAWIKI_USER_AGENT, readMediaWikiJsonResult } from '../mediawiki-http.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('mediawiki-http', () => {
-  it('includes a contact URL in the MediaWiki User-Agent', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+  });
+
+  it('includes the default contact URL in the MediaWiki User-Agent', async () => {
+    vi.stubEnv('APP_CONTACT_URL', 'https://github.com/burnoutberni/WikiCollab');
+    const { MEDIAWIKI_USER_AGENT } = await import('../mediawiki-http.js');
+
     expect(MEDIAWIKI_USER_AGENT).toContain('WikiCollab/');
     expect(MEDIAWIKI_USER_AGENT).toContain('https://github.com/burnoutberni/WikiCollab');
     expect(MEDIAWIKI_USER_AGENT).not.toContain('local development');
   });
 
   it('does not classify arbitrary prose as rate limited', async () => {
+    const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const result = await readMediaWikiJsonResult<{ ok: boolean }>(
@@ -27,6 +34,7 @@ describe('mediawiki-http', () => {
   });
 
   it('classifies MediaWiki ratelimited error code as rate limited', async () => {
+    const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const result = await readMediaWikiJsonResult<{ ok: boolean }>(

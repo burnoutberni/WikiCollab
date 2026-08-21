@@ -389,7 +389,7 @@ describe('Preview route sanitization', () => {
 
     it('strips hex-escaped javascript: in style attributes (\\6a\\61vascript:)', async () => {
       mockParser.toHtml.mockReturnValue(
-        '<div style="background:\\6a\\61vascript:alert(1)">Styled</div>'
+        '<div style="background:\\\\6a\\\\61vascript:alert(1)">Styled</div>'
       );
 
       const res = await app.request('/api/docs/doc1/preview', {
@@ -400,7 +400,7 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).not.toContain('javascript:');
-      expect(data.html).not.toContain('\\6a\\61vascript:');
+      expect(data.html).not.toContain('\\\\6a\\\\61vascript:');
       expect(data.html).toContain('Styled');
     });
 
@@ -481,6 +481,23 @@ describe('Preview route sanitization', () => {
 
       expect(data.html).not.toContain('javascript:');
       expect(data.html).not.toContain('\\00006a\\000061vascript:');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('strips double-escaped javascript: in style attributes', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<div style="background:\\6a\\61vascript:alert(1)">Styled</div>'
+      );
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\6a\\61vascript:');
       expect(data.html).toContain('Styled');
     });
 
@@ -738,6 +755,45 @@ describe('Preview route sanitization', () => {
       expect(mockServerFetch).toHaveBeenCalledTimes(2);
     });
 
+    it('rate limits instead of growing the per-target remote preview queue without bound', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      let resolveFirst: (value: { parse: { text: { '*': string } } }) => void = () => {};
+      mockServerFetch
+        .mockResolvedValueOnce({
+          json: () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve;
+            }),
+        })
+        .mockResolvedValue({
+          json: () => Promise.resolve({ parse: { text: { '*': '<p>Queued remote</p>' } } }),
+        });
+
+      const previews = Array.from({ length: 6 }, (_, index) =>
+        generatePreview(`wikitext ${index}`, 'https://wiki.example.com/w/api.php', 'Page')
+      );
+      await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(1));
+
+      await expect(previews[5]).resolves.toEqual(
+        expect.objectContaining({
+          html: expect.stringContaining('Remote wiki preview is temporarily rate limited'),
+        })
+      );
+      expect(mockServerFetch).toHaveBeenCalledTimes(1);
+
+      resolveFirst({ parse: { text: { '*': '<p>Remote 1</p>' } } });
+      await expect(previews[0]).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Remote 1</p>' })
+      );
+      for (let i = 1; i < 5; i++) {
+        await vi.advanceTimersByTimeAsync(1500);
+        await expect(previews[i]).resolves.toEqual(
+          expect.objectContaining({ html: '<p>Queued remote</p>' })
+        );
+      }
+    });
+
     it('preserves remote MediaWiki TemplateStyles style tags', async () => {
       mockServerFetch.mockResolvedValue({
         json: () =>
@@ -795,6 +851,37 @@ describe('Preview route sanitization', () => {
       expect(data.html).not.toContain('@import');
       expect(data.html).not.toContain('javascript:');
       expect(data.html).not.toContain('behavior');
+      expect(data.html).toContain('Styled');
+    });
+
+    it('sanitizes double-escaped remote MediaWiki style tag contents', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: () =>
+          Promise.resolve({
+            parse: {
+              text: {
+                '*': '<style>@\\\\69mport url(https://evil.example/x.css); .x{background:url(\\\\6a\\\\61vascript:alert(1));}</style><div class="x">Styled</div>',
+              },
+            },
+          }),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('<style>');
+      expect(data.html).not.toContain('@import');
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('\\\\69mport');
       expect(data.html).toContain('Styled');
     });
 

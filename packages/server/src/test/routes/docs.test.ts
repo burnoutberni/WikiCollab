@@ -257,6 +257,7 @@ describe('Docs routes', () => {
     expect(data.mediawiki_instance_name).toBe('English Wikipedia');
     expect(data.mediawiki_instance_api_url).toBe('https://en.wikipedia.org/w/api.php');
     expect(data.mediawiki_instance_css).toBeNull();
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
     await vi.waitFor(() => {
       const stored = mockDbModule.db
         .select()
@@ -279,10 +280,50 @@ describe('Docs routes', () => {
     expect(mockServerFetch.mock.calls[1][1].headers['User-Agent']).toContain('WikiCollab/');
   });
 
-  it('PATCH /:id preserves existing CSS when async refresh returns null', async () => {
-    mockServerFetch.mockResolvedValueOnce({
-      json: () => Promise.resolve({ query: { skins: [] } }),
+  it('rejects oversized ResourceLoader CSS before reading the body', async () => {
+    const text = vi.fn(async () => '.too-large{}');
+    mockServerFetch
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            query: { skins: [{ code: 'vector-2022', name: 'Vector', default: '' }] },
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: {
+          get: (name: string) => (name === 'content-length' ? '500001' : 'text/css'),
+        },
+        text,
+      })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) });
+
+    const res = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Oversized CSS',
+        mediawiki_instance_name: 'English Wikipedia',
+        mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+      }),
     });
+
+    expect(res.status).toBe(201);
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
+    expect(text).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /:id preserves existing CSS when async refresh returns null', async () => {
+    mockServerFetch
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { skins: [] } }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/css' },
+        text: () => Promise.resolve(''),
+      })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) });
 
     const createRes = await app.request('/api/docs', {
       method: 'POST',
@@ -310,7 +351,7 @@ describe('Docs routes', () => {
     });
 
     expect(res.status).toBe(200);
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalled());
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
     const stored = mockDbModule.db
       .select()
       .from(schema.documents)
@@ -320,9 +361,15 @@ describe('Docs routes', () => {
   });
 
   it('PATCH /:id clears existing CSS when changing MediaWiki API URL', async () => {
-    mockServerFetch.mockResolvedValueOnce({
-      json: () => Promise.resolve({ query: { skins: [] } }),
-    });
+    mockServerFetch
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { skins: [] } }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/css' },
+        text: () => Promise.resolve(''),
+      })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) });
 
     const createRes = await app.request('/api/docs', {
       method: 'POST',
@@ -354,7 +401,7 @@ describe('Docs routes', () => {
     expect(data.mediawiki_instance_name).toBe('New Example');
     expect(data.mediawiki_instance_api_url).toBe('https://new.example.com/w/api.php');
     expect(data.mediawiki_instance_css).toBeNull();
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalled());
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
 
     const stored = mockDbModule.db
       .select()

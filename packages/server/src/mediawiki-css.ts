@@ -55,6 +55,12 @@ async function readCssResponse(
     return null;
   }
 
+  const declaredLength = Number(response.headers?.get?.('content-length') ?? '');
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_MEDIAWIKI_CSS_BYTES) {
+    console.warn(`MediaWiki ${context} CSS declared ${declaredLength} bytes; rejecting`);
+    return null;
+  }
+
   const css = await response.text();
   if (css.length > MAX_MEDIAWIKI_CSS_BYTES) {
     console.warn(`MediaWiki ${context} CSS exceeded ${MAX_MEDIAWIKI_CSS_BYTES} bytes; truncating`);

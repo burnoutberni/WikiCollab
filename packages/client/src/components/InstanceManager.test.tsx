@@ -130,6 +130,23 @@ describe('InstanceManager', () => {
     );
   });
 
+  it('closes preset dropdown instead of dialog on Escape', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<InstanceManager {...defaultProps} />);
+
+    await user.click(screen.getByText('Configure Instance'));
+
+    const dialog = await screen.findByRole('dialog');
+    const nameInput = within(dialog).getByRole('combobox', { name: 'Name' });
+    await user.click(nameInput);
+    expect(within(dialog).getByRole('listbox')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
   it('keeps dialog open and shows save errors', async () => {
     const user = userEvent.setup();
     renderWithProviders(

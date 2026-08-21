@@ -33,7 +33,7 @@ app.use(
 app.use('/api/*', securityHeaders());
 
 app.use('/api/docs/*', crudLimiter);
-app.use('/api/docs/*/preview', previewLimiter);
+app.use('/api/docs/:id/preview', previewLimiter);
 
 app.route('/api/docs', docsRoutes);
 

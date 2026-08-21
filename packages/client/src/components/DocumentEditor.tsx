@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { DocumentVisibility } from 'shared';
+import type { Document, DocumentVisibility } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -48,6 +48,24 @@ const PushToWiki = lazy(() => import('./PushToWiki').then((mod) => ({ default: m
 const VersionHistory = lazy(() =>
   import('./VersionHistory').then((mod) => ({ default: mod.VersionHistory }))
 );
+
+const INSTANCE_CSS_REFRESH_ATTEMPTS = 4;
+const INSTANCE_CSS_REFRESH_DELAY_MS = 500;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchRefreshedInstanceCss(id: string): Promise<Document | null> {
+  for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
+    if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
+    const res = await fetch(`/api/docs/${id}`);
+    if (!res.ok) return null;
+    const doc = (await res.json()) as Document;
+    if (doc.mediawiki_instance_css) return doc;
+  }
+  return null;
+}
 
 const DEFAULT_PAGE_TITLE = 'WikiCollab - Collaborative Wikitext Editor';
 
@@ -283,8 +301,17 @@ export function DocumentEditor() {
             mediawiki_instance_api_url: apiUrl,
           }),
         });
-        const updatedDoc = await res.json();
+        let updatedDoc = (await res.json()) as Document & { error?: string };
         if (!res.ok) throw new Error(updatedDoc.error || 'Failed to update MediaWiki instance');
+        if (updatedDoc.mediawiki_instance_api_url && !updatedDoc.mediawiki_instance_css) {
+          const refreshedDoc = await fetchRefreshedInstanceCss(id);
+          if (
+            refreshedDoc?.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url &&
+            refreshedDoc.mediawiki_instance_css
+          ) {
+            updatedDoc = refreshedDoc;
+          }
+        }
         setInstanceName(updatedDoc.mediawiki_instance_name);
         setInstanceApiUrl(updatedDoc.mediawiki_instance_api_url);
         setInstanceCss(updatedDoc.mediawiki_instance_css);

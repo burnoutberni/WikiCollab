@@ -360,6 +360,57 @@ describe('DocumentEditor', () => {
     );
   });
 
+  it('refetches instance CSS after PATCH returns before async refresh completes', async () => {
+    vi.useFakeTimers();
+    const emptyInstanceDoc = {
+      ...mockDoc,
+      mediawiki_instance_name: null,
+      mediawiki_instance_api_url: null,
+      mediawiki_instance_css: null,
+    };
+    const patchedDoc = {
+      ...emptyInstanceDoc,
+      mediawiki_instance_name: 'English Wikipedia',
+      mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+    };
+    const refreshedDoc = { ...patchedDoc, mediawiki_instance_css: '.refreshed-css{}' };
+    const setDocument = vi.fn();
+    useDocumentMock.mockReturnValue({ document: emptyInstanceDoc, loading: false, setDocument });
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => patchedDoc })
+        .mockResolvedValueOnce({ ok: true, json: async () => patchedDoc })
+        .mockResolvedValueOnce({ ok: true, json: async () => refreshedDoc })
+    );
+
+    renderWithProviders(<DocumentEditor />);
+
+    let savePromise: Promise<void> | undefined;
+    React.act(() => {
+      savePromise = mockInstanceManager.mock.calls
+        .at(-1)?.[0]
+        .onChange('English Wikipedia', 'https://en.wikipedia.org/w/api.php');
+    });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+    await React.act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+      await savePromise;
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        apiUrl: 'https://en.wikipedia.org/w/api.php',
+        instanceCss: '.refreshed-css{}',
+        previewRefreshKey: 1,
+      })
+    );
+    expect(setDocument).toHaveBeenCalledWith(refreshedDoc);
+  });
+
   it('rolls back instance preview props when PATCH fails', async () => {
     const setDocument = vi.fn();
     useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument });
