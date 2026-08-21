@@ -49,6 +49,8 @@ const VersionHistory = lazy(() =>
   import('./VersionHistory').then((mod) => ({ default: mod.VersionHistory }))
 );
 
+const DEFAULT_PAGE_TITLE = 'WikiCollab - Collaborative Wikitext Editor';
+
 export type ViewMode = 'source' | 'split';
 
 export function DocumentEditor() {
@@ -73,7 +75,6 @@ export function DocumentEditor() {
 
   const isMobile = useIsMobile();
   const [title, setTitle] = useState('');
-  const [wikiTitle, setWikiTitle] = useState('');
   const [content, setContentState] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const stored = localStorage.getItem('wikicollab-viewMode');
@@ -114,7 +115,6 @@ export function DocumentEditor() {
   useEffect(() => {
     if (doc) {
       setTitle(doc.title);
-      setWikiTitle(doc.title);
       setContentState(doc.content);
       setVisibility(doc.visibility);
       setInstanceName(doc.mediawiki_instance_name);
@@ -132,6 +132,15 @@ export function DocumentEditor() {
       }
     }
   }, [doc, isMobile]);
+
+  useEffect(() => {
+    if (!doc) return;
+    const pageTitle = title.trim() || 'Untitled Document';
+    document.title = `${pageTitle} - WikiCollab`;
+    return () => {
+      document.title = DEFAULT_PAGE_TITLE;
+    };
+  }, [doc, title]);
 
   useEffect(() => {
     return () => {
@@ -583,7 +592,7 @@ export function DocumentEditor() {
                 content={content}
                 onChange={handleContentChange}
                 documentId={id!}
-                title={wikiTitle}
+                title={title}
                 apiUrl={instanceApiUrl}
                 instanceCss={instanceCss}
                 previewRefreshKey={previewRefreshKey}

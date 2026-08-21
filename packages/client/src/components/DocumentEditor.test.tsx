@@ -171,6 +171,7 @@ describe('DocumentEditor', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    document.title = 'WikiCollab - Collaborative Wikitext Editor';
     mockIsMobile = false;
     mockEditorHandle.jumpToPosition.mockReset();
     mockEditorHandle.scrollToPosition.mockReset();
@@ -232,6 +233,45 @@ describe('DocumentEditor', () => {
   it('renders editor when doc is loaded', () => {
     renderWithProviders(<DocumentEditor />);
     expect(screen.getByDisplayValue('Test Document')).toBeInTheDocument();
+  });
+
+  it('updates preview parse title and browser title when the document is renamed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true }))
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<DocumentEditor />);
+
+    await vi.waitFor(() => {
+      expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+        expect.objectContaining({ title: 'Test Document' })
+      );
+      expect(document.title).toBe('Test Document - WikiCollab');
+    });
+
+    const titleInput = screen.getByDisplayValue('Test Document');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Renamed Document');
+
+    await vi.waitFor(() => {
+      expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+        expect.objectContaining({ title: 'Renamed Document' })
+      );
+      expect(document.title).toBe('Renamed Document - WikiCollab');
+    });
+  });
+
+  it('restores the default browser title after leaving the editor', async () => {
+    const { unmount } = renderWithProviders(<DocumentEditor />);
+
+    await vi.waitFor(() => {
+      expect(document.title).toBe('Test Document - WikiCollab');
+    });
+
+    unmount();
+
+    expect(document.title).toBe('WikiCollab - Collaborative Wikitext Editor');
   });
 
   it('passes per-document MediaWiki instance props to editor and settings', () => {
