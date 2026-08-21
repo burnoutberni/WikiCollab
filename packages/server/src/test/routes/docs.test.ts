@@ -319,6 +319,51 @@ describe('Docs routes', () => {
     expect(stored?.mediawiki_instance_css).toBe('.cached{}');
   });
 
+  it('PATCH /:id clears existing CSS when changing MediaWiki API URL', async () => {
+    mockServerFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ query: { skins: [] } }),
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Changed CSS Source' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({
+        mediawiki_instance_name: 'Old Example',
+        mediawiki_instance_api_url: 'https://old.example.com/w/api.php',
+        mediawiki_instance_css: '.old-wiki{}',
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: 'New Example',
+        mediawiki_instance_api_url: 'https://new.example.com/w/api.php',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.mediawiki_instance_name).toBe('New Example');
+    expect(data.mediawiki_instance_api_url).toBe('https://new.example.com/w/api.php');
+    expect(data.mediawiki_instance_css).toBeNull();
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalled());
+
+    const stored = mockDbModule.db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, created.id))
+      .get();
+    expect(stored?.mediawiki_instance_css).toBeNull();
+  });
+
   it('PATCH /:id clears document MediaWiki instance fields', async () => {
     const createRes = await app.request('/api/docs', {
       method: 'POST',

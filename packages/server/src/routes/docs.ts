@@ -114,6 +114,11 @@ docs.patch('/:id', async (c) => {
 
   const now = new Date().toISOString();
   const updates: Record<string, unknown> = { updated_at: now };
+  const existingDoc = getDocumentById(id);
+
+  if (!existingDoc) {
+    return c.json({ error: 'Document not found' }, 404);
+  }
 
   if (body.title !== undefined) updates.title = body.title;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
@@ -127,6 +132,9 @@ docs.patch('/:id', async (c) => {
     } else {
       updates.mediawiki_instance_api_url = body.mediawiki_instance_api_url;
       updates.mediawiki_instance_name = body.mediawiki_instance_name ?? null;
+      if (body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url) {
+        updates.mediawiki_instance_css = null;
+      }
     }
   } else if (body.mediawiki_instance_name !== undefined) {
     updates.mediawiki_instance_name = body.mediawiki_instance_name;
