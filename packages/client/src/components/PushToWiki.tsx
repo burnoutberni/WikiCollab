@@ -123,8 +123,8 @@ export function PushToWiki({
             </div>
 
             <div className="rounded-md border p-3 space-y-2">
-              <div className="space-y-3">
-                <div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <div className="text-sm font-medium">2. Edit wiki page</div>
                   {instanceApiUrl ? (
                     <p className="break-all text-xs text-muted-foreground">{targetUrl}</p>
@@ -134,7 +134,7 @@ export function PushToWiki({
                     </p>
                   )}
                 </div>
-                <div className="flex justify-end">
+                <div className="shrink-0">
                   {canOpenTarget ? (
                     <Button size="sm" variant="outline" asChild>
                       <a href={targetEditUrl} target="_blank" rel="noopener noreferrer">
