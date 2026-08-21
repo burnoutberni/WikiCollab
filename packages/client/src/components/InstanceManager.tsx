@@ -54,7 +54,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   const [draftApiUrl, setDraftApiUrl] = useState('');
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [instanceError, setInstanceError] = useState<string | null>(null);
   const justSelectedRef = useRef(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -75,7 +75,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
     setDraftApiUrl(apiUrl || '');
     setNameIndex(-1);
     setNameOpen(false);
-    setSaveError(null);
+    setInstanceError(null);
     setDialogOpen(true);
   };
 
@@ -133,17 +133,22 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
 
   const handleSave = async () => {
     if (!draftName || !draftApiUrl) return;
-    setSaveError(null);
+    setInstanceError(null);
     try {
       await onChange(draftName, draftApiUrl);
       setDialogOpen(false);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save MediaWiki instance');
+      setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
     }
   };
 
   const handleClear = async () => {
-    await onChange(null, null);
+    setInstanceError(null);
+    try {
+      await onChange(null, null);
+    } catch (err) {
+      setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
+    }
   };
 
   return (
@@ -202,6 +207,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
               <TooltipContent>Clear instance</TooltipContent>
             </Tooltip>
           </div>
+          {instanceError && <p className="mt-2 text-sm text-destructive">{instanceError}</p>}
         </div>
       ) : (
         <>
@@ -287,7 +293,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                 placeholder="https://wiki.example.com/w/api.php"
               />
             </div>
-            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+            {instanceError && <p className="text-sm text-destructive">{instanceError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>

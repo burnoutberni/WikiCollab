@@ -183,4 +183,20 @@ describe('InstanceManager', () => {
 
     expect(defaultProps.onChange).toHaveBeenCalledWith(null, null);
   });
+
+  it('shows clear errors without throwing from the click handler', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        name="English Wikipedia"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+        onChange={vi.fn().mockRejectedValue(new Error('Clear failed'))}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Clear instance' }));
+
+    expect(await screen.findByText('Clear failed')).toBeInTheDocument();
+  });
 });
