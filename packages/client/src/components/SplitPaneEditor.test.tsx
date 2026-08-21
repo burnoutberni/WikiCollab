@@ -56,6 +56,12 @@ function renderWithProviders(ui: React.ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 }
 
+function getPreviewShadowRoot(): ShadowRoot {
+  const host = screen.getByTestId('preview-content');
+  if (!host.shadowRoot) throw new Error('Preview shadow root was not created');
+  return host.shadowRoot;
+}
+
 describe('SplitPaneEditor', () => {
   const originalFetch = global.fetch;
   const defaultProps = {
@@ -106,11 +112,11 @@ describe('SplitPaneEditor', () => {
     });
 
     await vi.waitFor(() => {
-      expect(screen.getByText('Preview HTML')).toBeInTheDocument();
+      expect(getPreviewShadowRoot().textContent).toContain('Preview HTML');
     });
   });
 
-  it('layers instance CSS on top of bundled preview CSS', async () => {
+  it('layers instance CSS inside the preview shadow root only', async () => {
     const fetchMock = vi.mocked(global.fetch);
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -120,13 +126,13 @@ describe('SplitPaneEditor', () => {
     renderWithProviders(<SplitPaneEditor {...defaultProps} instanceCss=".instance-css-marker{}" />);
 
     await vi.waitFor(() => {
-      const styles = Array.from(document.querySelectorAll('style')).map(
+      const shadowStyle = getPreviewShadowRoot().querySelector('style')?.textContent || '';
+      expect(shadowStyle).toContain('.mw-preview-container');
+      expect(shadowStyle).toContain('.instance-css-marker{}');
+      const documentStyles = Array.from(document.querySelectorAll('style')).map(
         (style) => style.textContent || ''
       );
-      const previewStyle = styles.find(
-        (text) => text.includes('.mw-preview-container') && text.includes('.instance-css-marker{}')
-      );
-      expect(previewStyle).toBeDefined();
+      expect(documentStyles.some((text) => text.includes('.instance-css-marker{}'))).toBe(false);
     });
   });
 
@@ -164,11 +170,9 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
-    await vi.waitFor(() => {
-      expect(screen.getByText('link')).toBeInTheDocument();
-    });
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('link'));
 
-    await user.click(screen.getByText('link'));
+    await user.click(getPreviewShadowRoot().querySelector('a')!);
 
     expect(screen.getByText('URL: https://example.com')).toBeInTheDocument();
   });
@@ -186,11 +190,11 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
-    await vi.waitFor(() => {
-      expect(screen.getByText('go to section 1')).toBeInTheDocument();
-    });
+    await vi.waitFor(() =>
+      expect(getPreviewShadowRoot().textContent).toContain('go to section 1')
+    );
 
-    await user.click(screen.getByText('go to section 1'));
+    await user.click(getPreviewShadowRoot().querySelector('a')!);
 
     expect(screen.queryByTestId('preview-link-modal')).not.toBeInTheDocument();
     expect(scrollIntoViewMock).toHaveBeenCalledWith({
@@ -336,11 +340,9 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} initialMobileTab="preview" />);
 
-    await vi.waitFor(() => {
-      expect(screen.getByText('mobile link')).toBeInTheDocument();
-    });
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('mobile link'));
 
-    await user.click(screen.getByText('mobile link'));
+    await user.click(getPreviewShadowRoot().querySelector('a')!);
 
     expect(screen.getByTestId('preview-link-modal')).toBeInTheDocument();
     expect(screen.getByText('URL: https://example.com')).toBeInTheDocument();

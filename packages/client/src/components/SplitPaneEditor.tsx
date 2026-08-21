@@ -10,6 +10,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import defaultCss from '@/styles/wikipedia.css?inline';
 
 import { LoadingSpinner } from './LoadingSpinner';
+import { PreviewContent } from './PreviewContent';
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
@@ -94,7 +95,6 @@ export function SplitPaneEditor({
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextContentRefreshRef = useRef(true);
-  const previewRef = useRef<HTMLDivElement>(null);
 
   const apiUrlRef = useRef(apiUrl);
   apiUrlRef.current = apiUrl;
@@ -225,24 +225,8 @@ export function SplitPaneEditor({
     []
   );
 
-  const handlePreviewClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    const anchor = target.closest('a');
-    if (anchor) {
-      const href = anchor.getAttribute('href');
-      if (href && !href.startsWith('javascript:')) {
-        e.preventDefault();
-        if (href.startsWith('#')) {
-          const id = href.slice(1);
-          if (id) {
-            const el = previewRef.current?.ownerDocument?.getElementById(id);
-            el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        } else {
-          setLinkModalUrl(href);
-        }
-      }
-    }
+  const handleExternalPreviewLink = useCallback((href: string) => {
+    setLinkModalUrl(href);
   }, []);
 
   const previewLoadingOverlay = previewBusy ? (
@@ -273,12 +257,11 @@ export function SplitPaneEditor({
           {initialMobileTab === 'preview' && (
             <div className="h-full relative">
               <div className="h-full overflow-auto overscroll-contain">
-                <style>{previewCss}</style>
-                <div
-                  ref={previewRef}
+                <PreviewContent
+                  css={previewCss}
+                  html={previewHtml}
                   className={`mw-preview-container p-4 transition-opacity ${previewBusy ? 'opacity-45 pointer-events-none' : ''}`}
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                  onClick={handlePreviewClick}
+                  onExternalLink={handleExternalPreviewLink}
                 />
               </div>
               {previewLoadingOverlay}
@@ -328,12 +311,11 @@ export function SplitPaneEditor({
       </div>
       <div className="w-1/2 relative">
         <div className="h-full overflow-auto">
-          <style>{previewCss}</style>
-          <div
-            ref={previewRef}
+          <PreviewContent
+            css={previewCss}
+            html={previewHtml}
             className={`mw-preview-container p-4 transition-opacity ${previewBusy ? 'opacity-45 pointer-events-none' : ''}`}
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-            onClick={handlePreviewClick}
+            onExternalLink={handleExternalPreviewLink}
           />
         </div>
         {previewLoadingOverlay}
