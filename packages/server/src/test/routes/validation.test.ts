@@ -83,6 +83,18 @@ describe('Input validation', () => {
       expect(data.error).toBe('Validation failed');
     });
 
+    it('rejects javascript MediaWiki API URLs on create', async () => {
+      const res = await app.request('/api/docs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mediawiki_instance_api_url: 'javascript:alert(1)' }),
+      });
+
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe('Validation failed');
+    });
+
     it('accepts valid body', async () => {
       const res = await app.request('/api/docs', {
         method: 'POST',
@@ -129,6 +141,26 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'x'.repeat(501) }),
       });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe('Validation failed');
+    });
+
+    it('rejects javascript MediaWiki API URLs on patch', async () => {
+      const createRes = await app.request('/api/docs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Test' }),
+      });
+      expect(createRes.status).toBe(201);
+      const created = await createRes.json();
+
+      const res = await app.request(`/api/docs/${created.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mediawiki_instance_api_url: 'javascript:alert(1)' }),
+      });
+
       expect(res.status).toBe(400);
       const data = await res.json();
       expect(data.error).toBe('Validation failed');
@@ -189,6 +221,26 @@ describe('Input validation', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ page: 'x'.repeat(201) }),
       });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe('Validation failed');
+    });
+
+    it('rejects oversized wikitext', async () => {
+      const createRes = await app.request('/api/docs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Test' }),
+      });
+      expect(createRes.status).toBe(201);
+      const created = await createRes.json();
+
+      const res = await app.request(`/api/docs/${created.id}/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'x'.repeat(50001) }),
+      });
+
       expect(res.status).toBe(400);
       const data = await res.json();
       expect(data.error).toBe('Validation failed');

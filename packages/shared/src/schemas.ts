@@ -3,7 +3,7 @@ import { z } from 'zod';
 /** Restricts document slugs to URL-safe identifiers without spaces or punctuation. */
 export const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
 export const DocumentVisibilitySchema = z.enum(['public', 'unlisted']);
-const MediaWikiApiUrlSchema = z.string().url({ protocol: /^https?$/ });
+const MediaWikiApiUrlSchema = z.url({ protocol: /^https?$/ });
 
 /** Validation for document creation requests, including optional custom slugs. */
 export const CreateDocumentSchema = z.object({
@@ -31,6 +31,6 @@ export const UpdateDocumentSchema = z.object({
 
 /** Validation for preview generation requests; remote parsing is optional. */
 export const PreviewSchema = z.object({
-  wikitext: z.string().optional(),
+  wikitext: z.string().max(50000).optional(),
   page: z.string().max(200).nullable().optional(),
 });

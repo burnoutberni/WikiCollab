@@ -131,7 +131,9 @@ docs.patch('/:id', async (c) => {
       updates.mediawiki_instance_css = null;
     } else {
       updates.mediawiki_instance_api_url = body.mediawiki_instance_api_url;
-      updates.mediawiki_instance_name = body.mediawiki_instance_name ?? null;
+      if (body.mediawiki_instance_name !== undefined) {
+        updates.mediawiki_instance_name = body.mediawiki_instance_name;
+      }
       if (body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url) {
         updates.mediawiki_instance_css = null;
       }
@@ -151,7 +153,10 @@ docs.patch('/:id', async (c) => {
   }
 
   const doc = getDocumentById(id);
-  if (body.mediawiki_instance_api_url) {
+  const apiUrlChanged =
+    body.mediawiki_instance_api_url !== undefined &&
+    body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url;
+  if (body.mediawiki_instance_api_url && (apiUrlChanged || !existingDoc.mediawiki_instance_css)) {
     refreshDocumentMediaWikiCssInBackground(id, body.mediawiki_instance_api_url);
   }
   return c.json(doc);

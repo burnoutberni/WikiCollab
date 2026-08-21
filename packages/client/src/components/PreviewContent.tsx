@@ -44,9 +44,9 @@ export function PreviewContent({ html, css, className = '', onExternalLink }: Pr
             : null;
       const anchor = target?.closest('a');
       const href = anchor?.getAttribute('href');
-      if (!href || href.startsWith('javascript:')) return;
-
+      if (!href) return;
       event.preventDefault();
+      if (href.startsWith('javascript:')) return;
       if (href.startsWith('#')) {
         const id = href.slice(1);
         if (id) {

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PreviewContent } from './PreviewContent';
@@ -18,5 +18,24 @@ describe('PreviewContent', () => {
     expect(shadow.querySelector('style')?.textContent).toContain('</style><img');
     expect(shadow.querySelector('img')).toBeNull();
     expect(shadow.querySelector('.mw-preview-container')?.innerHTML).toBe('<p>Safe preview</p>');
+  });
+
+  it('prevents default navigation for javascript links', () => {
+    const onExternalLink = vi.fn();
+    render(
+      <PreviewContent
+        css=""
+        html={'<a href="javascript:alert(1)">bad link</a>'}
+        onExternalLink={onExternalLink}
+      />
+    );
+
+    const shadow = screen.getByTestId('preview-content').shadowRoot!;
+    const link = shadow.querySelector('a')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    fireEvent(link, event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(onExternalLink).not.toHaveBeenCalled();
   });
 });

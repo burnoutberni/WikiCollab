@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -20,6 +20,10 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('PushToWiki', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('shows a read-only pretty target URL derived from the document title and instance', async () => {
     const user = userEvent.setup();
 
@@ -61,6 +65,26 @@ describe('PushToWiki', () => {
     expect(screen.getByRole('link', { name: /open editor/i })).toHaveAttribute(
       'href',
       'https://wiki.example/index.php?title=Ada+Lovelace&action=edit'
+    );
+  });
+
+  it('encodes reserved title characters in pretty and editor URLs', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <PushToWiki
+        title="A&B #Q?/Sub"
+        content="content"
+        instanceApiUrl="https://wiki.example/w/api.php"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+
+    expect(screen.getByText('https://wiki.example/wiki/A%26B_%23Q%3F%2FSub')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open editor/i })).toHaveAttribute(
+      'href',
+      'https://wiki.example/w/index.php?title=A%26B+%23Q%3F%2FSub&action=edit'
     );
   });
 

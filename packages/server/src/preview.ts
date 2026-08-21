@@ -120,13 +120,14 @@ function sanitizeStyle(value: string): string {
 }
 
 function sanitizeStyleBlocks(html: string): string {
-  return html.replace(/<style\b([^>]*)>([\s\S]*?)<\/style\s*>/gi, (_match, attrs, css) => {
-    return `<style${attrs}>${sanitizeStyle(css).replace(/<\/style/gi, '')}</style>`;
-  });
+  return html.replace(
+    /<style\b([^>]*)>([\s\S]*?)(?:<\/style\s*>|$)/gi,
+    (_match, attrs, css) => `<style${attrs}>${sanitizeStyle(css).replace(/<\/style/gi, '')}</style>`
+  );
 }
 
 function stripStyleBlocks(html: string): string {
-  return html.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '');
+  return html.replace(/<style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)/gi, '');
 }
 
 /** Sanitizes parser HTML while preserving MediaWiki markup needed by the preview UI. */
@@ -277,7 +278,7 @@ async function fetchRemotePreview(
   if (cached && cached.expiresAt > now) return { status: 'ok', html: cached.html };
 
   const pending = remotePreviewPending.get(cacheKey);
-  if (pending) return pending;
+  if (pending) return resolveRemotePreviewForTarget(pending, latestKey, now);
 
   const latest = latestKey ? remotePreviewLatestByTarget.get(latestKey) : undefined;
   const depth = remotePreviewTargetQueueDepth.get(targetKey) || 0;
@@ -320,12 +321,8 @@ async function fetchRemotePreview(
         error?: { code?: string; info: string };
       }>(res, 'preview');
 
-      if (result.rateLimited || result.data?.error?.code === 'ratelimited') {
-        const latest = latestKey ? remotePreviewLatestByTarget.get(latestKey) : undefined;
-        return latest && latest.expiresAt > Date.now()
-          ? { status: 'rate_limited', html: latest.html }
-          : { status: 'rate_limited' };
-      }
+      if (result.rateLimited || result.data?.error?.code === 'ratelimited')
+        return { status: 'rate_limited' };
 
       const html = result.data?.parse?.text?.['*'];
       if (!html) return { status: 'broken' };
@@ -334,16 +331,17 @@ async function fetchRemotePreview(
       remotePreviewCache.set(cacheKey, { html, expiresAt });
       if (latestKey) remotePreviewLatestByTarget.set(latestKey, { html, expiresAt });
       return { status: 'ok', html };
+    })
+    .catch((err): RemotePreviewResult => {
+      if (err instanceof SsrfError) throw err;
+      console.warn('MediaWiki preview request failed; treating instance as broken.', err);
+      return { status: 'broken' };
     });
 
   remotePreviewPending.set(cacheKey, request);
   remotePreviewTargetQueues.set(targetKey, request);
   try {
-    return await request;
-  } catch (err) {
-    if (err instanceof SsrfError) throw err;
-    console.warn('MediaWiki preview request failed; treating instance as broken.', err);
-    return { status: 'broken' };
+    return await resolveRemotePreviewForTarget(request, latestKey, now);
   } finally {
     remotePreviewPending.delete(cacheKey);
     const currentDepth = remotePreviewTargetQueueDepth.get(targetKey) || 0;
@@ -356,6 +354,26 @@ async function fetchRemotePreview(
       remotePreviewTargetQueues.delete(targetKey);
     }
   }
+}
+
+async function resolveRemotePreviewForTarget(
+  request: Promise<RemotePreviewResult>,
+  latestKey: string | null,
+  fallbackTime: number
+): Promise<RemotePreviewResult> {
+  const result = await request;
+  if (result.status === 'ok' && latestKey) {
+    remotePreviewLatestByTarget.set(latestKey, {
+      html: result.html,
+      expiresAt: Date.now() + REMOTE_PREVIEW_CACHE_TTL_MS,
+    });
+  }
+  if (result.status !== 'rate_limited') return result;
+
+  const latest = latestKey ? remotePreviewLatestByTarget.get(latestKey) : undefined;
+  return latest && latest.expiresAt > fallbackTime
+    ? { status: 'rate_limited', html: latest.html }
+    : result;
 }
 
 /**

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import defaultCss from '@/styles/wikipedia.css?inline';
+import { getWikiBaseUrlOrFallback } from '@/utils/wikiUrl';
 
 import { LoadingSpinner } from './LoadingSpinner';
 import { PreviewContent } from './PreviewContent';
@@ -33,15 +34,6 @@ interface SplitPaneEditorProps {
   previewRefreshKey?: number;
   previewBusy?: boolean;
   previewLoadingLabel?: string;
-}
-
-function getWikiBaseUrl(apiUrl: string): string {
-  try {
-    const url = new URL(apiUrl);
-    return url.origin;
-  } catch {
-    return apiUrl.replace(/\/api\.php$/, '');
-  }
 }
 
 function rewriteRelativeUrls(html: string, baseUrl: string): string {
@@ -98,6 +90,7 @@ export function SplitPaneEditor({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextContentRefreshRef = useRef(true);
   const previewRequestIdRef = useRef(0);
+  const latestWsPreviewRequestIdRef = useRef<string | null>(null);
 
   const apiUrlRef = useRef(apiUrl);
   apiUrlRef.current = apiUrl;
@@ -115,8 +108,11 @@ export function SplitPaneEditor({
 
   const requestPreview = useCallback(() => {
     if (sendCustomMessage) {
+      const requestId = String(++previewRequestIdRef.current);
+      latestWsPreviewRequestIdRef.current = requestId;
       sendCustomMessage('preview_request', {
         page: title || '',
+        requestId,
       });
     }
   }, [sendCustomMessage, title]);
@@ -125,16 +121,19 @@ export function SplitPaneEditor({
     if (!onCustomMessage) return;
     const unsubscribe = onCustomMessage(
       'preview_update',
-      (payload: { html: string; page: string }) => {
+      (payload: { html: string; page: string; requestId?: string }) => {
         const currentApiUrl = apiUrlRef.current || '';
         const currentTitle = titleRef.current || '';
-        if (payload.page === currentTitle) {
+        setLoading(false);
+        if (
+          payload.page === currentTitle &&
+          (!payload.requestId || payload.requestId === latestWsPreviewRequestIdRef.current)
+        ) {
           let html = payload.html;
           if (currentApiUrl) {
-            html = rewriteRelativeUrls(html, getWikiBaseUrl(currentApiUrl));
+            html = rewriteRelativeUrls(html, getWikiBaseUrlOrFallback(currentApiUrl));
           }
           setPreviewHtml(sanitizePreviewHtml(html));
-          setLoading(false);
         }
       }
     );
@@ -163,7 +162,7 @@ export function SplitPaneEditor({
         const data = await res.json();
         let html = data.html || '';
         if (apiUrl) {
-          html = rewriteRelativeUrls(html, getWikiBaseUrl(apiUrl));
+          html = rewriteRelativeUrls(html, getWikiBaseUrlOrFallback(apiUrl));
         }
         if (requestId === previewRequestIdRef.current) {
           setPreviewHtml(sanitizePreviewHtml(html));

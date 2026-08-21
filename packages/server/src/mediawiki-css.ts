@@ -23,6 +23,14 @@ function getLoadPhpUrl(apiUrl: string): string {
   return url.toString();
 }
 
+function getApiUrl(apiUrl: string, params: Record<string, string>): string {
+  const url = new URL(apiUrl);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
 function sanitizeCss(css: string): string {
   return css
     .slice(0, MAX_MEDIAWIKI_CSS_BYTES)
@@ -71,7 +79,12 @@ async function readCssResponse(
 /** Fetches common and default-skin MediaWiki CSS for a document-scoped instance. */
 export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> {
   try {
-    const siteInfoUrl = `${apiUrl}?action=query&meta=siteinfo&siprop=skins&format=json`;
+    const siteInfoUrl = getApiUrl(apiUrl, {
+      action: 'query',
+      meta: 'siteinfo',
+      siprop: 'skins',
+      format: 'json',
+    });
     const siteInfoRes = await serverFetch(siteInfoUrl, {
       headers: mediaWikiHeaders({ Accept: 'application/json' }),
     });
@@ -103,7 +116,13 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
 
     for (const page of ['MediaWiki:Common.css', `MediaWiki:${skinCode}.css`]) {
       try {
-        const url = `${apiUrl}?action=query&prop=revisions&rvprop=content&titles=${encodeURIComponent(page)}&format=json`;
+        const url = getApiUrl(apiUrl, {
+          action: 'query',
+          prop: 'revisions',
+          rvprop: 'content',
+          titles: page,
+          format: 'json',
+        });
         const res = await serverFetch(url, {
           headers: mediaWikiHeaders({ Accept: 'application/json' }),
         });
@@ -119,7 +138,13 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
       }
     }
 
-    return cssParts.length > 0 ? cssParts.join('\n\n') : null;
+    if (cssParts.length === 0) return null;
+    const combined = cssParts.join('\n\n');
+    if (combined.length > MAX_MEDIAWIKI_CSS_BYTES) {
+      console.warn(`Combined MediaWiki CSS exceeded ${MAX_MEDIAWIKI_CSS_BYTES} bytes; truncating`);
+      return combined.slice(0, MAX_MEDIAWIKI_CSS_BYTES);
+    }
+    return combined;
   } catch (err) {
     if (err instanceof SsrfError) {
       console.error(`SSRF blocked: ${err.url}`);

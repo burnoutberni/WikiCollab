@@ -682,6 +682,43 @@ describe('Preview route sanitization', () => {
       consoleWarn.mockRestore();
     });
 
+    it('does not share document fallback from a deduplicated rate-limited request', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      let resolveRateLimitText: (value: string) => void = () => {};
+      const rateLimitText = new Promise<string>((resolve) => {
+        resolveRateLimitText = resolve;
+      });
+      mockServerFetch
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({ parse: { text: { '*': '<p>Private doc1 fallback</p>' } } }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          headers: { get: () => 'text/plain' },
+          text: () => rateLimitText,
+          json: () => Promise.reject(new Error('not json')),
+        });
+
+      await expect(
+        generatePreview('seed', 'https://wiki.example.com/w/api.php', 'Page', 'doc1')
+      ).resolves.toEqual(expect.objectContaining({ html: '<p>Private doc1 fallback</p>' }));
+
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+      const first = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page', 'doc1');
+      await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(2));
+      const second = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page', 'doc2');
+      resolveRateLimitText('You are making too many requests. Please wait.');
+
+      await expect(first).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Private doc1 fallback</p>' })
+      );
+      const secondResult = await second;
+      expect(secondResult.html).toContain('Remote wiki preview is temporarily rate limited');
+      expect(secondResult.html).not.toContain('Private doc1 fallback');
+      consoleWarn.mockRestore();
+    }, 10_000);
+
     it('falls back to local parser when the configured instance is broken', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
@@ -700,6 +737,28 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).toContain('<p>Built-in fallback</p>');
+      consoleWarn.mockRestore();
+    });
+
+    it('normalizes broken deduplicated remote preview requests for all callers', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
+      let rejectFetch: (reason: Error) => void = () => {};
+      mockServerFetch.mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectFetch = reject;
+        })
+      );
+
+      const first = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page');
+      await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(1));
+      const second = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page');
+      rejectFetch(new Error('connection failed'));
+
+      await expect(first).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Built-in fallback</p>' })
+      );
+      await expect(second).resolves.toEqual(expect.objectContaining({ html: expect.any(String) }));
       consoleWarn.mockRestore();
     });
 
@@ -852,6 +911,37 @@ describe('Preview route sanitization', () => {
       expect(data.html).not.toContain('javascript:');
       expect(data.html).not.toContain('behavior');
       expect(data.html).toContain('Styled');
+    });
+
+    it('sanitizes unterminated remote MediaWiki style tag contents', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: () =>
+          Promise.resolve({
+            parse: {
+              text: {
+                '*': '<p>x</p><style>@import url(https://evil.example/x.css); .x{background:url(javascript:alert(1)); behavior:url(x.htc);}',
+              },
+            },
+          }),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('<p>x</p>');
+      expect(data.html).toContain('<style>');
+      expect(data.html).not.toContain('@import');
+      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('behavior');
     });
 
     it('sanitizes double-escaped remote MediaWiki style tag contents', async () => {

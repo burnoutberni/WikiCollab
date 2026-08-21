@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getWikiBaseUrl } from '@/utils/wikiUrl';
 
 const WIKI_PRESETS: { name: string; api_url: string }[] = [
   { name: 'English Wikipedia', api_url: 'https://en.wikipedia.org/w/api.php' },
@@ -36,15 +37,6 @@ interface InstanceManagerProps {
   apiUrl: string | null;
   saving?: boolean;
   onChange: (name: string | null, apiUrl: string | null) => Promise<void> | void;
-}
-
-function getWikiBaseUrl(apiUrl: string): string | null {
-  try {
-    const url = new URL(apiUrl);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Configures the current document's MediaWiki target; presets are suggestions only. */
