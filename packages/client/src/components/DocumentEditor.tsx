@@ -488,10 +488,7 @@ export function DocumentEditor() {
             >
               <PushToWiki
                 title={title}
-                wikiTitle={wikiTitle}
-                onWikiTitleChange={setWikiTitle}
                 content={content}
-                instanceName={instanceName}
                 instanceApiUrl={instanceApiUrl}
               />
             </Suspense>
@@ -738,10 +735,7 @@ export function DocumentEditor() {
             >
               <PushToWiki
                 title={title}
-                wikiTitle={wikiTitle}
-                onWikiTitleChange={setWikiTitle}
                 content={content}
-                instanceName={instanceName}
                 instanceApiUrl={instanceApiUrl}
               />
             </Suspense>

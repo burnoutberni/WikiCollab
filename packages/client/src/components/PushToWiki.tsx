@@ -9,58 +9,75 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PushToWikiProps {
   title: string;
-  wikiTitle: string;
-  onWikiTitleChange: (value: string) => void;
   content: string;
-  instanceName: string | null;
   instanceApiUrl: string | null;
 }
 
-function getEditUrl(apiUrl: string, title: string): string | null {
+function getPageUrl(apiUrl: string, title: string): string | null {
   try {
     const url = new URL(apiUrl);
-    const path = url.pathname.replace(/\/w\/api\.php$/, '/w/index.php').replace(/\/api\.php$/, '/index.php');
-    url.pathname = path;
+    const pathPrefix = url.pathname.replace(/\/w\/api\.php$/, '/wiki/').replace(/\/api\.php$/, '/wiki/');
+    url.pathname = `${pathPrefix}${encodeURIComponent(title.replaceAll(' ', '_'))}`;
     url.search = '';
-    url.searchParams.set('title', title);
-    url.searchParams.set('action', 'edit');
     return url.toString();
   } catch {
     return null;
   }
 }
 
+function getEditUrlFromPageUrl(pageUrl: string): string {
+  try {
+    const url = new URL(pageUrl);
+    const wikiMatch = url.pathname.match(/^(.*)\/wiki\/(.+)$/);
+    if (!wikiMatch) return pageUrl;
+    url.pathname = `${wikiMatch[1]}/w/index.php`;
+    url.search = '';
+    url.searchParams.set('title', decodeURIComponent(wikiMatch[2]).replaceAll('_', ' '));
+    url.searchParams.set('action', 'edit');
+    return url.toString();
+  } catch {
+    return pageUrl;
+  }
+}
+
+function isValidUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Manual publishing helper: copy wikitext, open the target wiki editor, publish there. */
 export function PushToWiki({
   title,
-  wikiTitle,
-  onWikiTitleChange,
   content,
-  instanceName,
   instanceApiUrl,
 }: PushToWikiProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const editUrl = useMemo(
-    () => (instanceApiUrl && wikiTitle ? getEditUrl(instanceApiUrl, wikiTitle) : null),
-    [instanceApiUrl, wikiTitle]
+  const [targetUrl, setTargetUrl] = useState('');
+  const defaultPageUrl = useMemo(
+    () => (instanceApiUrl && title ? getPageUrl(instanceApiUrl, title) : null),
+    [instanceApiUrl, title]
   );
+  const canOpenTarget = isValidUrl(targetUrl);
+  const targetEditUrl = canOpenTarget ? getEditUrlFromPageUrl(targetUrl) : '';
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      setOpen(nextOpen);
-      if (nextOpen) {
-        onWikiTitleChange(title);
-        setCopied(false);
-      }
-    },
-    [title, onWikiTitleChange]
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setCopied(false);
+        setTargetUrl(defaultPageUrl || '');
+        }
+      },
+    [defaultPageUrl]
   );
 
   const copyContent = useCallback(async () => {
@@ -92,16 +109,6 @@ export function PushToWiki({
           </DialogHeader>
 
           <div className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="wiki-title">Target page title</Label>
-              <Input
-                id="wiki-title"
-                value={wikiTitle}
-                onChange={(e) => onWikiTitleChange(e.target.value)}
-                placeholder="Article title"
-              />
-            </div>
-
             <div className="rounded-md border p-3 space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -116,28 +123,32 @@ export function PushToWiki({
             </div>
 
             <div className="rounded-md border p-3 space-y-2">
-              <div className="flex items-center justify-between gap-3">
+              <div className="space-y-3">
                 <div>
-                  <div className="text-sm font-medium">2. Open wiki page in editor mode</div>
-                  <p className="text-xs text-muted-foreground">
-                    {instanceApiUrl
-                      ? `Target: ${instanceName || instanceApiUrl}`
-                      : 'Configure a MediaWiki instance for this document first.'}
-                  </p>
+                  <div className="text-sm font-medium">2. Edit wiki page</div>
+                  {instanceApiUrl ? (
+                    <p className="break-all text-xs text-muted-foreground">{targetUrl}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Configure a MediaWiki instance for this document first.
+                    </p>
+                  )}
                 </div>
-                {editUrl ? (
-                  <Button size="sm" variant="outline" asChild>
-                    <a href={editUrl} target="_blank" rel="noopener noreferrer">
+                <div className="flex justify-end">
+                  {canOpenTarget ? (
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={targetEditUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Open Editor
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" disabled>
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Open Editor
-                    </a>
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" disabled>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Open Editor
-                  </Button>
-                )}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
