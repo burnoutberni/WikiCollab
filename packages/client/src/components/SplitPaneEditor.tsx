@@ -97,9 +97,7 @@ export function SplitPaneEditor({
   const activeWsRequestIdRef = useRef<string | null>(null);
 
   const apiUrlRef = useRef(apiUrl);
-  apiUrlRef.current = apiUrl;
   const titleRef = useRef(title);
-  titleRef.current = title;
 
   const previewCss = instanceCss ? `${defaultCss}\n${instanceCss}` : defaultCss;
   const previewBusy = loading || externalPreviewBusy;
@@ -115,6 +113,11 @@ export function SplitPaneEditor({
     clearTimeout(wsTimeoutRef.current);
     wsTimeoutRef.current = null;
   }, []);
+
+  useEffect(() => {
+    apiUrlRef.current = apiUrl;
+    titleRef.current = title;
+  }, [apiUrl, title]);
 
   const requestPreview = useCallback(
     (requestId: string) => {
@@ -203,16 +206,20 @@ export function SplitPaneEditor({
         }
       } else {
         if (requestId === previewRequestIdRef.current) {
-          setPreviewHtml('<p class="text-red-500">Failed to generate preview</p>');
+          setPreviewHtml(
+            sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
+          );
         }
       }
     } catch (err) {
       console.error('Failed to fetch preview:', err);
       if (requestId === previewRequestIdRef.current) {
         setPreviewHtml(
-          apiUrl
-            ? '<p class="text-red-500">Failed to generate preview</p>'
-            : '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
+          sanitizePreviewHtml(
+            apiUrl
+              ? '<p class="text-red-500">Failed to generate preview</p>'
+              : '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
+          )
         );
       }
     } finally {

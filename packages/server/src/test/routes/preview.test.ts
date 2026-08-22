@@ -683,6 +683,8 @@ describe('Preview route sanitization', () => {
     });
 
     it('does not share document fallback from a deduplicated rate-limited request', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       let resolveRateLimitText: (value: string) => void = () => {};
       const rateLimitText = new Promise<string>((resolve) => {
@@ -704,10 +706,12 @@ describe('Preview route sanitization', () => {
         generatePreview('seed', 'https://wiki.example.com/w/api.php', 'Page', 'doc1')
       ).resolves.toEqual(expect.objectContaining({ html: '<p>Private doc1 fallback</p>' }));
 
-      await new Promise((resolve) => setTimeout(resolve, 1600));
       const first = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page', 'doc1');
-      await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(2));
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(mockServerFetch).toHaveBeenCalledTimes(2);
       const second = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page', 'doc2');
+      await vi.waitFor(() => expect(mockParser.parse).toHaveBeenCalledTimes(3));
       resolveRateLimitText('You are making too many requests. Please wait.');
 
       await expect(first).resolves.toEqual(
@@ -717,7 +721,7 @@ describe('Preview route sanitization', () => {
       expect(secondResult.html).toContain('Remote wiki preview is temporarily rate limited');
       expect(secondResult.html).not.toContain('Private doc1 fallback');
       consoleWarn.mockRestore();
-    }, 10_000);
+    });
 
     it('falls back to local parser when the configured instance is broken', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});

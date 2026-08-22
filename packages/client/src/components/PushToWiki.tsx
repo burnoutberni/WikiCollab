@@ -20,6 +20,7 @@ interface PushToWikiProps {
 function getPageUrl(apiUrl: string, title: string): string | null {
   try {
     const url = new URL(apiUrl);
+    if (!/\/api\.php$/.test(url.pathname)) return null;
     const pathPrefix = url.pathname
       .replace(/\/w\/api\.php$/, '/wiki/')
       .replace(/\/api\.php$/, '/wiki/');
@@ -34,6 +35,7 @@ function getPageUrl(apiUrl: string, title: string): string | null {
 function getEditUrl(apiUrl: string, title: string): string | null {
   try {
     const url = new URL(apiUrl);
+    if (!/\/api\.php$/.test(url.pathname)) return null;
     url.pathname = url.pathname.replace(/\/api\.php$/, '/index.php');
     url.search = '';
     url.searchParams.set('title', title);

@@ -195,4 +195,21 @@ describe('PushToWiki', () => {
     expect(screen.queryByText(/^https?:\/\//)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open editor/i })).toBeDisabled();
   });
+
+  it('disables opening when the instance URL is not an api.php endpoint', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <PushToWiki
+        title="Ada Lovelace"
+        content="'''Ada'''"
+        instanceApiUrl="https://wiki.example/w/"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+
+    expect(screen.queryByText(/^https?:\/\//)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open editor/i })).toBeDisabled();
+  });
 });
