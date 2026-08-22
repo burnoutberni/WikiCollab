@@ -90,8 +90,6 @@ export function SplitPaneEditor({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextContentRefreshRef = useRef(true);
   const previewRequestIdRef = useRef(0);
-  const latestWsPreviewRequestIdRef = useRef<string | null>(null);
-  const wsPreviewRequestIdsRef = useRef<Set<string>>(new Set());
 
   const apiUrlRef = useRef(apiUrl);
   apiUrlRef.current = apiUrl;
@@ -109,12 +107,8 @@ export function SplitPaneEditor({
 
   const requestPreview = useCallback(() => {
     if (sendCustomMessage) {
-      const requestId = String(++previewRequestIdRef.current);
-      latestWsPreviewRequestIdRef.current = requestId;
-      wsPreviewRequestIdsRef.current.add(requestId);
       sendCustomMessage('preview_request', {
         page: title || '',
-        requestId,
       });
     }
   }, [sendCustomMessage, title]);
@@ -127,11 +121,7 @@ export function SplitPaneEditor({
         const currentApiUrl = apiUrlRef.current || '';
         const currentTitle = titleRef.current || '';
         setLoading(false);
-        const isSupersededLocalResponse =
-          payload.requestId !== undefined &&
-          wsPreviewRequestIdsRef.current.has(payload.requestId) &&
-          payload.requestId !== latestWsPreviewRequestIdRef.current;
-        if (payload.page === currentTitle && !isSupersededLocalResponse) {
+        if (payload.page === currentTitle) {
           let html = payload.html;
           if (currentApiUrl) {
             html = rewriteRelativeUrls(html, getWikiBaseUrlOrFallback(currentApiUrl));

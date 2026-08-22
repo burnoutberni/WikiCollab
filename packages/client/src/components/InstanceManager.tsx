@@ -175,6 +175,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                   variant="ghost"
                   size="sm"
                   onClick={openDialog}
+                  disabled={saving}
                   className="h-7 w-7 p-0"
                   aria-label="Edit instance"
                 >

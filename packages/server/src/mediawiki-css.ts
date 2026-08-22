@@ -31,9 +31,28 @@ function getApiUrl(apiUrl: string, params: Record<string, string>): string {
   return url.toString();
 }
 
+function decodeCssEscape(value: string): string {
+  return value
+    .replace(/\\(?:\r\n|[\n\r\f])/g, '')
+    .replace(/\\([0-9a-fA-F]{1,6})\s?|\\(.)/g, (_match, hex, char) => {
+      if (hex !== undefined) {
+        const cp = Number.parseInt(hex, 16);
+        if (cp > 0 && cp <= 0x10ffff) return String.fromCodePoint(cp);
+        return '';
+      }
+      return char;
+    });
+}
+
 function sanitizeCss(css: string): string {
-  return css
-    .slice(0, MAX_MEDIAWIKI_CSS_BYTES)
+  let normalized = css.slice(0, MAX_MEDIAWIKI_CSS_BYTES);
+  for (let i = 0; i < 5; i++) {
+    const decoded = decodeCssEscape(normalized);
+    if (decoded === normalized) break;
+    normalized = decoded;
+  }
+
+  return normalized
     .replace(/<\/style/gi, '')
     .replace(/@import\b[^;]*(?:;|$)/gi, '')
     .replace(/javascript\s*:/gi, '')

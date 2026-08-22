@@ -31,6 +31,20 @@ describe('InstanceManager', () => {
     expect(screen.getByText('Saving...')).toBeDisabled();
   });
 
+  it('disables configured actions while saving', () => {
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        name="English Wikipedia"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+        saving={true}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Edit instance' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Clear instance' })).toBeDisabled();
+  });
+
   it('shows configure button when no instance is set', () => {
     renderWithProviders(<InstanceManager {...defaultProps} />);
     expect(screen.getByText('MediaWiki Instance')).toBeInTheDocument();

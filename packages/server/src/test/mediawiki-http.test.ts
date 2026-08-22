@@ -67,4 +67,39 @@ describe('mediawiki-http', () => {
     expect(result.rateLimited).toBe(true);
     consoleWarn.mockRestore();
   });
+
+  it('rejects successful responses that are not JSON and detects rate limits from the body', async () => {
+    const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await readMediaWikiJsonResult<{ ok: boolean }>(
+      jsonResponse({
+        headers: { get: () => 'text/html' },
+        text: async () => '<html>Too Many Requests</html>',
+      }),
+      'preview'
+    );
+
+    expect(result.data).toBeNull();
+    expect(result.rateLimited).toBe(true);
+    consoleWarn.mockRestore();
+  });
+
+  it('returns null data when the JSON body cannot be parsed', async () => {
+    const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await readMediaWikiJsonResult<{ ok: boolean }>(
+      jsonResponse({
+        json: async () => {
+          throw new Error('bad json');
+        },
+      }),
+      'preview'
+    );
+
+    expect(result.data).toBeNull();
+    expect(result.rateLimited).toBe(false);
+    consoleWarn.mockRestore();
+  });
 });

@@ -278,7 +278,7 @@ async function fetchRemotePreview(
   if (cached && cached.expiresAt > now) return { status: 'ok', html: cached.html };
 
   const pending = remotePreviewPending.get(cacheKey);
-  if (pending) return resolveRemotePreviewForTarget(pending, latestKey, now);
+  if (pending) return resolveRemotePreviewForTarget(pending, latestKey);
 
   const latest = latestKey ? remotePreviewLatestByTarget.get(latestKey) : undefined;
   const depth = remotePreviewTargetQueueDepth.get(targetKey) || 0;
@@ -341,7 +341,7 @@ async function fetchRemotePreview(
   remotePreviewPending.set(cacheKey, request);
   remotePreviewTargetQueues.set(targetKey, request);
   try {
-    return await resolveRemotePreviewForTarget(request, latestKey, now);
+    return await resolveRemotePreviewForTarget(request, latestKey);
   } finally {
     remotePreviewPending.delete(cacheKey);
     const currentDepth = remotePreviewTargetQueueDepth.get(targetKey) || 0;
@@ -358,8 +358,7 @@ async function fetchRemotePreview(
 
 async function resolveRemotePreviewForTarget(
   request: Promise<RemotePreviewResult>,
-  latestKey: string | null,
-  fallbackTime: number
+  latestKey: string | null
 ): Promise<RemotePreviewResult> {
   const result = await request;
   if (result.status === 'ok' && latestKey) {
@@ -371,7 +370,7 @@ async function resolveRemotePreviewForTarget(
   if (result.status !== 'rate_limited') return result;
 
   const latest = latestKey ? remotePreviewLatestByTarget.get(latestKey) : undefined;
-  return latest && latest.expiresAt > fallbackTime
+  return latest && latest.expiresAt > Date.now()
     ? { status: 'rate_limited', html: latest.html }
     : result;
 }

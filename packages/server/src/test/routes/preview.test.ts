@@ -758,7 +758,9 @@ describe('Preview route sanitization', () => {
       await expect(first).resolves.toEqual(
         expect.objectContaining({ html: '<p>Built-in fallback</p>' })
       );
-      await expect(second).resolves.toEqual(expect.objectContaining({ html: expect.any(String) }));
+      await expect(second).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Built-in fallback</p>' })
+      );
       consoleWarn.mockRestore();
     });
 

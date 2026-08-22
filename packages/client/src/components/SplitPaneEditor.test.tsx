@@ -187,30 +187,21 @@ describe('SplitPaneEditor', () => {
       />
     );
 
-    const requestId = sendCustomMessage.mock.calls[0][1].requestId;
     expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
 
     act(() => {
-      previewUpdate({ html: '<p>Ignored</p>', page: 'Other page', requestId });
+      previewUpdate({ html: '<p>Ignored</p>', page: 'Other page' });
     });
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(getPreviewShadowRoot().textContent).not.toContain('Ignored');
   });
 
-  it('ignores stale websocket preview responses by request id', async () => {
-    let previewUpdate: (payload: {
-      html: string;
-      page: string;
-      requestId?: string;
-    }) => void = () => {};
+  it('sends websocket preview requests without client-scoped request ids', async () => {
     const sendCustomMessage = vi.fn();
-    const onCustomMessage = vi.fn((_type, handler) => {
-      previewUpdate = handler as typeof previewUpdate;
-      return vi.fn();
-    });
+    const onCustomMessage = vi.fn(() => vi.fn());
 
-    const { rerenderWithProviders } = renderWithProviders(
+    renderWithProviders(
       <SplitPaneEditor
         {...defaultProps}
         title="Same Page"
@@ -221,28 +212,7 @@ describe('SplitPaneEditor', () => {
     );
 
     await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
-    const firstRequestId = sendCustomMessage.mock.calls[0][1].requestId;
-
-    rerenderWithProviders(
-      <SplitPaneEditor
-        {...defaultProps}
-        title="Same Page"
-        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
-        sendCustomMessage={sendCustomMessage}
-        onCustomMessage={onCustomMessage}
-        previewRefreshKey={1}
-      />
-    );
-    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(2));
-    const secondRequestId = sendCustomMessage.mock.calls[1][1].requestId;
-
-    act(() => {
-      previewUpdate({ html: '<p>New preview</p>', page: 'Same Page', requestId: secondRequestId });
-      previewUpdate({ html: '<p>Old preview</p>', page: 'Same Page', requestId: firstRequestId });
-    });
-
-    expect(getPreviewShadowRoot().textContent).toContain('New preview');
-    expect(getPreviewShadowRoot().textContent).not.toContain('Old preview');
+    expect(sendCustomMessage).toHaveBeenCalledWith('preview_request', { page: 'Same Page' });
   });
 
   it('accepts websocket preview updates with peer request ids', async () => {

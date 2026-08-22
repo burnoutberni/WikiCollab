@@ -134,6 +134,25 @@ describe('PushToWiki', () => {
     expect(screen.getByText(/copy failed/i)).toBeInTheDocument();
   });
 
+  it('copies the wikitext and confirms the copy', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+
+    renderWithProviders(
+      <PushToWiki
+        title="Ada Lovelace"
+        content="'''Ada'''"
+        instanceApiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+    await user.click(screen.getByRole('button', { name: /^copy$/i }));
+
+    expect(writeText).toHaveBeenCalledWith("'''Ada'''");
+    expect(await screen.findByRole('button', { name: /^copied$/i })).toBeInTheDocument();
+  });
+
   it('disables target URL editing and opening without a configured instance', async () => {
     const user = userEvent.setup();
 
