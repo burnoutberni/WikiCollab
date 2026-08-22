@@ -8,5 +8,5 @@ export function getWikiBaseUrl(apiUrl: string): string | null {
 }
 
 export function getWikiBaseUrlOrFallback(apiUrl: string): string {
-  return getWikiBaseUrl(apiUrl) ?? apiUrl.replace(/\/api\.php$/, '');
+  return getWikiBaseUrl(apiUrl) ?? '';
 }

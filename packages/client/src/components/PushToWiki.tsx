@@ -1,5 +1,5 @@
 import { Check, Copy, ExternalLink, Send } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -72,6 +72,10 @@ export function PushToWiki({ title, content, instanceApiUrl }: PushToWikiProps) 
       setCopyError(false);
     }
   }, []);
+
+  useEffect(() => {
+    setCopied(false);
+  }, [content]);
 
   const copyContent = useCallback(async () => {
     try {

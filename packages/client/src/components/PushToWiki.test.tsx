@@ -153,6 +153,36 @@ describe('PushToWiki', () => {
     expect(await screen.findByRole('button', { name: /^copied$/i })).toBeInTheDocument();
   });
 
+  it('resets copied state when wikitext changes while open', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+
+    const { rerender } = renderWithProviders(
+      <PushToWiki
+        title="Ada Lovelace"
+        content="'''Ada'''"
+        instanceApiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+    await user.click(screen.getByRole('button', { name: /^copy$/i }));
+    expect(await screen.findByRole('button', { name: /^copied$/i })).toBeInTheDocument();
+
+    rerender(
+      <TooltipProvider>
+        <PushToWiki
+          title="Ada Lovelace"
+          content="'''Ada Lovelace'''"
+          instanceApiUrl="https://en.wikipedia.org/w/api.php"
+        />
+      </TooltipProvider>
+    );
+
+    expect(screen.getByRole('button', { name: /^copy$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^copied$/i })).not.toBeInTheDocument();
+  });
+
   it('disables target URL editing and opening without a configured instance', async () => {
     const user = userEvent.setup();
 

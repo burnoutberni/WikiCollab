@@ -98,6 +98,24 @@ describe('InstanceManager', () => {
     expect(defaultProps.onChange).toHaveBeenCalledWith('My Wiki', 'https://my.wiki/w/api.php');
   });
 
+  it('rejects non-http API URLs before saving', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<InstanceManager {...defaultProps} />);
+
+    await user.click(screen.getByText('Configure Instance'));
+
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Name'), 'Bad Wiki');
+    await user.type(within(dialog).getByLabelText('API URL'), 'javascript:alert(1)');
+    await user.click(within(dialog).getByText('Save'));
+
+    expect(
+      await within(dialog).findByText('MediaWiki API URL must be a valid http(s) URL')
+    ).toBeInTheDocument();
+    expect(defaultProps.onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('disables save button when fields are empty', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);

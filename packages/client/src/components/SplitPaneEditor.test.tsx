@@ -87,6 +87,7 @@ describe('SplitPaneEditor', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     global.fetch = originalFetch;
     HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
   });
@@ -173,8 +174,8 @@ describe('SplitPaneEditor', () => {
       requestId?: string;
     }) => void = () => {};
     const sendCustomMessage = vi.fn();
-    const onCustomMessage = vi.fn((_type, handler) => {
-      previewUpdate = handler as typeof previewUpdate;
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
       return vi.fn();
     });
 
@@ -222,8 +223,8 @@ describe('SplitPaneEditor', () => {
       requestId?: string;
     }) => void = () => {};
     const sendCustomMessage = vi.fn();
-    const onCustomMessage = vi.fn((_type, handler) => {
-      previewUpdate = handler as typeof previewUpdate;
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
       return vi.fn();
     });
 
@@ -243,6 +244,67 @@ describe('SplitPaneEditor', () => {
     });
 
     expect(getPreviewShadowRoot().textContent).toContain('Peer preview');
+  });
+
+  it('falls back to HTTP preview when websocket preview times out', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Fallback preview</p>' }),
+    } as Response);
+    global.fetch = fetchMock;
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(getPreviewShadowRoot().textContent).toContain('Fallback preview')
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows an error and clears websocket preview loading on preview_error', async () => {
+    let previewError: (payload: { page: string }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_error') previewError = handler as typeof previewError;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
+
+    act(() => {
+      previewError({ page: 'Same Page' });
+    });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(getPreviewShadowRoot().textContent).toContain('Failed to generate preview');
   });
 
   it('link click opens PreviewLinkModal for external links', async () => {

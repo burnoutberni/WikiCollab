@@ -15,6 +15,8 @@ import { PreviewContent } from './PreviewContent';
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
+const WS_PREVIEW_TIMEOUT_MS = 5000;
+
 interface SplitPaneEditorProps {
   content: string;
   onChange: (value: string) => void;
@@ -88,6 +90,7 @@ export function SplitPaneEditor({
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextContentRefreshRef = useRef(true);
   const previewRequestIdRef = useRef(0);
 
@@ -105,6 +108,12 @@ export function SplitPaneEditor({
     []
   );
 
+  const clearWsTimeout = useCallback(() => {
+    if (!wsTimeoutRef.current) return;
+    clearTimeout(wsTimeoutRef.current);
+    wsTimeoutRef.current = null;
+  }, []);
+
   const requestPreview = useCallback(() => {
     if (sendCustomMessage) {
       sendCustomMessage('preview_request', {
@@ -120,6 +129,7 @@ export function SplitPaneEditor({
       (payload: { html: string; page: string; requestId?: string }) => {
         const currentApiUrl = apiUrlRef.current || '';
         const currentTitle = titleRef.current || '';
+        clearWsTimeout();
         setLoading(false);
         if (payload.page === currentTitle) {
           let html = payload.html;
@@ -131,7 +141,22 @@ export function SplitPaneEditor({
       }
     );
     return unsubscribe;
-  }, [onCustomMessage, sanitizePreviewHtml]);
+  }, [clearWsTimeout, onCustomMessage, sanitizePreviewHtml]);
+
+  useEffect(() => {
+    if (!onCustomMessage) return;
+    const unsubscribe = onCustomMessage('preview_error', (payload: { page: string }) => {
+      const currentTitle = titleRef.current || '';
+      clearWsTimeout();
+      setLoading(false);
+      if (payload.page === currentTitle) {
+        setPreviewHtml(
+          sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
+        );
+      }
+    });
+    return unsubscribe;
+  }, [clearWsTimeout, onCustomMessage, sanitizePreviewHtml]);
 
   const fetchPreview = useCallback(async () => {
     const requestId = ++previewRequestIdRef.current;
@@ -182,11 +207,16 @@ export function SplitPaneEditor({
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
       setLoading(true);
+      clearWsTimeout();
+      wsTimeoutRef.current = setTimeout(() => {
+        wsTimeoutRef.current = null;
+        fetchPreview();
+      }, WS_PREVIEW_TIMEOUT_MS);
       requestPreview();
     } else {
       fetchPreview();
     }
-  }, [sendCustomMessage, provider, requestPreview, fetchPreview]);
+  }, [clearWsTimeout, sendCustomMessage, provider, requestPreview, fetchPreview]);
 
   const debouncedPreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -227,8 +257,9 @@ export function SplitPaneEditor({
   useEffect(
     () => () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      clearWsTimeout();
     },
-    []
+    [clearWsTimeout]
   );
 
   const handleExternalPreviewLink = useCallback((href: string) => {

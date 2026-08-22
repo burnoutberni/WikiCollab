@@ -224,6 +224,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
             broadcastCustom(doc, encodeInnerPayload('preview_update', { html, page }));
           } catch (err) {
             console.error('WS preview generation failed:', err);
+            broadcastCustom(doc, encodeInnerPayload('preview_error', { page }));
           }
         }, 500)
       );

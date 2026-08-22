@@ -126,6 +126,10 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   const handleSave = async () => {
     if (!draftName || !draftApiUrl) return;
     setInstanceError(null);
+    if (!getWikiBaseUrl(draftApiUrl)) {
+      setInstanceError('MediaWiki API URL must be a valid http(s) URL');
+      return;
+    }
     try {
       await onChange(draftName, draftApiUrl);
       setDialogOpen(false);

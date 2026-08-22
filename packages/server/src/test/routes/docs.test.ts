@@ -124,6 +124,21 @@ describe('Docs routes', () => {
     });
   });
 
+  it('POST / rejects non-http MediaWiki API URLs', async () => {
+    const res = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Bad URL',
+        mediawiki_instance_name: 'Bad Wiki',
+        mediawiki_instance_api_url: 'javascript:alert(1)',
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockServerFetch).not.toHaveBeenCalled();
+  });
+
   it('POST / creates an unlisted document', async () => {
     const res = await app.request('/api/docs', {
       method: 'POST',
@@ -205,6 +220,27 @@ describe('Docs routes', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.visibility).toBe('unlisted');
+  });
+
+  it('PATCH /:id rejects non-http MediaWiki API URLs', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Original' }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: 'Bad Wiki',
+        mediawiki_instance_api_url: 'ftp://wiki.example/w/api.php',
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockServerFetch).not.toHaveBeenCalled();
   });
 
   it('PATCH /:id saves document MediaWiki instance fields and refreshes ResourceLoader CSS asynchronously', async () => {
