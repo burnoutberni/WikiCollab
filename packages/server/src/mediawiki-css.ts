@@ -53,6 +53,7 @@ function sanitizeCss(css: string): string {
   }
 
   return normalized
+    .replace(/\\/g, '')
     .replace(/<\/style/gi, '')
     .replace(/@import\b[^;]*(?:;|$)/gi, '')
     .replace(/javascript\s*:/gi, '')

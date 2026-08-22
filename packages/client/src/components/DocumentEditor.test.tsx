@@ -356,8 +356,13 @@ describe('DocumentEditor', () => {
         previewLoadingLabel: undefined,
       })
     );
-    expect(setDocument).toHaveBeenCalledWith(
-      expect.objectContaining({ mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php' })
+    expect(setDocument).toHaveBeenCalledWith(expect.any(Function));
+    expect(setDocument.mock.calls[0][0]({ ...emptyInstanceDoc, title: 'Live title' })).toEqual(
+      expect.objectContaining({
+        title: 'Live title',
+        content: 'Hello world',
+        mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+      })
     );
   });
 
@@ -409,7 +414,62 @@ describe('DocumentEditor', () => {
         previewRefreshKey: 1,
       })
     );
-    expect(setDocument).toHaveBeenCalledWith(refreshedDoc);
+    expect(setDocument).toHaveBeenCalledWith(expect.any(Function));
+    expect(
+      setDocument.mock.calls[0][0]({
+        ...emptyInstanceDoc,
+        title: 'Unsaved title',
+        content: 'Draft',
+      })
+    ).toEqual(
+      expect.objectContaining({
+        title: 'Unsaved title',
+        content: 'Draft',
+        mediawiki_instance_name: 'English Wikipedia',
+        mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+        mediawiki_instance_css: '.refreshed-css{}',
+      })
+    );
+  });
+
+  it('keeps a successful instance PATCH when CSS refresh polling fails', async () => {
+    const emptyInstanceDoc = {
+      ...mockDoc,
+      mediawiki_instance_name: null,
+      mediawiki_instance_api_url: null,
+      mediawiki_instance_css: null,
+    };
+    const patchedDoc = {
+      ...emptyInstanceDoc,
+      mediawiki_instance_name: 'English Wikipedia',
+      mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+    };
+    const setDocument = vi.fn();
+    useDocumentMock.mockReturnValue({ document: emptyInstanceDoc, loading: false, setDocument });
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => patchedDoc })
+        .mockRejectedValueOnce(new Error('offline'))
+    );
+
+    renderWithProviders(<DocumentEditor />);
+
+    await React.act(async () => {
+      await mockInstanceManager.mock.calls
+        .at(-1)?.[0]
+        .onChange('English Wikipedia', 'https://en.wikipedia.org/w/api.php');
+    });
+
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        apiUrl: 'https://en.wikipedia.org/w/api.php',
+        instanceCss: null,
+        previewRefreshKey: 1,
+      })
+    );
+    expect(setDocument).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it('rolls back instance preview props when PATCH fails', async () => {

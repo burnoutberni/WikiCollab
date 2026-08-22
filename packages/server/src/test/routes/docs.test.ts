@@ -429,6 +429,7 @@ describe('Docs routes', () => {
       expect(stored?.mediawiki_instance_css).not.toContain('https://remote.test/import.css');
       expect(stored?.mediawiki_instance_css).not.toContain('@import');
       expect(stored?.mediawiki_instance_css).not.toContain('javascript:');
+      expect(stored?.mediawiki_instance_css).not.toContain('\\');
       expect(stored?.mediawiki_instance_css).toContain('url(data:image/png;base64,abc)');
       expect(stored?.mediawiki_instance_css).toContain('url(#shadow)');
     });

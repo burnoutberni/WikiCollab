@@ -59,10 +59,14 @@ function delay(ms: number): Promise<void> {
 async function fetchRefreshedInstanceCss(id: string): Promise<Document | null> {
   for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
-    const res = await fetch(`${API_BASE}/docs/${id}`);
-    if (!res.ok) return null;
-    const doc = (await res.json()) as Document;
-    if (doc.mediawiki_instance_css) return doc;
+    try {
+      const res = await fetch(`${API_BASE}/docs/${id}`);
+      if (!res.ok) return null;
+      const doc = (await res.json()) as Document;
+      if (doc.mediawiki_instance_css) return doc;
+    } catch {
+      return null;
+    }
   }
   return null;
 }
@@ -321,7 +325,17 @@ export function DocumentEditor() {
           apiUrl: updatedDoc.mediawiki_instance_api_url,
           css: updatedDoc.mediawiki_instance_css,
         };
-        setDocument(updatedDoc);
+        setDocument((currentDoc) =>
+          currentDoc
+            ? {
+                ...currentDoc,
+                mediawiki_instance_name: updatedDoc.mediawiki_instance_name,
+                mediawiki_instance_api_url: updatedDoc.mediawiki_instance_api_url,
+                mediawiki_instance_css: updatedDoc.mediawiki_instance_css,
+                updated_at: updatedDoc.updated_at,
+              }
+            : updatedDoc
+        );
       } catch (error) {
         console.error('Failed to update MediaWiki instance:', error);
         setInstanceName(previous.name);

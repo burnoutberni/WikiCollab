@@ -194,7 +194,9 @@ export function SplitPaneEditor({
       console.error('Failed to fetch preview:', err);
       if (requestId === previewRequestIdRef.current) {
         setPreviewHtml(
-          '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
+          apiUrl
+            ? '<p class="text-red-500">Failed to generate preview</p>'
+            : '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
         );
       }
     } finally {

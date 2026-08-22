@@ -122,6 +122,22 @@ describe('SplitPaneEditor', () => {
     });
   });
 
+  it('shows a generic preview error when a configured instance request fails', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockRejectedValueOnce(new Error('network down'));
+
+    renderWithProviders(
+      <SplitPaneEditor {...defaultProps} apiUrl="https://en.wikipedia.org/w/api.php" />
+    );
+
+    await vi.waitFor(() => {
+      expect(getPreviewShadowRoot().textContent).toContain('Failed to generate preview');
+    });
+    expect(getPreviewShadowRoot().textContent).not.toContain(
+      'Preview requires a configured MediaWiki instance'
+    );
+  });
+
   it('layers instance CSS inside the preview shadow root only', async () => {
     const fetchMock = vi.mocked(global.fetch);
     fetchMock.mockResolvedValueOnce({
