@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 interface PreviewContentProps {
+  /** Must already be sanitized by the caller. Assigned directly to innerHTML. */
   html: string;
   css: string;
   className?: string;

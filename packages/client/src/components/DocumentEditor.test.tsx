@@ -447,6 +447,7 @@ describe('DocumentEditor', () => {
     });
 
     expect(fetch).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(fetch).mock.calls[1][0]).toBe('/api/docs/test-doc');
     expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         apiUrl: 'https://en.wikipedia.org/w/api.php',

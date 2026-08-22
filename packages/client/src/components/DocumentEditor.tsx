@@ -116,6 +116,7 @@ export function DocumentEditor() {
   const [linkCopied, setLinkCopied] = useState(false);
   const linkCopiedTimeoutRef = useRef<number | null>(null);
   const lastPersistedTitleRef = useRef<string | null>(null);
+  const titleRef = useRef('');
   const lastPersistedVisibilityRef = useRef<DocumentVisibility | null>(null);
   const lastPersistedInstanceRef = useRef<{
     name: string | null;
@@ -135,8 +136,15 @@ export function DocumentEditor() {
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
   useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
+
+  useEffect(() => {
     if (doc) {
-      if (lastPersistedTitleRef.current === null || title === lastPersistedTitleRef.current) {
+      if (
+        lastPersistedTitleRef.current === null ||
+        titleRef.current === lastPersistedTitleRef.current
+      ) {
         setTitle(doc.title);
         lastPersistedTitleRef.current = doc.title;
       }
@@ -155,7 +163,7 @@ export function DocumentEditor() {
         setViewMode('source');
       }
     }
-  }, [doc, isMobile, title]);
+  }, [doc, isMobile]);
 
   useEffect(() => {
     if (!doc) return;

@@ -149,7 +149,8 @@ export function broadcastCustom(
   });
 }
 
-const previewDebounces = new Map<string, ReturnType<typeof setTimeout>>();
+type PreviewDebounce = { timer: ReturnType<typeof setTimeout>; requestIds: Set<string> };
+const previewDebounces = new Map<string, PreviewDebounce>();
 const MAX_PREVIEW_DEBOUNCE_KEYS = 100;
 
 /** Bounds the preview debounce cache so per-document preview requests cannot grow forever. */
@@ -157,8 +158,8 @@ function evictPreviewDebounce(): void {
   if (previewDebounces.size >= MAX_PREVIEW_DEBOUNCE_KEYS) {
     const oldest = previewDebounces.keys().next().value;
     if (oldest !== undefined) {
-      const timer = previewDebounces.get(oldest);
-      if (timer) clearTimeout(timer);
+      const debounce = previewDebounces.get(oldest);
+      if (debounce) clearTimeout(debounce.timer);
       previewDebounces.delete(oldest);
     }
   }
@@ -208,29 +209,37 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
 
       const key = `${doc.name}:${page}`;
       const existing = previewDebounces.get(key);
-      if (existing) clearTimeout(existing);
+      const requestIds = existing?.requestIds ?? new Set<string>();
+      if (requestId) requestIds.add(requestId);
+      if (existing) clearTimeout(existing.timer);
 
       if (!existing) {
         evictPreviewDebounce();
       }
-      previewDebounces.set(
-        key,
-        setTimeout(async () => {
+      previewDebounces.set(key, {
+        requestIds,
+        timer: setTimeout(async () => {
           previewDebounces.delete(key);
-          const responseBase: Record<string, string> = { page };
-          if (requestId) responseBase.requestId = requestId;
+          const pendingRequestIds = Array.from(requestIds);
+          const responseBases = pendingRequestIds.length
+            ? pendingRequestIds.map((id) => ({ page, requestId: id }))
+            : [{ page }];
           try {
             const wikitext = doc.getText('wikitext').toString();
             const storedDoc = getDocumentById(doc.name);
             const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
             const { html } = await generatePreview(wikitext, apiUrl, page || null, doc.name);
-            broadcastCustom(doc, encodeInnerPayload('preview_update', { ...responseBase, html }));
+            for (const responseBase of responseBases) {
+              broadcastCustom(doc, encodeInnerPayload('preview_update', { ...responseBase, html }));
+            }
           } catch (err) {
             console.error('WS preview generation failed:', err);
-            broadcastCustom(doc, encodeInnerPayload('preview_error', responseBase));
+            for (const responseBase of responseBases) {
+              broadcastCustom(doc, encodeInnerPayload('preview_error', responseBase));
+            }
           }
-        }, 500)
-      );
+        }, 500),
+      });
       break;
     }
   }
@@ -469,8 +478,8 @@ export function setupWebSocket(server: ServerType) {
 export function resetWsRateLimiters(): void {
   wsConnectionCounts.clear();
   wsConnectionRate.clear();
-  for (const timer of previewDebounces.values()) {
-    clearTimeout(timer);
+  for (const debounce of previewDebounces.values()) {
+    clearTimeout(debounce.timer);
   }
   previewDebounces.clear();
 }

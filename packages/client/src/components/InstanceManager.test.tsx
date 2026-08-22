@@ -86,15 +86,15 @@ describe('InstanceManager', () => {
     expect(within(dialog).getByLabelText('API URL')).toBeInTheDocument();
   });
 
-  it('calls onChange with form values on save', async () => {
+  it('calls onChange with trimmed form values on save', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);
 
     await user.click(screen.getByText('Configure Instance'));
 
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Name'), 'My Wiki');
-    await user.type(within(dialog).getByLabelText('API URL'), 'https://my.wiki/w/api.php');
+    await user.type(within(dialog).getByLabelText('Name'), '  My Wiki  ');
+    await user.type(within(dialog).getByLabelText('API URL'), '  https://my.wiki/w/api.php  ');
 
     await user.click(within(dialog).getByText('Save'));
 
@@ -117,6 +117,20 @@ describe('InstanceManager', () => {
     ).toBeInTheDocument();
     expect(defaultProps.onChange).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('does not save whitespace-only values', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<InstanceManager {...defaultProps} />);
+
+    await user.click(screen.getByText('Configure Instance'));
+
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Name'), '   ');
+    await user.type(within(dialog).getByLabelText('API URL'), '   ');
+
+    expect(within(dialog).getByText('Save')).toBeDisabled();
+    expect(defaultProps.onChange).not.toHaveBeenCalled();
   });
 
   it('disables save button when fields are empty', async () => {

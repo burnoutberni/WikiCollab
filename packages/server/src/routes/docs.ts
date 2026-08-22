@@ -13,7 +13,8 @@ import { setVersionStarred } from '../services/versions.js';
 
 /** REST endpoints for document CRUD, preview, and versioning. */
 const docs = new Hono();
-const inFlightCssRefreshes = new Map<string, { apiUrl: string; nextApiUrl: string | null }>();
+type CssRefresh = { apiUrl: string; nextApiUrl: string | null; promise: Promise<void> };
+const inFlightCssRefreshes = new Map<string, CssRefresh>();
 
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const css = await fetchMediaWikiCss(apiUrl);
@@ -41,8 +42,7 @@ function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: str
     return;
   }
 
-  inFlightCssRefreshes.set(documentId, { apiUrl, nextApiUrl: null });
-  void refreshDocumentMediaWikiCss(documentId, apiUrl)
+  const promise = refreshDocumentMediaWikiCss(documentId, apiUrl)
     .catch((err) => {
       console.error('Failed to refresh MediaWiki CSS:', err);
     })
@@ -51,6 +51,13 @@ function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: str
       inFlightCssRefreshes.delete(documentId);
       if (nextApiUrl) refreshDocumentMediaWikiCssInBackground(documentId, nextApiUrl);
     });
+  inFlightCssRefreshes.set(documentId, { apiUrl, nextApiUrl: null, promise });
+}
+
+export async function drainDocumentMediaWikiCssRefreshesForTest(): Promise<void> {
+  for (let i = 0; i < 10 && inFlightCssRefreshes.size > 0; i++) {
+    await Promise.all(Array.from(inFlightCssRefreshes.values(), (refresh) => refresh.promise));
+  }
 }
 
 docs.get('/', (c) => {

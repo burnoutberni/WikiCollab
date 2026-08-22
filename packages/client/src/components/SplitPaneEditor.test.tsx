@@ -183,6 +183,31 @@ describe('SplitPaneEditor', () => {
     expect(document.querySelector('.mw-preview-container')).toHaveClass('opacity-45');
   });
 
+  it('aborts stalled HTTP preview requests and clears loading', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockImplementationOnce((_input, init) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      });
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor {...defaultProps} apiUrl="https://en.wikipedia.org/w/api.php" />
+    );
+
+    await act(async () => {});
+    expect(screen.getByRole('status')).toHaveTextContent('Rendering preview...');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(getPreviewShadowRoot().textContent).toContain('Failed to generate preview');
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('clears websocket preview loading when an update is for a different page', async () => {
     let previewUpdate: (payload: {
       html: string;

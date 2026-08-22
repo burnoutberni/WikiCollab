@@ -124,14 +124,16 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   }, [nameIndex]);
 
   const handleSave = async () => {
-    if (!draftName || !draftApiUrl) return;
+    const trimmedName = draftName.trim();
+    const trimmedApiUrl = draftApiUrl.trim();
+    if (!trimmedName || !trimmedApiUrl) return;
     setInstanceError(null);
-    if (!getWikiBaseUrl(draftApiUrl)) {
+    if (!getWikiBaseUrl(trimmedApiUrl)) {
       setInstanceError('MediaWiki API URL must be a valid http(s) URL');
       return;
     }
     try {
-      await onChange(draftName, draftApiUrl);
+      await onChange(trimmedName, trimmedApiUrl);
       setDialogOpen(false);
     } catch (err) {
       setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
@@ -304,7 +306,10 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!draftName || !draftApiUrl || saving}>
+            <Button
+              onClick={handleSave}
+              disabled={!draftName.trim() || !draftApiUrl.trim() || saving}
+            >
               {saving ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>

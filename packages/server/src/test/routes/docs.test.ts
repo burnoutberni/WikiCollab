@@ -30,7 +30,7 @@ vi.mock('server-fetch', () => ({
 }));
 
 // Import production router after mocks
-import docsRoutes from '../../routes/docs.js';
+import docsRoutes, { drainDocumentMediaWikiCssRefreshesForTest } from '../../routes/docs.js';
 
 describe('Docs routes', () => {
   let app: Hono;
@@ -49,7 +49,8 @@ describe('Docs routes', () => {
     app.route('/api/docs', docsRoutes);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await drainDocumentMediaWikiCssRefreshesForTest();
     closeDb?.();
     closeDb = undefined;
   });

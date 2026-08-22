@@ -16,6 +16,7 @@ import { PreviewLinkModal } from './PreviewLinkModal';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
 const WS_PREVIEW_TIMEOUT_MS = 5000;
+const HTTP_PREVIEW_TIMEOUT_MS = 15000;
 
 interface SplitPaneEditorProps {
   content: string;
@@ -181,11 +182,14 @@ export function SplitPaneEditor({
       return;
     }
     setLoading(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), HTTP_PREVIEW_TIMEOUT_MS);
     try {
       const res = await fetch(`/api/docs/${documentId}/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext, page: title || null }),
+        signal: controller.signal,
       });
 
       if (res.ok) {
@@ -212,6 +216,7 @@ export function SplitPaneEditor({
         );
       }
     } finally {
+      window.clearTimeout(timeout);
       if (requestId === previewRequestIdRef.current) {
         setLoading(false);
       }

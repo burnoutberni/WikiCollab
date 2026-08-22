@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
-import { encodeInnerPayload, wrapCustomMessage } from 'shared';
+import { decodeCustomMessage, encodeInnerPayload, messageCustom, wrapCustomMessage } from 'shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket as WsWebSocket } from 'ws';
 import * as awarenessProtocol from 'y-protocols/awareness';
@@ -43,6 +43,12 @@ function getSentMessage(sendMock: ReturnType<typeof vi.fn>, callIndex = 0): deco
   return decoding.createDecoder(new Uint8Array(arg));
 }
 
+function getSentCustomPayload(sendMock: ReturnType<typeof vi.fn>, callIndex = 0) {
+  const decoder = getSentMessage(sendMock, callIndex);
+  expect(decoding.readVarUint(decoder)).toBe(messageCustom);
+  return decodeCustomMessage(decoding.readVarUint8Array(decoder));
+}
+
 function makeSyncUpdate(text: string): Uint8Array {
   const ydoc = new Y.Doc();
   ydoc.getText('wikitext').insert(0, text);
@@ -68,6 +74,7 @@ describe('WebSocket connections', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     closeDb?.();
     resetWsRateLimiters();
   });
@@ -316,6 +323,41 @@ describe('WebSocket connections', () => {
       );
 
       expect(() => ws.emit('message', msg)).not.toThrow();
+    });
+
+    it('responds to every request id collapsed into a preview debounce', async () => {
+      vi.useFakeTimers();
+      const docName = 'preview-debounce-test';
+
+      mockDbModule.db
+        .insert(schema.documents)
+        .values({
+          id: docName,
+          title: 'Preview Debounce',
+          content: '== Hello ==',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .run();
+
+      const ws = await connectWs(`/${docName}`);
+      ws.send.mockClear();
+
+      ws.emit(
+        'message',
+        wrapCustomMessage(encodeInnerPayload('preview_request', { page: 'Test', requestId: 'r1' }))
+      );
+      ws.emit(
+        'message',
+        wrapCustomMessage(encodeInnerPayload('preview_request', { page: 'Test', requestId: 'r2' }))
+      );
+
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.waitFor(() => expect(ws.send).toHaveBeenCalledTimes(2));
+
+      const payloads = [getSentCustomPayload(ws.send, 0), getSentCustomPayload(ws.send, 1)];
+      expect(payloads.map(({ type }) => type)).toEqual(['preview_update', 'preview_update']);
+      expect(payloads.map(({ payload }) => payload.requestId).sort()).toEqual(['r1', 'r2']);
     });
 
     it('handles malformed custom message without throwing', async () => {
