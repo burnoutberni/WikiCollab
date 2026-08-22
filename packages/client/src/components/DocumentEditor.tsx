@@ -315,7 +315,7 @@ export function DocumentEditor() {
             mediawiki_instance_api_url: apiUrl,
           }),
         });
-        let updatedDoc = (await res.json()) as Document & { error?: string };
+        let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
         if (!res.ok) throw new Error(updatedDoc.error || 'Failed to update MediaWiki instance');
         if (updatedDoc.mediawiki_instance_api_url && !updatedDoc.mediawiki_instance_css) {
           const refreshedDoc = await fetchRefreshedInstanceCss(id);

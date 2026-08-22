@@ -378,6 +378,58 @@ describe('SplitPaneEditor', () => {
     expect(getPreviewShadowRoot().textContent).not.toContain('Late websocket preview');
   });
 
+  it('ignores pending websocket previews after falling back to HTTP when the socket closes', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>HTTP preview</p>' }),
+    } as Response);
+    global.fetch = fetchMock;
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    const { rerenderWithProviders } = renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        previewRefreshKey={0}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const requestId = sendCustomMessage.mock.calls[0][1].requestId;
+
+    rerenderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.CLOSED } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        previewRefreshKey={1}
+      />
+    );
+
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('HTTP preview'));
+
+    act(() => {
+      previewUpdate({ html: '<p>Late websocket preview</p>', page: 'Same Page', requestId });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('HTTP preview');
+    expect(getPreviewShadowRoot().textContent).not.toContain('Late websocket preview');
+  });
+
   it('shows an error and clears websocket preview loading on preview_error', async () => {
     let previewError: (payload: { page: string; requestId?: string }) => void = () => {};
     const sendCustomMessage = vi.fn();

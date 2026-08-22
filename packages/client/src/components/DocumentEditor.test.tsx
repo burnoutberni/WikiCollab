@@ -544,6 +544,36 @@ describe('DocumentEditor', () => {
     expect(setDocument).not.toHaveBeenCalled();
   });
 
+  it('reports the fallback instance update error for non-JSON PATCH failures', async () => {
+    const setDocument = vi.fn();
+    useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        json: async () => {
+          throw new SyntaxError('Unexpected token <');
+        },
+      }))
+    );
+
+    renderWithProviders(<DocumentEditor />);
+
+    await expect(
+      mockInstanceManager.mock.calls
+        .at(-1)?.[0]
+        .onChange('German Wikipedia', 'https://de.wikipedia.org/w/api.php')
+    ).rejects.toThrow('Failed to update MediaWiki instance');
+
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        apiUrl: 'https://en.wikipedia.org/w/api.php',
+        instanceCss: '.mw-parser-output { color: red; }',
+      })
+    );
+    expect(setDocument).not.toHaveBeenCalled();
+  });
+
   it('view mode toggling (source/split)', async () => {
     const user = userEvent.setup();
     renderWithProviders(<DocumentEditor />);

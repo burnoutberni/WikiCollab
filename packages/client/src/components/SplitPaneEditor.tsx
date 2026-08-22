@@ -236,6 +236,8 @@ export function SplitPaneEditor({
       }, WS_PREVIEW_TIMEOUT_MS);
       requestPreview(requestId);
     } else {
+      clearWsTimeout();
+      activeWsRequestIdRef.current = null;
       fetchPreview();
     }
   }, [clearWsTimeout, sendCustomMessage, provider, requestPreview, fetchPreview]);
