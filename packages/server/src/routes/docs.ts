@@ -33,7 +33,10 @@ async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): 
 function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: string): void {
   const current = inFlightCssRefreshes.get(documentId);
   if (current) {
-    if (current.apiUrl === apiUrl) return;
+    if (current.apiUrl === apiUrl) {
+      current.nextApiUrl = null;
+      return;
+    }
     current.nextApiUrl = apiUrl;
     return;
   }

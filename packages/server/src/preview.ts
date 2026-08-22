@@ -115,6 +115,7 @@ function sanitizeStyle(value: string): string {
     .replace(/javascript\s*:/gi, '')
     .replace(/expression\s*\(/gi, '')
     .replace(/url\s*\(\s*['"]?\s*javascript\s*:/gi, 'url(')
+    .replace(/url\s*\(\s*(['"]?)(?!data:|#)[^)]+\1\s*\)/gi, 'url()')
     .replace(/-moz-binding\s*:[^;]*(?:;|$)/gi, '')
     .replace(/behavior\s*:[^;]*(?:;|$)/gi, '');
 }
@@ -275,7 +276,10 @@ async function fetchRemotePreview(
   const targetKey = remotePreviewTargetKey(apiUrl, page);
   const latestKey = remotePreviewLatestKey(apiUrl, page, documentId);
   const cached = remotePreviewCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) return { status: 'ok', html: cached.html };
+  if (cached && cached.expiresAt > now) {
+    if (latestKey) remotePreviewLatestByTarget.set(latestKey, cached);
+    return { status: 'ok', html: cached.html };
+  }
 
   const pending = remotePreviewPending.get(cacheKey);
   if (pending) return resolveRemotePreviewForTarget(pending, latestKey);

@@ -93,6 +93,7 @@ export function SplitPaneEditor({
   const wsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextContentRefreshRef = useRef(true);
   const previewRequestIdRef = useRef(0);
+  const activeWsRequestIdRef = useRef<string | null>(null);
 
   const apiUrlRef = useRef(apiUrl);
   apiUrlRef.current = apiUrl;
@@ -114,19 +115,25 @@ export function SplitPaneEditor({
     wsTimeoutRef.current = null;
   }, []);
 
-  const requestPreview = useCallback(() => {
-    if (sendCustomMessage) {
-      sendCustomMessage('preview_request', {
-        page: title || '',
-      });
-    }
-  }, [sendCustomMessage, title]);
+  const requestPreview = useCallback(
+    (requestId: string) => {
+      if (sendCustomMessage) {
+        sendCustomMessage('preview_request', {
+          page: title || '',
+          requestId,
+        });
+      }
+    },
+    [sendCustomMessage, title]
+  );
 
   useEffect(() => {
     if (!onCustomMessage) return;
     const unsubscribe = onCustomMessage(
       'preview_update',
       (payload: { html: string; page: string; requestId?: string }) => {
+        if (!payload.requestId || payload.requestId !== activeWsRequestIdRef.current) return;
+        activeWsRequestIdRef.current = null;
         const currentApiUrl = apiUrlRef.current || '';
         const currentTitle = titleRef.current || '';
         clearWsTimeout();
@@ -145,16 +152,21 @@ export function SplitPaneEditor({
 
   useEffect(() => {
     if (!onCustomMessage) return;
-    const unsubscribe = onCustomMessage('preview_error', (payload: { page: string }) => {
-      const currentTitle = titleRef.current || '';
-      clearWsTimeout();
-      setLoading(false);
-      if (payload.page === currentTitle) {
-        setPreviewHtml(
-          sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
-        );
+    const unsubscribe = onCustomMessage(
+      'preview_error',
+      (payload: { page: string; requestId?: string }) => {
+        if (!payload.requestId || payload.requestId !== activeWsRequestIdRef.current) return;
+        activeWsRequestIdRef.current = null;
+        const currentTitle = titleRef.current || '';
+        clearWsTimeout();
+        setLoading(false);
+        if (payload.page === currentTitle) {
+          setPreviewHtml(
+            sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
+          );
+        }
       }
-    });
+    );
     return unsubscribe;
   }, [clearWsTimeout, onCustomMessage, sanitizePreviewHtml]);
 
@@ -208,13 +220,16 @@ export function SplitPaneEditor({
 
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
+      const requestId = `preview-${++previewRequestIdRef.current}`;
+      activeWsRequestIdRef.current = requestId;
       setLoading(true);
       clearWsTimeout();
       wsTimeoutRef.current = setTimeout(() => {
         wsTimeoutRef.current = null;
+        activeWsRequestIdRef.current = null;
         fetchPreview();
       }, WS_PREVIEW_TIMEOUT_MS);
-      requestPreview();
+      requestPreview(requestId);
     } else {
       fetchPreview();
     }

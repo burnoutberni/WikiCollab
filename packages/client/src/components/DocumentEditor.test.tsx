@@ -263,6 +263,46 @@ describe('DocumentEditor', () => {
     });
   });
 
+  it('preserves a dirty title across document identity updates', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal('fetch', fetch);
+    const firstDoc = { ...mockDoc };
+    const updatedDoc = {
+      ...mockDoc,
+      mediawiki_instance_name: 'German Wikipedia',
+      mediawiki_instance_api_url: 'https://de.wikipedia.org/w/api.php',
+    };
+    useDocumentMock.mockReturnValue({ document: firstDoc, loading: false, setDocument: vi.fn() });
+    const { rerender } = renderWithProviders(<DocumentEditor />);
+
+    const titleInput = screen.getByDisplayValue('Test Document');
+    fireEvent.change(titleInput, { target: { value: 'Unsaved Title' } });
+
+    useDocumentMock.mockReturnValue({ document: updatedDoc, loading: false, setDocument: vi.fn() });
+    rerender(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DocumentEditor />
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByDisplayValue('Unsaved Title')).toBeInTheDocument();
+
+    await React.act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/docs/test-doc',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ title: 'Unsaved Title' }),
+      })
+    );
+  });
+
   it('restores the default browser title after leaving the editor', async () => {
     const { unmount } = renderWithProviders(<DocumentEditor />);
 

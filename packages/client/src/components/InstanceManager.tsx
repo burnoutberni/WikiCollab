@@ -166,6 +166,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-foreground"
+                    aria-label={`Open ${name} in a new tab`}
                   >
                     <ExternalLink className="h-3 w-3" />
                   </a>

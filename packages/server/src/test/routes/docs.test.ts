@@ -38,6 +38,7 @@ describe('Docs routes', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockServerFetch.mockReset();
     // Swap to a fresh in-memory DB for each test
     const testDb = createTestDb();
     mockDbModule.db = testDb.db;
@@ -893,6 +894,76 @@ describe('Docs routes', () => {
     expect(mockServerFetch).toHaveBeenCalledOnce();
     expect(mockServerFetch.mock.calls[0][0]).toBe('https://example.com/w/api.php');
     expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
+  });
+
+  it('clears a queued CSS refresh when the API URL returns to the in-flight URL', async () => {
+    let resolveSiteInfo: (value: unknown) => void = () => {};
+    mockServerFetch.mockImplementation((url: string) => {
+      if (url.includes('action=query') && url.includes('meta=siteinfo')) {
+        return new Promise((resolve) => {
+          resolveSiteInfo = () =>
+            resolve({
+              json: () =>
+                Promise.resolve({ query: { skins: [{ code: 'vector', default: true }] } }),
+            });
+        });
+      }
+      if (url.includes('/load.php')) {
+        return Promise.resolve({
+          headers: { get: () => 'text/css' },
+          text: () => Promise.resolve('.current{color:green}'),
+        });
+      }
+      return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'CSS Race' }),
+    });
+    const created = await createRes.json();
+
+    await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: 'Current Wiki',
+        mediawiki_instance_api_url: 'https://current.example/w/api.php',
+      }),
+    });
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(1));
+
+    await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: 'Stale Wiki',
+        mediawiki_instance_api_url: 'https://stale.example/w/api.php',
+      }),
+    });
+    await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_instance_name: 'Current Wiki',
+        mediawiki_instance_api_url: 'https://current.example/w/api.php',
+      }),
+    });
+
+    resolveSiteInfo({});
+
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).toContain('.current{color:green}');
+    });
+    expect(mockServerFetch.mock.calls.map(([url]) => url)).not.toEqual(
+      expect.arrayContaining([expect.stringContaining('stale.example')])
+    );
   });
 
   it('POST /:id/versions/:v/star stars a version', async () => {

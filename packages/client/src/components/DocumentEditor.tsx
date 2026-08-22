@@ -136,13 +136,15 @@ export function DocumentEditor() {
 
   useEffect(() => {
     if (doc) {
-      setTitle(doc.title);
+      if (lastPersistedTitleRef.current === null || title === lastPersistedTitleRef.current) {
+        setTitle(doc.title);
+        lastPersistedTitleRef.current = doc.title;
+      }
       setContentState(doc.content);
       setVisibility(doc.visibility);
       setInstanceName(doc.mediawiki_instance_name);
       setInstanceApiUrl(doc.mediawiki_instance_api_url);
       setInstanceCss(doc.mediawiki_instance_css);
-      lastPersistedTitleRef.current = doc.title;
       lastPersistedVisibilityRef.current = doc.visibility;
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
@@ -153,7 +155,7 @@ export function DocumentEditor() {
         setViewMode('source');
       }
     }
-  }, [doc, isMobile]);
+  }, [doc, isMobile, title]);
 
   useEffect(() => {
     if (!doc) return;

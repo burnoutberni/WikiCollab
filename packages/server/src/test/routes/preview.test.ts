@@ -855,6 +855,52 @@ describe('Preview route sanitization', () => {
       }
     });
 
+    it('uses a cache hit as the latest preview for later rate-limited requests', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      let resolveQueued: (value: { parse: { text: { '*': string } } }) => void = () => {};
+      mockServerFetch
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({ parse: { text: { '*': '<p>Cached remote</p>' } } }),
+        })
+        .mockResolvedValueOnce({
+          json: () =>
+            new Promise((resolve) => {
+              resolveQueued = resolve;
+            }),
+        })
+        .mockResolvedValue({
+          json: () => Promise.resolve({ parse: { text: { '*': '<p>Queued remote</p>' } } }),
+        });
+
+      await expect(
+        generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page', 'doc-a')
+      ).resolves.toEqual(expect.objectContaining({ html: '<p>Cached remote</p>' }));
+      await expect(
+        generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page', 'doc-b')
+      ).resolves.toEqual(expect.objectContaining({ html: '<p>Cached remote</p>' }));
+
+      const previews = Array.from({ length: 6 }, (_, index) =>
+        generatePreview(`different ${index}`, 'https://wiki.example.com/w/api.php', 'Page', 'doc-b')
+      );
+
+      await expect(previews[5]).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Cached remote</p>' })
+      );
+
+      await vi.advanceTimersByTimeAsync(1500);
+      resolveQueued({ parse: { text: { '*': '<p>Queued remote</p>' } } });
+      await expect(previews[0]).resolves.toEqual(
+        expect.objectContaining({ html: '<p>Queued remote</p>' })
+      );
+      for (let i = 1; i < 5; i++) {
+        await vi.advanceTimersByTimeAsync(1500);
+        await expect(previews[i]).resolves.toEqual(
+          expect.objectContaining({ html: '<p>Queued remote</p>' })
+        );
+      }
+    });
+
     it('preserves remote MediaWiki TemplateStyles style tags', async () => {
       mockServerFetch.mockResolvedValue({
         json: () =>
@@ -890,7 +936,7 @@ describe('Preview route sanitization', () => {
           Promise.resolve({
             parse: {
               text: {
-                '*': '<style>@import url(https://evil.example/x.css); .x{background:url(javascript:alert(1)); behavior:url(x.htc);}</style><div class="x">Styled</div>',
+                '*': '<style>@import url(https://evil.example/x.css); .x{background:url(https://evil.example/pixel.png); mask:url(#local); list-style:url(data:image/png;base64,abc); behavior:url(x.htc);}</style><div class="x">Styled</div>',
               },
             },
           }),
@@ -910,8 +956,10 @@ describe('Preview route sanitization', () => {
 
       expect(data.html).toContain('<style>');
       expect(data.html).not.toContain('@import');
-      expect(data.html).not.toContain('javascript:');
+      expect(data.html).not.toContain('https://evil.example/pixel.png');
       expect(data.html).not.toContain('behavior');
+      expect(data.html).toContain('url(#local)');
+      expect(data.html).toContain('url(data:image/png;base64,abc)');
       expect(data.html).toContain('Styled');
     });
 

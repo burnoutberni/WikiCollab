@@ -207,14 +207,18 @@ describe('SplitPaneEditor', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
 
     act(() => {
-      previewUpdate({ html: '<p>Ignored</p>', page: 'Other page' });
+      previewUpdate({
+        html: '<p>Ignored</p>',
+        page: 'Other page',
+        requestId: sendCustomMessage.mock.calls[0][1].requestId,
+      });
     });
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(getPreviewShadowRoot().textContent).not.toContain('Ignored');
   });
 
-  it('sends websocket preview requests without client-scoped request ids', async () => {
+  it('sends websocket preview requests with client-scoped request ids', async () => {
     const sendCustomMessage = vi.fn();
     const onCustomMessage = vi.fn(() => vi.fn());
 
@@ -229,10 +233,13 @@ describe('SplitPaneEditor', () => {
     );
 
     await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
-    expect(sendCustomMessage).toHaveBeenCalledWith('preview_request', { page: 'Same Page' });
+    expect(sendCustomMessage).toHaveBeenCalledWith('preview_request', {
+      page: 'Same Page',
+      requestId: expect.any(String),
+    });
   });
 
-  it('accepts websocket preview updates with peer request ids', async () => {
+  it('accepts websocket preview updates with the active request id', async () => {
     let previewUpdate: (payload: {
       html: string;
       page: string;
@@ -256,7 +263,11 @@ describe('SplitPaneEditor', () => {
 
     await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
     act(() => {
-      previewUpdate({ html: '<p>Peer preview</p>', page: 'Same Page', requestId: 'peer-request' });
+      previewUpdate({
+        html: '<p>Peer preview</p>',
+        page: 'Same Page',
+        requestId: sendCustomMessage.mock.calls[0][1].requestId,
+      });
     });
 
     expect(getPreviewShadowRoot().textContent).toContain('Peer preview');
@@ -295,8 +306,55 @@ describe('SplitPaneEditor', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('ignores late websocket previews after HTTP fallback renders', async () => {
+    vi.useFakeTimers();
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Fallback preview</p>' }),
+    } as Response);
+    global.fetch = fetchMock;
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const requestId = sendCustomMessage.mock.calls[0][1].requestId;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await vi.waitFor(() =>
+      expect(getPreviewShadowRoot().textContent).toContain('Fallback preview')
+    );
+
+    act(() => {
+      previewUpdate({ html: '<p>Late websocket preview</p>', page: 'Same Page', requestId });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('Fallback preview');
+    expect(getPreviewShadowRoot().textContent).not.toContain('Late websocket preview');
+  });
+
   it('shows an error and clears websocket preview loading on preview_error', async () => {
-    let previewError: (payload: { page: string }) => void = () => {};
+    let previewError: (payload: { page: string; requestId?: string }) => void = () => {};
     const sendCustomMessage = vi.fn();
     const onCustomMessage = vi.fn((type, handler) => {
       if (type === 'preview_error') previewError = handler as typeof previewError;
@@ -316,7 +374,7 @@ describe('SplitPaneEditor', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
 
     act(() => {
-      previewError({ page: 'Same Page' });
+      previewError({ page: 'Same Page', requestId: sendCustomMessage.mock.calls[0][1].requestId });
     });
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();

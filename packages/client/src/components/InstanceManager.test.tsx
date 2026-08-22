@@ -61,6 +61,9 @@ describe('InstanceManager', () => {
     );
     expect(screen.getByText('English Wikipedia')).toBeInTheDocument();
     expect(screen.getByText('https://en.wikipedia.org/w/api.php')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Open English Wikipedia in a new tab' })
+    ).toHaveAttribute('href', 'https://en.wikipedia.org');
   });
 
   it('hides external link for invalid configured URLs', () => {
