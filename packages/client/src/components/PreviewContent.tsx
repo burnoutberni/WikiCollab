@@ -54,15 +54,16 @@ export function PreviewContent({ html, css, className = '', onExternalLink }: Pr
         })
         .join('')
         .toLowerCase();
-      if (normalizedHref.startsWith('javascript:')) return;
       if (href.startsWith('#')) {
         const id = href.slice(1);
         if (id) {
           shadow.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-      } else {
-        onExternalLink(href);
+        return;
       }
+      const scheme = normalizedHref.match(/^([a-z][a-z0-9+.-]*):/)?.[1];
+      if (scheme && !['http', 'https', 'mailto'].includes(scheme)) return;
+      onExternalLink(href);
     };
 
     shadow.addEventListener('click', handleClick);

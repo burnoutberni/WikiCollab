@@ -3,7 +3,11 @@ import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as schema from '../../db/schema.js';
-import { generatePreview, resetRemotePreviewStateForTests } from '../../preview.js';
+import {
+  generatePreview,
+  resetRemotePreviewStateForTests,
+  setRemotePreviewPendingJoinObserverForTests,
+} from '../../preview.js';
 import docsRoutes from '../../routes/docs.js';
 import { createTestDb } from '../setup.js';
 
@@ -690,6 +694,11 @@ describe('Preview route sanitization', () => {
       const rateLimitText = new Promise<string>((resolve) => {
         resolveRateLimitText = resolve;
       });
+      let resolvePendingJoin: () => void = () => {};
+      const pendingJoin = new Promise<void>((resolve) => {
+        resolvePendingJoin = resolve;
+      });
+      setRemotePreviewPendingJoinObserverForTests(resolvePendingJoin);
       mockServerFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({ parse: { text: { '*': '<p>Private doc1 fallback</p>' } } }),
@@ -711,7 +720,7 @@ describe('Preview route sanitization', () => {
       await vi.advanceTimersByTimeAsync(1500);
       expect(mockServerFetch).toHaveBeenCalledTimes(2);
       const second = generatePreview('same', 'https://wiki.example.com/w/api.php', 'Page', 'doc2');
-      await vi.waitFor(() => expect(mockParser.parse).toHaveBeenCalledTimes(3));
+      await pendingJoin;
       resolveRateLimitText('You are making too many requests. Please wait.');
 
       await expect(first).resolves.toEqual(

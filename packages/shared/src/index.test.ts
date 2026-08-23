@@ -7,7 +7,6 @@ import type {
   CursorPresence,
   Document,
   DocumentRevision,
-  MediaWikiInstance,
   PreviewResponse,
   ViewMode,
 } from '../src/index';
@@ -36,15 +35,6 @@ describe('Shared types', () => {
     };
     expect(doc.id).toBe('test');
     expect(doc.title).toBe('Test');
-  });
-
-  it('MediaWikiInstance interface has required fields', () => {
-    const instance: MediaWikiInstance = {
-      name: 'Wikipedia',
-      api_url: 'https://en.wikipedia.org/w/api.php',
-      css: null,
-    };
-    expect(instance.name).toBe('Wikipedia');
   });
 
   it('DocumentRevision interface has required fields', () => {

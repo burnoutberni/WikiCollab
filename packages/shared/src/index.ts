@@ -15,13 +15,6 @@ export interface Document {
   visibility: DocumentVisibility;
 }
 
-/** Saved MediaWiki instance configuration used for preview and push workflows. */
-export interface MediaWikiInstance {
-  name: string;
-  api_url: string;
-  css: string | null;
-}
-
 /** Immutable revision snapshot metadata for restore and starring flows. */
 export interface DocumentRevision {
   id: string;
@@ -33,15 +26,6 @@ export interface DocumentRevision {
 
 /** Backward-compatible alias used by version-oriented UI code. */
 export type Version = DocumentRevision;
-
-/** Cached template payload tied to a specific MediaWiki instance. */
-export interface TemplateCache {
-  id: string;
-  instance_id: string;
-  template_name: string;
-  template_data: string;
-  fetched_at: string;
-}
 
 /** Request body accepted when creating a document. */
 export interface CreateDocumentRequest {

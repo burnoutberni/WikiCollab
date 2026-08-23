@@ -23,6 +23,7 @@ const remotePreviewLastRequest = new Map<string, number>();
 const remotePreviewRateLimitUntil = new Map<string, number>();
 const remotePreviewTargetQueues = new Map<string, Promise<unknown>>();
 const remotePreviewTargetQueueDepth = new Map<string, number>();
+let remotePreviewPendingJoinObserver: (() => void) | null = null;
 
 type RemotePreviewResult =
   { status: 'ok'; html: string } | { status: 'rate_limited'; html?: string } | { status: 'broken' };
@@ -92,6 +93,11 @@ export function resetRemotePreviewStateForTests(): void {
   remotePreviewRateLimitUntil.clear();
   remotePreviewTargetQueues.clear();
   remotePreviewTargetQueueDepth.clear();
+  remotePreviewPendingJoinObserver = null;
+}
+
+export function setRemotePreviewPendingJoinObserverForTests(observer: (() => void) | null): void {
+  remotePreviewPendingJoinObserver = observer;
 }
 
 function delay(ms: number): Promise<void> {
@@ -120,15 +126,18 @@ function sanitizeStyle(value: string): string {
     if (decoded === normalized) break;
     normalized = decoded;
   }
-  return normalized
-    .replace(/\\/g, '')
-    .replace(/@import\b[^;]*(?:;|$)/gi, '')
-    .replace(/javascript\s*:/gi, '')
-    .replace(/expression\s*\(/gi, '')
-    .replace(/url\s*\(\s*['"]?\s*javascript\s*:/gi, 'url(')
-    .replace(/url\s*\(\s*(['"]?)(?!data:|#)[^)]+\1\s*\)/gi, 'url()')
-    .replace(/-moz-binding\s*:[^;]*(?:;|$)/gi, '')
-    .replace(/behavior\s*:[^;]*(?:;|$)/gi, '');
+  return (
+    normalized
+      // Intentional escape-bypass hardening; this may alter legitimate CSS escapes.
+      .replace(/\\/g, '')
+      .replace(/@import\b[^;]*(?:;|$)/gi, '')
+      .replace(/javascript\s*:/gi, '')
+      .replace(/expression\s*\(/gi, '')
+      .replace(/url\s*\(\s*['"]?\s*javascript\s*:/gi, 'url(')
+      .replace(/url\s*\(\s*(['"]?)(?!data:|#)[^)]+\1\s*\)/gi, 'url()')
+      .replace(/-moz-binding\s*:[^;]*(?:;|$)/gi, '')
+      .replace(/behavior\s*:[^;]*(?:;|$)/gi, '')
+  );
 }
 
 function sanitizeStyleBlocks(html: string): string {
@@ -293,7 +302,10 @@ async function fetchRemotePreview(
   }
 
   const pending = remotePreviewPending.get(cacheKey);
-  if (pending) return resolveRemotePreviewForTarget(pending, latestKey);
+  if (pending) {
+    remotePreviewPendingJoinObserver?.();
+    return resolveRemotePreviewForTarget(pending, latestKey);
+  }
 
   const latest = latestKey ? remotePreviewLatestByTarget.get(latestKey) : undefined;
   const depth = remotePreviewTargetQueueDepth.get(targetKey) || 0;

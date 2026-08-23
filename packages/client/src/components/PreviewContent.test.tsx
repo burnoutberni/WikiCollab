@@ -76,4 +76,23 @@ describe('PreviewContent', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(onExternalLink).toHaveBeenCalledWith('https://example.org/wiki/Page');
   });
+
+  it('blocks active non-http schemes from being opened externally', () => {
+    const onExternalLink = vi.fn();
+    render(
+      <PreviewContent
+        css=""
+        html={'<a href="data:text/html,<script>alert(1)</script>">bad link</a>'}
+        onExternalLink={onExternalLink}
+      />
+    );
+
+    const shadow = screen.getByTestId('preview-content').shadowRoot!;
+    const link = shadow.querySelector('a')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    fireEvent(link, event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(onExternalLink).not.toHaveBeenCalled();
+  });
 });

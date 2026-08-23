@@ -359,7 +359,7 @@ export function SplitPaneEditor({
                       disabled={previewBusy}
                       aria-label="Refresh preview"
                     >
-                      <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                      <RefreshCw className={`h-4 w-4 ${previewBusy ? 'animate-spin' : ''}`} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Refresh preview</TooltipContent>
@@ -413,7 +413,7 @@ export function SplitPaneEditor({
                 disabled={previewBusy}
                 aria-label="Refresh preview"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${previewBusy ? 'animate-spin' : ''}`} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Refresh preview</TooltipContent>

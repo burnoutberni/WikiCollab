@@ -1,6 +1,7 @@
 const MEDIAWIKI_CONTACT =
   process.env.APP_CONTACT_URL || 'https://github.com/burnoutberni/WikiCollab';
 export const MEDIAWIKI_USER_AGENT = `WikiCollab/${process.env.APP_VERSION || 'dev'} (MediaWiki preview; ${MEDIAWIKI_CONTACT})`;
+const MAX_RETRY_AFTER_MS = 5 * 60_000;
 
 export function mediaWikiHeaders(headers: Record<string, string> = {}): Record<string, string> {
   return {
@@ -32,9 +33,11 @@ function isRateLimitResponse(status: number | undefined, body: string): boolean 
 function parseRetryAfterMs(value: string | null): number | undefined {
   if (!value) return undefined;
   const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+  }
   const dateMs = Date.parse(value);
-  if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now());
+  if (!Number.isNaN(dateMs)) return Math.min(Math.max(0, dateMs - Date.now()), MAX_RETRY_AFTER_MS);
   return undefined;
 }
 
