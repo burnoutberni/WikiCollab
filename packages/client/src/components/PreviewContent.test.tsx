@@ -39,6 +39,25 @@ describe('PreviewContent', () => {
     expect(onExternalLink).not.toHaveBeenCalled();
   });
 
+  it('blocks javascript links with mixed case and control characters', () => {
+    const onExternalLink = vi.fn();
+    render(
+      <PreviewContent
+        css=""
+        html={'<a href="&#9;JavaScript:alert(1)">bad link</a>'}
+        onExternalLink={onExternalLink}
+      />
+    );
+
+    const shadow = screen.getByTestId('preview-content').shadowRoot!;
+    const link = shadow.querySelector('a')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    fireEvent(link, event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(onExternalLink).not.toHaveBeenCalled();
+  });
+
   it('routes valid external links through the callback and prevents navigation', () => {
     const onExternalLink = vi.fn();
     render(

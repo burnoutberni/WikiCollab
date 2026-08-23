@@ -298,6 +298,41 @@ describe('SplitPaneEditor', () => {
     expect(getPreviewShadowRoot().textContent).toContain('Peer preview');
   });
 
+  it('accepts websocket preview updates with the active request id in requestIds', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestIds?: string;
+    }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const requestId = sendCustomMessage.mock.calls[0][1].requestId;
+    act(() => {
+      previewUpdate({
+        html: '<p>Collapsed peer preview</p>',
+        page: 'Same Page',
+        requestIds: JSON.stringify(['other-request', requestId]),
+      });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('Collapsed peer preview');
+  });
+
   it('falls back to HTTP preview when websocket preview times out', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue({

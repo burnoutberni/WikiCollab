@@ -131,12 +131,28 @@ export function SplitPaneEditor({
     [sendCustomMessage, title]
   );
 
+  const previewResponseMatchesActiveRequest = useCallback(
+    (payload: { requestId?: string; requestIds?: string }) => {
+      const activeRequestId = activeWsRequestIdRef.current;
+      if (!activeRequestId) return false;
+      if (payload.requestId === activeRequestId) return true;
+      if (!payload.requestIds) return false;
+      try {
+        const requestIds = JSON.parse(payload.requestIds) as unknown;
+        return Array.isArray(requestIds) && requestIds.includes(activeRequestId);
+      } catch {
+        return false;
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     if (!onCustomMessage) return;
     const unsubscribe = onCustomMessage(
       'preview_update',
-      (payload: { html: string; page: string; requestId?: string }) => {
-        if (!payload.requestId || payload.requestId !== activeWsRequestIdRef.current) return;
+      (payload: { html: string; page: string; requestId?: string; requestIds?: string }) => {
+        if (!previewResponseMatchesActiveRequest(payload)) return;
         activeWsRequestIdRef.current = null;
         const currentApiUrl = apiUrlRef.current || '';
         const currentTitle = titleRef.current || '';
@@ -152,7 +168,7 @@ export function SplitPaneEditor({
       }
     );
     return unsubscribe;
-  }, [clearWsTimeout, onCustomMessage, sanitizePreviewHtml]);
+  }, [clearWsTimeout, onCustomMessage, previewResponseMatchesActiveRequest, sanitizePreviewHtml]);
 
   useEffect(() => {
     if (!onCustomMessage) return;

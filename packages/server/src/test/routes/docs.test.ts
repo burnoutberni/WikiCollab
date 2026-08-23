@@ -437,6 +437,42 @@ describe('Docs routes', () => {
     });
   });
 
+  it('strips quoted external CSS url() references containing closing parentheses', async () => {
+    mockServerFetch
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ query: { skins: [{ code: 'vector', default: '' }] } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'text/css' },
+        text: () => Promise.resolve('.remote{background:url("https://remote.test/a)b.png")}'),
+      })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) });
+
+    const res = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Quoted External CSS URL',
+        mediawiki_instance_name: 'URL Wiki',
+        mediawiki_instance_api_url: 'https://wiki.example/w/api.php',
+      }),
+    });
+    const created = await res.json();
+
+    expect(res.status).toBe(201);
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).not.toContain('https://remote.test/a)b.png');
+      expect(stored?.mediawiki_instance_css).toContain('url()');
+    });
+  });
+
   it('rejects oversized ResourceLoader CSS before reading the body', async () => {
     const text = vi.fn(async () => '.too-large{}');
     mockServerFetch

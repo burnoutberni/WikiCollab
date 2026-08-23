@@ -68,6 +68,25 @@ describe('mediawiki-http', () => {
     consoleWarn.mockRestore();
   });
 
+  it('parses Retry-After on rate limited responses', async () => {
+    const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await readMediaWikiJsonResult<{ ok: boolean }>(
+      jsonResponse({
+        ok: false,
+        status: 429,
+        headers: { get: (name) => (name.toLowerCase() === 'retry-after' ? '12' : 'text/plain') },
+        text: async () => 'Too Many Requests',
+      }),
+      'preview'
+    );
+
+    expect(result.rateLimited).toBe(true);
+    expect(result.retryAfterMs).toBe(12_000);
+    consoleWarn.mockRestore();
+  });
+
   it('rejects successful responses that are not JSON and detects rate limits from the body', async () => {
     const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});

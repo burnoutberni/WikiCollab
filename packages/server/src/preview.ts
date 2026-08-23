@@ -12,6 +12,7 @@ interface SourceMapEntry {
 
 const REMOTE_PREVIEW_CACHE_TTL_MS = 30_000;
 const REMOTE_PREVIEW_THROTTLE_MS = 1_500;
+const REMOTE_PREVIEW_RATE_LIMIT_COOLDOWN_MS = 30_000;
 const MAX_REMOTE_PREVIEW_CACHE_ENTRIES = 100;
 const MAX_REMOTE_PREVIEW_QUEUE_DEPTH = 5;
 
@@ -19,6 +20,7 @@ const remotePreviewCache = new Map<string, { html: string; expiresAt: number }>(
 const remotePreviewLatestByTarget = new Map<string, { html: string; expiresAt: number }>();
 const remotePreviewPending = new Map<string, Promise<RemotePreviewResult>>();
 const remotePreviewLastRequest = new Map<string, number>();
+const remotePreviewRateLimitUntil = new Map<string, number>();
 const remotePreviewTargetQueues = new Map<string, Promise<unknown>>();
 const remotePreviewTargetQueueDepth = new Map<string, number>();
 
@@ -57,6 +59,9 @@ function evictRemotePreviewCache(now: number): void {
   for (const [key, lastRequest] of remotePreviewLastRequest) {
     if (lastRequest + REMOTE_PREVIEW_CACHE_TTL_MS <= now) remotePreviewLastRequest.delete(key);
   }
+  for (const [key, rateLimitUntil] of remotePreviewRateLimitUntil) {
+    if (rateLimitUntil <= now) remotePreviewRateLimitUntil.delete(key);
+  }
   while (remotePreviewCache.size > MAX_REMOTE_PREVIEW_CACHE_ENTRIES) {
     const oldest = remotePreviewCache.keys().next().value;
     if (!oldest) break;
@@ -72,6 +77,11 @@ function evictRemotePreviewCache(now: number): void {
     if (!oldest) break;
     remotePreviewLastRequest.delete(oldest);
   }
+  while (remotePreviewRateLimitUntil.size > MAX_REMOTE_PREVIEW_CACHE_ENTRIES) {
+    const oldest = remotePreviewRateLimitUntil.keys().next().value;
+    if (!oldest) break;
+    remotePreviewRateLimitUntil.delete(oldest);
+  }
 }
 
 export function resetRemotePreviewStateForTests(): void {
@@ -79,6 +89,7 @@ export function resetRemotePreviewStateForTests(): void {
   remotePreviewLatestByTarget.clear();
   remotePreviewPending.clear();
   remotePreviewLastRequest.clear();
+  remotePreviewRateLimitUntil.clear();
   remotePreviewTargetQueues.clear();
   remotePreviewTargetQueueDepth.clear();
 }
@@ -296,10 +307,17 @@ async function fetchRemotePreview(
   const request = (remotePreviewTargetQueues.get(targetKey) || Promise.resolve())
     .catch(() => {})
     .then(async (): Promise<RemotePreviewResult> => {
+      const queuedAt = Date.now();
+      const queuedRateLimitUntil = remotePreviewRateLimitUntil.get(targetKey) || 0;
+      if (queuedRateLimitUntil > queuedAt) return { status: 'rate_limited' };
+
       const lastRequest = remotePreviewLastRequest.get(targetKey) || 0;
       const waitMs = Math.max(0, REMOTE_PREVIEW_THROTTLE_MS - (Date.now() - lastRequest));
       if (waitMs > 0) await delay(waitMs);
-      remotePreviewLastRequest.set(targetKey, Date.now());
+      const requestTime = Date.now();
+      const rateLimitUntil = remotePreviewRateLimitUntil.get(targetKey) || 0;
+      if (rateLimitUntil > requestTime) return { status: 'rate_limited' };
+      remotePreviewLastRequest.set(targetKey, requestTime);
 
       const formData = new URLSearchParams();
       formData.append('action', 'parse');
@@ -325,8 +343,14 @@ async function fetchRemotePreview(
         error?: { code?: string; info: string };
       }>(res, 'preview');
 
-      if (result.rateLimited || result.data?.error?.code === 'ratelimited')
+      if (result.rateLimited || result.data?.error?.code === 'ratelimited') {
+        const cooldownMs = Math.max(
+          0,
+          result.retryAfterMs ?? REMOTE_PREVIEW_RATE_LIMIT_COOLDOWN_MS
+        );
+        remotePreviewRateLimitUntil.set(targetKey, Date.now() + cooldownMs);
         return { status: 'rate_limited' };
+      }
 
       const html = result.data?.parse?.text?.['*'];
       if (!html) return { status: 'broken' };

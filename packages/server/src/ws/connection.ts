@@ -229,9 +229,10 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
             const storedDoc = getDocumentById(doc.name);
             const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
             const { html } = await generatePreview(wikitext, apiUrl, page || null, doc.name);
-            for (const responseBase of responseBases) {
-              broadcastCustom(doc, encodeInnerPayload('preview_update', { ...responseBase, html }));
-            }
+            const responseBase: Record<string, string> = { page };
+            if (pendingRequestIds.length)
+              responseBase.requestIds = JSON.stringify(pendingRequestIds);
+            broadcastCustom(doc, encodeInnerPayload('preview_update', { ...responseBase, html }));
           } catch (err) {
             console.error('WS preview generation failed:', err);
             for (const responseBase of responseBases) {

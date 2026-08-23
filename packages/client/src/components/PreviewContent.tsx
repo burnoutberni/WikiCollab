@@ -47,7 +47,14 @@ export function PreviewContent({ html, css, className = '', onExternalLink }: Pr
       const href = anchor?.getAttribute('href');
       if (!href) return;
       event.preventDefault();
-      if (href.startsWith('javascript:')) return;
+      const normalizedHref = Array.from(href)
+        .filter((char) => {
+          const code = char.charCodeAt(0);
+          return code > 0x20 && (code < 0x7f || code > 0x9f);
+        })
+        .join('')
+        .toLowerCase();
+      if (normalizedHref.startsWith('javascript:')) return;
       if (href.startsWith('#')) {
         const id = href.slice(1);
         if (id) {

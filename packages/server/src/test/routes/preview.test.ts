@@ -723,6 +723,39 @@ describe('Preview route sanitization', () => {
       consoleWarn.mockRestore();
     });
 
+    it('backs off remote preview requests while Retry-After cooldown is active', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockServerFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        headers: {
+          get: (name: string) => (name.toLowerCase() === 'retry-after' ? '60' : 'text/plain'),
+        },
+        text: () => Promise.resolve('Too Many Requests'),
+        json: () => Promise.reject(new Error('not json')),
+      });
+
+      const first = await generatePreview('first', 'https://wiki.example.com/w/api.php', 'Page');
+      expect(first.html).toContain('Remote wiki preview is temporarily rate limited');
+      expect(mockServerFetch).toHaveBeenCalledTimes(1);
+
+      const second = await generatePreview('second', 'https://wiki.example.com/w/api.php', 'Page');
+      expect(second.html).toContain('Remote wiki preview is temporarily rate limited');
+      expect(mockServerFetch).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      mockServerFetch.mockResolvedValueOnce({
+        json: () => Promise.resolve({ parse: { text: { '*': '<p>After cooldown</p>' } } }),
+      });
+      await expect(
+        generatePreview('third', 'https://wiki.example.com/w/api.php', 'Page')
+      ).resolves.toEqual(expect.objectContaining({ html: '<p>After cooldown</p>' }));
+      expect(mockServerFetch).toHaveBeenCalledTimes(2);
+      consoleWarn.mockRestore();
+    });
+
     it('falls back to local parser when the configured instance is broken', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');

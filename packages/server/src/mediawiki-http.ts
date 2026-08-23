@@ -14,6 +14,7 @@ export interface MediaWikiJsonResult<T> {
   rateLimited: boolean;
   status?: number;
   bodySnippet?: string;
+  retryAfterMs?: number;
 }
 
 type MediaWikiJsonResponse = {
@@ -28,6 +29,15 @@ function isRateLimitResponse(status: number | undefined, body: string): boolean 
   return status === 429 || /"code"\s*:\s*"ratelimited"|too many requests/i.test(body);
 }
 
+function parseRetryAfterMs(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const dateMs = Date.parse(value);
+  if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now());
+  return undefined;
+}
+
 export async function readMediaWikiJsonResult<T>(
   response: MediaWikiJsonResponse,
   context: string
@@ -39,7 +49,15 @@ export async function readMediaWikiJsonResult<T>(
     console.warn(
       `MediaWiki ${context} returned HTTP ${response.status || 'error'}${rateLimited ? ' rate limit' : ''}.${bodySnippet ? ` Body: ${bodySnippet}` : ''}`
     );
-    return { data: null, rateLimited, status: response.status, bodySnippet };
+    return {
+      data: null,
+      rateLimited,
+      status: response.status,
+      bodySnippet,
+      retryAfterMs: rateLimited
+        ? parseRetryAfterMs(response.headers?.get?.('retry-after'))
+        : undefined,
+    };
   }
 
   const contentType = response.headers?.get?.('content-type') || '';
@@ -50,7 +68,15 @@ export async function readMediaWikiJsonResult<T>(
     console.warn(
       `MediaWiki ${context} returned ${contentType || 'non-JSON'}${rateLimited ? ' rate limit' : ''}.${bodySnippet ? ` Body: ${bodySnippet}` : ''}`
     );
-    return { data: null, rateLimited, status: response.status, bodySnippet };
+    return {
+      data: null,
+      rateLimited,
+      status: response.status,
+      bodySnippet,
+      retryAfterMs: rateLimited
+        ? parseRetryAfterMs(response.headers?.get?.('retry-after'))
+        : undefined,
+    };
   }
 
   try {

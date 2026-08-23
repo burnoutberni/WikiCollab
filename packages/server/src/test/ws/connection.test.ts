@@ -353,11 +353,11 @@ describe('WebSocket connections', () => {
       );
 
       await vi.advanceTimersByTimeAsync(500);
-      await vi.waitFor(() => expect(ws.send).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(ws.send).toHaveBeenCalledTimes(1));
 
-      const payloads = [getSentCustomPayload(ws.send, 0), getSentCustomPayload(ws.send, 1)];
-      expect(payloads.map(({ type }) => type)).toEqual(['preview_update', 'preview_update']);
-      expect(payloads.map(({ payload }) => payload.requestId).sort()).toEqual(['r1', 'r2']);
+      const { type, payload } = getSentCustomPayload(ws.send, 0);
+      expect(type).toBe('preview_update');
+      expect(JSON.parse(String(payload.requestIds))).toEqual(['r1', 'r2']);
     });
 
     it('handles malformed custom message without throwing', async () => {
