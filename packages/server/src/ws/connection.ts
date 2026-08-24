@@ -152,6 +152,7 @@ export function broadcastCustom(
 type PreviewDebounce = { timer: ReturnType<typeof setTimeout>; requestIds: Set<string> };
 const previewDebounces = new Map<string, PreviewDebounce>();
 const MAX_PREVIEW_DEBOUNCE_KEYS = 100;
+const MAX_PREVIEW_REQUEST_IDS = 32;
 
 /** Bounds the preview debounce cache so per-document preview requests cannot grow forever. */
 function evictPreviewDebounce(): void {
@@ -210,7 +211,7 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
       const key = `${doc.name}:${page}`;
       const existing = previewDebounces.get(key);
       const requestIds = existing?.requestIds ?? new Set<string>();
-      if (requestId) requestIds.add(requestId);
+      if (requestId && requestIds.size < MAX_PREVIEW_REQUEST_IDS) requestIds.add(requestId);
       if (existing) clearTimeout(existing.timer);
 
       if (!existing) {

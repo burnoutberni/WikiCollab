@@ -360,6 +360,43 @@ describe('WebSocket connections', () => {
       expect(JSON.parse(String(payload.requestIds))).toEqual(['r1', 'r2']);
     });
 
+    it('caps request ids collapsed into a preview debounce', async () => {
+      vi.useFakeTimers();
+      const docName = 'preview-debounce-cap-test';
+
+      mockDbModule.db
+        .insert(schema.documents)
+        .values({
+          id: docName,
+          title: 'Preview Debounce Cap',
+          content: '== Hello ==',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .run();
+
+      const ws = await connectWs(`/${docName}`);
+      ws.send.mockClear();
+
+      for (let i = 0; i < 40; i++) {
+        ws.emit(
+          'message',
+          wrapCustomMessage(
+            encodeInnerPayload('preview_request', { page: 'Test', requestId: `r${i}` })
+          )
+        );
+      }
+
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.waitFor(() => expect(ws.send).toHaveBeenCalledTimes(1));
+
+      const { type, payload } = getSentCustomPayload(ws.send, 0);
+      const requestIds = JSON.parse(String(payload.requestIds));
+      expect(type).toBe('preview_update');
+      expect(requestIds).toHaveLength(32);
+      expect(requestIds).toEqual(Array.from({ length: 32 }, (_value, index) => `r${index}`));
+    });
+
     it('handles malformed custom message without throwing', async () => {
       const ws = await connectWs('/malformed-custom');
       const msg = wrapCustomMessage(new Uint8Array([255, 255, 255]));
