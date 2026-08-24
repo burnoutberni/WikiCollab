@@ -3,6 +3,8 @@ FROM node:24.19.0-alpine AS base
 ARG VITE_DEMO_MODE
 ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
 
+RUN apk add --no-cache python3 make g++
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
