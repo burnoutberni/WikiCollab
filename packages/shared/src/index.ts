@@ -8,19 +8,11 @@ export interface Document {
   created_at: string;
   updated_at: string;
   expiry: string | null;
-  mediawiki_instance_id: string | null;
+  mediawiki_instance_name: string | null;
+  mediawiki_instance_api_url: string | null;
+  mediawiki_instance_css: string | null;
   restored_version_id: string | null;
   visibility: DocumentVisibility;
-}
-
-/** Saved MediaWiki instance configuration used for preview and push workflows. */
-export interface MediaWikiInstance {
-  id: string;
-  name: string;
-  api_url: string;
-  token: string | null;
-  configured_at: string;
-  css: string | null;
 }
 
 /** Immutable revision snapshot metadata for restore and starring flows. */
@@ -35,27 +27,21 @@ export interface DocumentRevision {
 /** Backward-compatible alias used by version-oriented UI code. */
 export type Version = DocumentRevision;
 
-/** Cached template payload tied to a specific MediaWiki instance. */
-export interface TemplateCache {
-  id: string;
-  instance_id: string;
-  template_name: string;
-  template_data: string;
-  fetched_at: string;
-}
-
 /** Request body accepted when creating a document. */
 export interface CreateDocumentRequest {
   title?: string;
   content?: string;
   slug?: string;
   visibility?: DocumentVisibility;
+  mediawiki_instance_name?: string | null;
+  mediawiki_instance_api_url?: string | null;
 }
 
 /** Request body accepted when patching mutable document metadata. */
 export interface UpdateDocumentRequest {
   title?: string;
-  mediawiki_instance_id?: string | null;
+  mediawiki_instance_name?: string | null;
+  mediawiki_instance_api_url?: string | null;
   expiry?: string | null;
   visibility?: DocumentVisibility;
 }
@@ -64,16 +50,6 @@ export interface UpdateDocumentRequest {
 export interface CreateInstanceRequest {
   name: string;
   api_url: string;
-  token?: string;
-}
-
-/** Request body for pushing current content to a remote MediaWiki API. */
-export interface PushToWikiRequest {
-  api_url: string;
-  token: string;
-  title?: string;
-  content?: string;
-  summary?: string;
 }
 
 /** Supported editor layouts in the client UI. */
@@ -118,12 +94,6 @@ export {
   messageCustom,
   wrapCustomMessage,
 } from './protocol.js';
-export {
-  CreateDocumentSchema,
-  CssSchema,
-  PreviewSchema,
-  PushToWikiSchema,
-  UpdateDocumentSchema,
-} from './schemas.js';
+export { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from './schemas.js';
 export { replaceYText } from './yjs.js';
 export type { z } from 'zod';

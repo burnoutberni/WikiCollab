@@ -7,7 +7,6 @@ import type {
   CursorPresence,
   Document,
   DocumentRevision,
-  MediaWikiInstance,
   PreviewResponse,
   ViewMode,
 } from '../src/index';
@@ -28,24 +27,14 @@ describe('Shared types', () => {
       created_at: '2025-01-01',
       updated_at: '2025-01-01',
       expiry: null,
-      mediawiki_instance_id: null,
+      mediawiki_instance_name: null,
+      mediawiki_instance_api_url: null,
+      mediawiki_instance_css: null,
       restored_version_id: null,
       visibility: 'public',
     };
     expect(doc.id).toBe('test');
     expect(doc.title).toBe('Test');
-  });
-
-  it('MediaWikiInstance interface has required fields', () => {
-    const instance: MediaWikiInstance = {
-      id: 'inst1',
-      name: 'Wikipedia',
-      api_url: 'https://en.wikipedia.org/w/api.php',
-      token: null,
-      configured_at: '2025-01-01',
-      css: null,
-    };
-    expect(instance.name).toBe('Wikipedia');
   });
 
   it('DocumentRevision interface has required fields', () => {

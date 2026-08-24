@@ -1,18 +1,64 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
-import { serverFetch, SsrfError } from 'server-fetch';
-import { CreateDocumentSchema, PushToWikiSchema, UpdateDocumentSchema } from 'shared';
+import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'shared';
 import * as Y from 'yjs';
 
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
-import { pushLimiter } from '../middleware/rate-limit.js';
+import { fetchMediaWikiCss } from '../mediawiki-css.js';
 import { parseAndValidate } from '../middleware/validate.js';
+import { generatePreview } from '../preview.js';
 import { setVersionStarred } from '../services/versions.js';
 
-/** REST endpoints for document CRUD, versioning, and outbound wiki pushes. */
+/** REST endpoints for document CRUD, preview, and versioning. */
 const docs = new Hono();
+type CssRefresh = { apiUrl: string; nextApiUrl: string | null; promise: Promise<void> };
+const inFlightCssRefreshes = new Map<string, CssRefresh>();
+
+async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
+  const css = await fetchMediaWikiCss(apiUrl);
+  if (css === null) return;
+
+  db.update(schema.documents)
+    .set({ mediawiki_instance_css: css })
+    .where(
+      and(
+        eq(schema.documents.id, documentId),
+        eq(schema.documents.mediawiki_instance_api_url, apiUrl)
+      )
+    )
+    .run();
+}
+
+function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: string): void {
+  const current = inFlightCssRefreshes.get(documentId);
+  if (current) {
+    if (current.apiUrl === apiUrl) {
+      current.nextApiUrl = null;
+      return;
+    }
+    current.nextApiUrl = apiUrl;
+    return;
+  }
+
+  const promise = refreshDocumentMediaWikiCss(documentId, apiUrl)
+    .catch((err) => {
+      console.error('Failed to refresh MediaWiki CSS:', err);
+    })
+    .finally(() => {
+      const nextApiUrl = inFlightCssRefreshes.get(documentId)?.nextApiUrl;
+      inFlightCssRefreshes.delete(documentId);
+      if (nextApiUrl) refreshDocumentMediaWikiCssInBackground(documentId, nextApiUrl);
+    });
+  inFlightCssRefreshes.set(documentId, { apiUrl, nextApiUrl: null, promise });
+}
+
+export async function drainDocumentMediaWikiCssRefreshesForTest(): Promise<void> {
+  for (let i = 0; i < 10 && inFlightCssRefreshes.size > 0; i++) {
+    await Promise.all(Array.from(inFlightCssRefreshes.values(), (refresh) => refresh.promise));
+  }
+}
 
 docs.get('/', (c) => {
   const allDocs = db
@@ -47,12 +93,19 @@ docs.post('/', async (c) => {
     created_at: now,
     updated_at: now,
     expiry: body.expiry || null,
-    mediawiki_instance_id: body.mediawiki_instance_id || null,
+    mediawiki_instance_name: body.mediawiki_instance_api_url
+      ? (body.mediawiki_instance_name ?? null)
+      : null,
+    mediawiki_instance_api_url: body.mediawiki_instance_api_url ?? null,
+    mediawiki_instance_css: null,
     restored_version_id: null,
     visibility: body.visibility || 'public',
   };
 
   db.insert(schema.documents).values(doc).run();
+  if (doc.mediawiki_instance_api_url) {
+    refreshDocumentMediaWikiCssInBackground(doc.id, doc.mediawiki_instance_api_url);
+  }
   return c.json(doc, 201);
 });
 
@@ -86,12 +139,33 @@ docs.patch('/:id', async (c) => {
 
   const now = new Date().toISOString();
   const updates: Record<string, unknown> = { updated_at: now };
+  const existingDoc = getDocumentById(id);
+
+  if (!existingDoc) {
+    return c.json({ error: 'Document not found' }, 404);
+  }
 
   if (body.title !== undefined) updates.title = body.title;
-  if (body.mediawiki_instance_id !== undefined)
-    updates.mediawiki_instance_id = body.mediawiki_instance_id;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
   if (body.visibility !== undefined) updates.visibility = body.visibility;
+
+  if (body.mediawiki_instance_api_url !== undefined) {
+    if (body.mediawiki_instance_api_url === null) {
+      updates.mediawiki_instance_name = null;
+      updates.mediawiki_instance_api_url = null;
+      updates.mediawiki_instance_css = null;
+    } else {
+      updates.mediawiki_instance_api_url = body.mediawiki_instance_api_url;
+      if (body.mediawiki_instance_name !== undefined) {
+        updates.mediawiki_instance_name = body.mediawiki_instance_name;
+      }
+      if (body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url) {
+        updates.mediawiki_instance_css = null;
+      }
+    }
+  } else if (body.mediawiki_instance_name !== undefined) {
+    updates.mediawiki_instance_name = body.mediawiki_instance_name;
+  }
 
   const updateResult = db
     .update(schema.documents)
@@ -104,7 +178,43 @@ docs.patch('/:id', async (c) => {
   }
 
   const doc = getDocumentById(id);
+  const apiUrlChanged =
+    body.mediawiki_instance_api_url !== undefined &&
+    body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url;
+  if (body.mediawiki_instance_api_url && (apiUrlChanged || !existingDoc.mediawiki_instance_css)) {
+    refreshDocumentMediaWikiCssInBackground(id, body.mediawiki_instance_api_url);
+  }
   return c.json(doc);
+});
+
+docs.post('/:id/preview', async (c) => {
+  const id = c.req.param('id');
+  const result = await parseAndValidate(c, PreviewSchema);
+  if (!result.success) return result.response;
+  const { wikitext, page } = result.data;
+
+  const doc = getDocumentById(id);
+  if (!doc) return c.json({ error: 'Document not found' }, 404);
+  if (doc.mediawiki_instance_api_url && !doc.mediawiki_instance_css) {
+    refreshDocumentMediaWikiCssInBackground(id, doc.mediawiki_instance_api_url);
+  }
+
+  try {
+    const { html, sourceMap } = await generatePreview(
+      wikitext,
+      doc.mediawiki_instance_api_url,
+      page,
+      id
+    );
+    return c.json({ html, sourceMap, css: doc.mediawiki_instance_css });
+  } catch (err) {
+    console.error('Preview generation failed:', err);
+    return c.json({
+      html: '<p class="text-red-500">Failed to generate preview</p>',
+      sourceMap: [],
+      css: doc.mediawiki_instance_css,
+    });
+  }
 });
 
 docs.get('/:id/versions', (c) => {
@@ -195,57 +305,6 @@ docs.get('/:id/versions/:v/preview', (c) => {
   } catch (error) {
     console.error('Failed to decode version for preview:', error);
     return c.json({ content: '' });
-  }
-});
-
-// Push endpoint is double-limited: first by crudLimiter (100/min, app-level),
-// then by pushLimiter (10/min) here. This is intentional — push is the most
-// sensitive operation (outbound HTTP POST to external wikis) and warrants a
-// much stricter cap than general CRUD.
-docs.post('/:id/push', pushLimiter, async (c) => {
-  const id = c.req.param('id')!;
-  const result = await parseAndValidate(c, PushToWikiSchema);
-  if (!result.success) return result.response;
-  const body = result.data;
-
-  const doc = getDocumentById(id);
-
-  if (!doc) {
-    return c.json({ error: 'Document not found' }, 404);
-  }
-
-  try {
-    const formData = new URLSearchParams();
-    formData.append('action', 'edit');
-    formData.append('title', body.title || doc.title);
-    formData.append('text', body.content || doc.content);
-    formData.append('summary', body.summary || 'Updated via WikiCollab');
-    formData.append('token', body.token);
-    formData.append('format', 'json');
-
-    const response = await serverFetch(body.api_url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData.toString(),
-    });
-
-    const result = (await response.json()) as {
-      edit?: { result: string };
-      error?: { info: string };
-    };
-
-    if (result.error) {
-      return c.json({ error: result.error.info }, 500);
-    }
-
-    return c.json({ success: true, result: result.edit?.result });
-  } catch (error) {
-    if (error instanceof SsrfError) {
-      console.error(`SSRF blocked: ${error.url}`);
-    }
-    return c.json({ error: 'Failed to push to wiki' }, 500);
   }
 });
 

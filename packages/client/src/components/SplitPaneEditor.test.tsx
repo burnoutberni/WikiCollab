@@ -7,6 +7,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { SplitPaneEditor } from './SplitPaneEditor';
 
+vi.mock('@/styles/wikipedia.css?inline', () => ({ default: '.mw-preview-container{}' }));
+
 let mockIsMobile = false;
 
 vi.mock('@/hooks/useMediaQuery', () => ({
@@ -51,7 +53,18 @@ vi.mock('lucide-react', () => {
 });
 
 function renderWithProviders(ui: React.ReactElement) {
-  return render(<TooltipProvider>{ui}</TooltipProvider>);
+  const result = render(<TooltipProvider>{ui}</TooltipProvider>);
+  return {
+    ...result,
+    rerenderWithProviders: (next: React.ReactElement) =>
+      result.rerender(<TooltipProvider>{next}</TooltipProvider>),
+  };
+}
+
+function getPreviewShadowRoot(): ShadowRoot {
+  const host = screen.getByTestId('preview-content');
+  if (!host.shadowRoot) throw new Error('Preview shadow root was not created');
+  return host.shadowRoot;
 }
 
 describe('SplitPaneEditor', () => {
@@ -74,6 +87,7 @@ describe('SplitPaneEditor', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     global.fetch = originalFetch;
     HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
   });
@@ -95,17 +109,388 @@ describe('SplitPaneEditor', () => {
 
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/instances/preview',
+        '/api/docs/doc1/preview',
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('Hello wikitext'),
+          body: JSON.stringify({ wikitext: 'Hello wikitext', page: null }),
         })
       );
     });
 
     await vi.waitFor(() => {
-      expect(screen.getByText('Preview HTML')).toBeInTheDocument();
+      expect(getPreviewShadowRoot().textContent).toContain('Preview HTML');
     });
+  });
+
+  it('shows a generic preview error when a configured instance request fails', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockRejectedValueOnce(new Error('network down'));
+
+    renderWithProviders(
+      <SplitPaneEditor {...defaultProps} apiUrl="https://en.wikipedia.org/w/api.php" />
+    );
+
+    await vi.waitFor(() => {
+      expect(getPreviewShadowRoot().textContent).toContain('Failed to generate preview');
+    });
+    expect(getPreviewShadowRoot().textContent).not.toContain(
+      'Preview requires a configured MediaWiki instance'
+    );
+  });
+
+  it('layers instance CSS inside the preview shadow root only', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ html: '' }),
+    } as Response);
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} instanceCss=".instance-css-marker{}" />);
+
+    await vi.waitFor(() => {
+      const shadowStyle = getPreviewShadowRoot().querySelector('style')?.textContent || '';
+      expect(shadowStyle).toContain('.mw-preview-container');
+      expect(shadowStyle).toContain('.instance-css-marker{}');
+      const documentStyles = Array.from(document.querySelectorAll('style')).map(
+        (style) => style.textContent || ''
+      );
+      expect(documentStyles.some((text) => text.includes('.instance-css-marker{}'))).toBe(false);
+    });
+  });
+
+  it('dims preview and shows external loading label', () => {
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        content=""
+        previewBusy
+        previewLoadingLabel="Updating wiki settings..."
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Updating wiki settings...');
+    expect(document.querySelector('.mw-preview-container')).toHaveClass('opacity-45');
+    expect(document.querySelector('.mw-preview-container')).toHaveClass('pointer-events-none');
+  });
+
+  it('dims preview and shows rendering label while preview request is pending', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockReturnValueOnce(new Promise<Response>(() => {}));
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
+    expect(document.querySelector('.mw-preview-container')).toHaveClass('opacity-45');
+  });
+
+  it('aborts stalled HTTP preview requests and clears loading', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockImplementationOnce((_input, init) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      });
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor {...defaultProps} apiUrl="https://en.wikipedia.org/w/api.php" />
+    );
+
+    await act(async () => {});
+    expect(screen.getByRole('status')).toHaveTextContent('Rendering preview...');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(getPreviewShadowRoot().textContent).toContain('Failed to generate preview');
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('clears websocket preview loading when an update is for a different page', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
+
+    act(() => {
+      previewUpdate({
+        html: '<p>Ignored</p>',
+        page: 'Other page',
+        requestId: sendCustomMessage.mock.calls[0][1].requestId,
+      });
+    });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(getPreviewShadowRoot().textContent).not.toContain('Ignored');
+  });
+
+  it('sends websocket preview requests with client-scoped request ids', async () => {
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    expect(sendCustomMessage).toHaveBeenCalledWith('preview_request', {
+      page: 'Same Page',
+      requestId: expect.any(String),
+    });
+  });
+
+  it('accepts websocket preview updates with the active request id', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    act(() => {
+      previewUpdate({
+        html: '<p>Peer preview</p>',
+        page: 'Same Page',
+        requestId: sendCustomMessage.mock.calls[0][1].requestId,
+      });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('Peer preview');
+  });
+
+  it('accepts websocket preview updates with the active request id in requestIds', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestIds?: string;
+    }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const requestId = sendCustomMessage.mock.calls[0][1].requestId;
+    act(() => {
+      previewUpdate({
+        html: '<p>Collapsed peer preview</p>',
+        page: 'Same Page',
+        requestIds: JSON.stringify(['other-request', requestId]),
+      });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('Collapsed peer preview');
+  });
+
+  it('falls back to HTTP preview when websocket preview times out', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Fallback preview</p>' }),
+    } as Response);
+    global.fetch = fetchMock;
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(getPreviewShadowRoot().textContent).toContain('Fallback preview')
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('ignores late websocket previews after HTTP fallback renders', async () => {
+    vi.useFakeTimers();
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Fallback preview</p>' }),
+    } as Response);
+    global.fetch = fetchMock;
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const requestId = sendCustomMessage.mock.calls[0][1].requestId;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await vi.waitFor(() =>
+      expect(getPreviewShadowRoot().textContent).toContain('Fallback preview')
+    );
+
+    act(() => {
+      previewUpdate({ html: '<p>Late websocket preview</p>', page: 'Same Page', requestId });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('Fallback preview');
+    expect(getPreviewShadowRoot().textContent).not.toContain('Late websocket preview');
+  });
+
+  it('ignores pending websocket previews after falling back to HTTP when the socket closes', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>HTTP preview</p>' }),
+    } as Response);
+    global.fetch = fetchMock;
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+
+    const { rerenderWithProviders } = renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        previewRefreshKey={0}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const requestId = sendCustomMessage.mock.calls[0][1].requestId;
+
+    rerenderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.CLOSED } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        previewRefreshKey={1}
+      />
+    );
+
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('HTTP preview'));
+
+    act(() => {
+      previewUpdate({ html: '<p>Late websocket preview</p>', page: 'Same Page', requestId });
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('HTTP preview');
+    expect(getPreviewShadowRoot().textContent).not.toContain('Late websocket preview');
+  });
+
+  it('shows an error and clears websocket preview loading on preview_error', async () => {
+    let previewError: (payload: { page: string; requestId?: string }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_error') previewError = handler as typeof previewError;
+      return vi.fn();
+    });
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Rendering preview...');
+
+    act(() => {
+      previewError({ page: 'Same Page', requestId: sendCustomMessage.mock.calls[0][1].requestId });
+    });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(getPreviewShadowRoot().textContent).toContain('Failed to generate preview');
   });
 
   it('link click opens PreviewLinkModal for external links', async () => {
@@ -118,11 +503,9 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
-    await vi.waitFor(() => {
-      expect(screen.getByText('link')).toBeInTheDocument();
-    });
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('link'));
 
-    await user.click(screen.getByText('link'));
+    await user.click(getPreviewShadowRoot().querySelector('a')!);
 
     expect(screen.getByText('URL: https://example.com')).toBeInTheDocument();
   });
@@ -140,11 +523,9 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
-    await vi.waitFor(() => {
-      expect(screen.getByText('go to section 1')).toBeInTheDocument();
-    });
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('go to section 1'));
 
-    await user.click(screen.getByText('go to section 1'));
+    await user.click(getPreviewShadowRoot().querySelector('a')!);
 
     expect(screen.queryByTestId('preview-link-modal')).not.toBeInTheDocument();
     expect(scrollIntoViewMock).toHaveBeenCalledWith({
@@ -175,6 +556,112 @@ describe('SplitPaneEditor', () => {
     });
   });
 
+  it('disables refresh while externally busy', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} previewBusy />);
+
+    expect(screen.getByRole('button', { name: /refresh preview/i })).toBeDisabled();
+  });
+
+  it('ignores stale preview responses after a newer request completes', async () => {
+    let resolveFirst: (value: Response) => void = () => {};
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        })
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ html: '<p>New preview</p>' }),
+      } as Response);
+    global.fetch = fetchMock;
+
+    const { rerenderWithProviders } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    rerenderWithProviders(<SplitPaneEditor {...defaultProps} documentId="doc2" />);
+
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('New preview'));
+
+    await act(async () => {
+      resolveFirst({
+        ok: true,
+        json: async () => ({ html: '<p>Old preview</p>' }),
+      } as Response);
+    });
+
+    expect(getPreviewShadowRoot().textContent).toContain('New preview');
+    expect(getPreviewShadowRoot().textContent).not.toContain('Old preview');
+  });
+
+  it('refreshes preview when previewRefreshKey changes with the same API URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+    global.fetch = fetchMock;
+
+    const { rerenderWithProviders } = renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        apiUrl="https://en.wikipedia.org/w/api.php"
+        previewRefreshKey={0}
+      />
+    );
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    rerenderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        apiUrl="https://en.wikipedia.org/w/api.php"
+        previewRefreshKey={1}
+      />
+    );
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('refreshes preview when documentId changes with the same title and API URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview HTML</p>' }),
+    });
+    global.fetch = fetchMock;
+
+    const { rerenderWithProviders } = renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Title"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    rerenderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        documentId="doc2"
+        title="Same Title"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+      />
+    );
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
   it('refreshes when entering mobile preview mode', async () => {
     mockIsMobile = true;
     global.fetch = vi.fn().mockResolvedValue({
@@ -182,17 +669,13 @@ describe('SplitPaneEditor', () => {
       json: async () => ({ html: '<p>Preview HTML</p>' }),
     });
 
-    const { rerender } = renderWithProviders(
+    const { rerenderWithProviders } = renderWithProviders(
       <SplitPaneEditor {...defaultProps} initialMobileTab="source" />
     );
 
     expect(vi.mocked(global.fetch)).not.toHaveBeenCalled();
 
-    rerender(
-      <TooltipProvider>
-        <SplitPaneEditor {...defaultProps} initialMobileTab="preview" />
-      </TooltipProvider>
-    );
+    rerenderWithProviders(<SplitPaneEditor {...defaultProps} initialMobileTab="preview" />);
 
     await vi.waitFor(() => {
       expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(1);
@@ -207,22 +690,14 @@ describe('SplitPaneEditor', () => {
     });
     global.fetch = fetchMock;
 
-    const { rerender } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+    const { rerenderWithProviders } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    rerender(
-      <TooltipProvider>
-        <SplitPaneEditor {...defaultProps} content="Hello wikitext!" />
-      </TooltipProvider>
-    );
-    rerender(
-      <TooltipProvider>
-        <SplitPaneEditor {...defaultProps} content="Hello wikitext!!" />
-      </TooltipProvider>
-    );
+    rerenderWithProviders(<SplitPaneEditor {...defaultProps} content="Hello wikitext!" />);
+    rerenderWithProviders(<SplitPaneEditor {...defaultProps} content="Hello wikitext!!" />);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -256,11 +731,9 @@ describe('SplitPaneEditor', () => {
 
     renderWithProviders(<SplitPaneEditor {...defaultProps} initialMobileTab="preview" />);
 
-    await vi.waitFor(() => {
-      expect(screen.getByText('mobile link')).toBeInTheDocument();
-    });
+    await vi.waitFor(() => expect(getPreviewShadowRoot().textContent).toContain('mobile link'));
 
-    await user.click(screen.getByText('mobile link'));
+    await user.click(getPreviewShadowRoot().querySelector('a')!);
 
     expect(screen.getByTestId('preview-link-modal')).toBeInTheDocument();
     expect(screen.getByText('URL: https://example.com')).toBeInTheDocument();

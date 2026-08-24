@@ -9,7 +9,7 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
 
-import { getVersionById } from '../db/helpers.js';
+import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { generatePreview } from '../preview.js';
 import { setVersionStarred } from '../services/versions.js';
@@ -149,16 +149,18 @@ export function broadcastCustom(
   });
 }
 
-const previewDebounces = new Map<string, ReturnType<typeof setTimeout>>();
+type PreviewDebounce = { timer: ReturnType<typeof setTimeout>; requestIds: Set<string> };
+const previewDebounces = new Map<string, PreviewDebounce>();
 const MAX_PREVIEW_DEBOUNCE_KEYS = 100;
+const MAX_PREVIEW_REQUEST_IDS = 32;
 
 /** Bounds the preview debounce cache so per-document preview requests cannot grow forever. */
 function evictPreviewDebounce(): void {
   if (previewDebounces.size >= MAX_PREVIEW_DEBOUNCE_KEYS) {
     const oldest = previewDebounces.keys().next().value;
     if (oldest !== undefined) {
-      const timer = previewDebounces.get(oldest);
-      if (timer) clearTimeout(timer);
+      const debounce = previewDebounces.get(oldest);
+      if (debounce) clearTimeout(debounce.timer);
       previewDebounces.delete(oldest);
     }
   }
@@ -203,29 +205,43 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
       break;
     }
     case 'preview_request': {
-      const api_url = typeof payload.api_url === 'string' ? payload.api_url : '';
       const page = typeof payload.page === 'string' ? payload.page : '';
+      const requestId = typeof payload.requestId === 'string' ? payload.requestId : undefined;
 
-      const key = `${doc.name}:${api_url}:${page}`;
+      const key = `${doc.name}:${page}`;
       const existing = previewDebounces.get(key);
-      if (existing) clearTimeout(existing);
+      const requestIds = existing?.requestIds ?? new Set<string>();
+      if (requestId && requestIds.size < MAX_PREVIEW_REQUEST_IDS) requestIds.add(requestId);
+      if (existing) clearTimeout(existing.timer);
 
       if (!existing) {
         evictPreviewDebounce();
       }
-      previewDebounces.set(
-        key,
-        setTimeout(async () => {
+      previewDebounces.set(key, {
+        requestIds,
+        timer: setTimeout(async () => {
           previewDebounces.delete(key);
+          const pendingRequestIds = Array.from(requestIds);
+          const responseBases = pendingRequestIds.length
+            ? pendingRequestIds.map((id) => ({ page, requestId: id }))
+            : [{ page }];
           try {
             const wikitext = doc.getText('wikitext').toString();
-            const { html } = await generatePreview(wikitext, api_url || null, page || null);
-            broadcastCustom(doc, encodeInnerPayload('preview_update', { html, api_url, page }));
+            const storedDoc = getDocumentById(doc.name);
+            const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
+            const { html } = await generatePreview(wikitext, apiUrl, page || null, doc.name);
+            const responseBase: Record<string, string> = { page };
+            if (pendingRequestIds.length)
+              responseBase.requestIds = JSON.stringify(pendingRequestIds);
+            broadcastCustom(doc, encodeInnerPayload('preview_update', { ...responseBase, html }));
           } catch (err) {
             console.error('WS preview generation failed:', err);
+            for (const responseBase of responseBases) {
+              broadcastCustom(doc, encodeInnerPayload('preview_error', responseBase));
+            }
           }
-        }, 500)
-      );
+        }, 500),
+      });
       break;
     }
   }
@@ -464,8 +480,8 @@ export function setupWebSocket(server: ServerType) {
 export function resetWsRateLimiters(): void {
   wsConnectionCounts.clear();
   wsConnectionRate.clear();
-  for (const timer of previewDebounces.values()) {
-    clearTimeout(timer);
+  for (const debounce of previewDebounces.values()) {
+    clearTimeout(debounce.timer);
   }
   previewDebounces.clear();
 }

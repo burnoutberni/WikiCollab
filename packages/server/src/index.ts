@@ -6,7 +6,6 @@ import { cors } from 'hono/cors';
 import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import docsRoutes from './routes/docs.js';
-import instancesRoutes from './routes/instances.js';
 import { setupWebSocket } from './ws/index.js';
 import { getAllowedOrigins } from './ws/origin.js';
 
@@ -34,11 +33,9 @@ app.use(
 app.use('/api/*', securityHeaders());
 
 app.use('/api/docs/*', crudLimiter);
-app.use('/api/instances/preview', previewLimiter);
-app.use('/api/instances/css', previewLimiter);
+app.use('/api/docs/:id/preview', previewLimiter);
 
 app.route('/api/docs', docsRoutes);
-app.route('/api/instances', instancesRoutes);
 
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok', version: process.env.APP_VERSION || '0.0.0' });
