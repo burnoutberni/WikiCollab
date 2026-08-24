@@ -195,6 +195,9 @@ docs.post('/:id/preview', async (c) => {
 
   const doc = getDocumentById(id);
   if (!doc) return c.json({ error: 'Document not found' }, 404);
+  if (doc.mediawiki_instance_api_url && !doc.mediawiki_instance_css) {
+    refreshDocumentMediaWikiCssInBackground(id, doc.mediawiki_instance_api_url);
+  }
 
   try {
     const { html, sourceMap } = await generatePreview(

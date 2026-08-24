@@ -547,7 +547,10 @@ describe('Preview route sanitization', () => {
       });
       mockDbModule.db
         .update(schema.documents)
-        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .set({
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+          mediawiki_instance_css: '.cached{}',
+        })
         .where(eq(schema.documents.id, 'doc1'))
         .run();
 
@@ -576,7 +579,10 @@ describe('Preview route sanitization', () => {
       });
       mockDbModule.db
         .update(schema.documents)
-        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .set({
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+          mediawiki_instance_css: '.cached{}',
+        })
         .where(eq(schema.documents.id, 'doc1'))
         .run();
 
@@ -609,7 +615,10 @@ describe('Preview route sanitization', () => {
         });
       mockDbModule.db
         .update(schema.documents)
-        .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+        .set({
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+          mediawiki_instance_css: '.cached{}',
+        })
         .where(eq(schema.documents.id, 'doc1'))
         .run();
 
@@ -659,7 +668,10 @@ describe('Preview route sanitization', () => {
       for (const id of ['doc1', 'doc2']) {
         mockDbModule.db
           .update(schema.documents)
-          .set({ mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php' })
+          .set({
+            mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+            mediawiki_instance_css: '.cached{}',
+          })
           .where(eq(schema.documents.id, id))
           .run();
       }

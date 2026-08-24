@@ -933,6 +933,70 @@ describe('Docs routes', () => {
     expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
   });
 
+  it('POST /:id/preview retries missing MediaWiki instance CSS in the background', async () => {
+    mockServerFetch.mockImplementation((url: string) => {
+      if (url.includes('meta=siteinfo')) {
+        return Promise.resolve({
+          json: () =>
+            Promise.resolve({
+              query: { skins: [{ code: 'vector', name: 'Vector', default: true }] },
+            }),
+        });
+      }
+      if (url.includes('/load.php')) {
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'text/css' },
+          text: () => Promise.resolve('.mw-parser-output{color:green}'),
+        });
+      }
+      if (url.includes('titles=MediaWiki%3ACommon.css')) {
+        return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
+      }
+      if (url.includes('titles=MediaWiki%3Avector.css')) {
+        return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
+      }
+      return Promise.resolve({
+        json: () => Promise.resolve({ parse: { text: { '*': '<p>Remote preview</p>' } } }),
+      });
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Preview CSS Retry' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({
+        mediawiki_instance_name: 'Example Wiki',
+        mediawiki_instance_api_url: 'https://example.com/w/api.php',
+        mediawiki_instance_css: null,
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const res = await app.request(`/api/docs/${created.id}/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wikitext: 'Hello', page: 'Preview CSS Retry' }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.html).toContain('<p>Remote preview</p>');
+    expect(data.css).toBeNull();
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).toContain('.mw-parser-output{color:green}');
+    });
+  });
+
   it('clears a queued CSS refresh when the API URL returns to the in-flight URL', async () => {
     let resolveSiteInfo: (value: unknown) => void = () => {};
     mockServerFetch.mockImplementation((url: string) => {
