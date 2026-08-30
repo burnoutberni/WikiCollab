@@ -14,7 +14,7 @@
     "test:coverage": "NODE_OPTIONS=--no-experimental-webstorage vitest run --coverage"
   },
   "engines": {
-    "node": ">=22.22.2"
+    "node": ">=22.23.2"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
