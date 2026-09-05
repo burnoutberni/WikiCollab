@@ -183,6 +183,51 @@ describe('SplitPaneEditor', () => {
     expect(document.querySelector('.mw-preview-container')).toHaveClass('opacity-45');
   });
 
+  it('shows inline badge instead of overlay when preview already has content', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ html: '<p>Existing content</p>' }),
+      } as Response)
+      .mockReturnValueOnce(new Promise<Response>(() => {}));
+
+    const { rerenderWithProviders } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    await vi.waitFor(() => {
+      expect(getPreviewShadowRoot().textContent).toContain('Existing content');
+    });
+
+    rerenderWithProviders(
+      <SplitPaneEditor {...defaultProps} previewBusy previewLoadingLabel="Updating..." />
+    );
+
+    const statusEl = screen.getByRole('status');
+    expect(statusEl).toHaveTextContent('Updating...');
+    expect(document.querySelector('.mw-preview-container')).not.toHaveClass('opacity-45');
+    expect(document.querySelector('.mw-preview-container')).not.toHaveClass('pointer-events-none');
+  });
+
+  it('preview remains interactive during re-render badge', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ html: '<p>Preview text</p>' }),
+      } as Response)
+      .mockReturnValueOnce(new Promise<Response>(() => {}));
+
+    const { rerenderWithProviders } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    await vi.waitFor(() => {
+      expect(getPreviewShadowRoot().textContent).toContain('Preview text');
+    });
+
+    rerenderWithProviders(<SplitPaneEditor {...defaultProps} previewBusy />);
+
+    expect(document.querySelector('.mw-preview-container')).not.toHaveClass('pointer-events-none');
+  });
+
   it('aborts stalled HTTP preview requests and clears loading', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.mocked(global.fetch);
@@ -682,7 +727,7 @@ describe('SplitPaneEditor', () => {
     });
   });
 
-  it('debounces non-Yjs preview refreshes while typing', async () => {
+  it('refreshes immediately once while typing and once after typing pauses', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -699,15 +744,21 @@ describe('SplitPaneEditor', () => {
     rerenderWithProviders(<SplitPaneEditor {...defaultProps} content="Hello wikitext!" />);
     rerenderWithProviders(<SplitPaneEditor {...defaultProps} content="Hello wikitext!!" />);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1]?.body).toBe(
+      JSON.stringify({ wikitext: 'Hello wikitext!', page: null })
+    );
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
 
     await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
+    expect(fetchMock.mock.calls[2][1]?.body).toBe(
+      JSON.stringify({ wikitext: 'Hello wikitext!!', page: null })
+    );
 
     vi.useRealTimers();
   });
