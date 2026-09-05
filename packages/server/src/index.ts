@@ -3,6 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
+import { logger } from './logging.js';
 import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import docsRoutes from './routes/docs.js';
@@ -12,12 +13,42 @@ import { getAllowedOrigins } from './ws/origin.js';
 const app = new Hono();
 
 app.onError((err, c) => {
-  console.error(`[ERROR] ${c.req.method} ${c.req.path}:`, err);
+  const getCtx = c.get as unknown as (key: string) => unknown;
+  const requestId = getCtx('requestId') as string | undefined;
+  logger.error(
+    {
+      requestId,
+      method: c.req.method,
+      path: c.req.path,
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    },
+    'Unhandled error'
+  );
   return c.json({ error: 'Internal server error' }, 500);
 });
 
 app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404);
+});
+
+app.use('*', async (c, next) => {
+  const requestId = crypto.randomUUID();
+  const setCtx = c.set as unknown as (key: string, value: unknown) => void;
+  setCtx('requestId', requestId);
+  const start = Date.now();
+  await next();
+  const getCtx = c.get as unknown as (key: string) => unknown;
+  logger.info(
+    {
+      requestId: getCtx('requestId') as string,
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      duration: Date.now() - start,
+    },
+    'HTTP request'
+  );
 });
 
 // getAllowedOrigins() is evaluated once at startup; restart the server to apply CORS_ORIGINS changes.
@@ -54,9 +85,34 @@ const server = serve(
     port,
   },
   (info) => {
-    console.log(`Server running on http://localhost:${info.port}`);
-    console.log(`WebSocket available on ws://localhost:${info.port}/ws`);
+    logger.info({ port: info.port, version: process.env.APP_VERSION || '0.0.0' }, 'Server running');
+    logger.info({ port: info.port }, 'WebSocket available');
   }
 );
 
-setupWebSocket(server);
+const wss = setupWebSocket(server);
+
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down');
+  const shutdownDeadline = setTimeout(() => {
+    logger.warn('Shutdown deadline reached, force-closing remaining WebSocket clients');
+    wss.clients.forEach((client) => {
+      try {
+        client.terminate();
+      } catch {
+        /* ignore */
+      }
+    });
+  }, 5000);
+  wss.clients.forEach((client) => {
+    try {
+      client.close(1001, 'Server shutting down');
+    } catch {
+      /* ignore */
+    }
+  });
+  server.close(() => {
+    clearTimeout(shutdownDeadline);
+    logger.info('Server shut down');
+  });
+});

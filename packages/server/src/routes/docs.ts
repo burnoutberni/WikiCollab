@@ -6,6 +6,7 @@ import * as Y from 'yjs';
 
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
+import { logger } from '../logging.js';
 import { fetchMediaWikiCss } from '../mediawiki-css.js';
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
@@ -44,7 +45,10 @@ function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: str
 
   const promise = refreshDocumentMediaWikiCss(documentId, apiUrl)
     .catch((err) => {
-      console.error('Failed to refresh MediaWiki CSS:', err);
+      logger.error(
+        { docId: documentId, apiUrl, err: err.message },
+        'Failed to refresh MediaWiki CSS'
+      );
     })
     .finally(() => {
       const nextApiUrl = inFlightCssRefreshes.get(documentId)?.nextApiUrl;
@@ -203,7 +207,10 @@ docs.post('/:id/preview', async (c) => {
     const { html } = await generatePreview(wikitext, doc.mediawiki_instance_api_url, page, id);
     return c.json({ html, css: doc.mediawiki_instance_css });
   } catch (err) {
-    console.error('Preview generation failed:', err);
+    logger.error(
+      { docId: id, err: err instanceof Error ? err.message : String(err) },
+      'Preview generation failed'
+    );
     return c.json({
       html: '<p class="text-red-500">Failed to generate preview</p>',
       css: doc.mediawiki_instance_css,
@@ -250,7 +257,10 @@ docs.post('/:id/versions/:v/restore', (c) => {
     doc.destroy();
     return c.json({ success: true, content });
   } catch (err) {
-    console.error('Failed to decode version for restore:', err);
+    logger.error(
+      { docId: id, err: err instanceof Error ? err.message : String(err) },
+      'Failed to decode version for restore'
+    );
     return c.json({ success: true, content: '' });
   }
 });
@@ -297,7 +307,10 @@ docs.get('/:id/versions/:v/preview', (c) => {
     doc.destroy();
     return c.json({ content });
   } catch (error) {
-    console.error('Failed to decode version for preview:', error);
+    logger.error(
+      { versionId: vId, err: error instanceof Error ? error.message : String(error) },
+      'Failed to decode version for preview'
+    );
     return c.json({ content: '' });
   }
 });

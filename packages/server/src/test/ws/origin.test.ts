@@ -1,6 +1,7 @@
 import type { IncomingMessage } from 'http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { logger } from '../../logging.js';
 import {
   createOriginValidator,
   getAllowedOrigins,
@@ -129,7 +130,7 @@ describe('WebSocket origin validation', () => {
     });
 
     it('logs rejected connections', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
       const validator = createOriginValidator();
       const cb = vi.fn();
       const req = mockReq('/ws/doc-123');
@@ -137,15 +138,18 @@ describe('WebSocket origin validation', () => {
       validator({ origin: 'https://attacker.com', req, secure: true }, cb);
 
       expect(warnSpy).toHaveBeenCalledOnce();
-      expect(warnSpy.mock.calls[0][0]).toContain('[WS REJECTED]');
-      expect(warnSpy.mock.calls[0][0]).toContain('origin=https://attacker.com');
-      expect(warnSpy.mock.calls[0][0]).toContain('url=/ws/doc-123');
+      expect(warnSpy.mock.calls[0][0]).toMatchObject({
+        origin: 'https://attacker.com',
+        clientIp: '127.0.0.1',
+        url: '/ws/doc-123',
+      });
+      expect(warnSpy.mock.calls[0][1]).toContain('[WS REJECTED]');
 
       warnSpy.mockRestore();
     });
 
     it('logs the resolved client IP', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
       const req = {
         url: '/ws',
         headers: { 'x-forwarded-for': '10.0.0.1' },
@@ -154,7 +158,7 @@ describe('WebSocket origin validation', () => {
 
       logRejectedOrigin(req, 'https://attacker.com');
 
-      expect(warnSpy.mock.calls[0][0]).toContain('172.16.0.1');
+      expect(warnSpy.mock.calls[0][0]).toMatchObject({ clientIp: '172.16.0.1' });
       warnSpy.mockRestore();
     });
   });

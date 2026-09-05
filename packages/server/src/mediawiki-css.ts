@@ -1,5 +1,6 @@
 import { serverFetch, SsrfError } from 'server-fetch';
 
+import { logger } from './logging.js';
 import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
 
 const MAX_MEDIAWIKI_CSS_BYTES = 500_000;
@@ -75,25 +76,28 @@ async function readCssResponse(
   context: string
 ): Promise<string | null> {
   if (response.ok === false) {
-    console.warn(`MediaWiki ${context} CSS returned HTTP ${response.status || 'error'}`);
+    logger.warn({ context, status: response.status }, 'MediaWiki CSS returned HTTP error');
     return null;
   }
 
   const contentType = response.headers?.get?.('content-type')?.toLowerCase() || '';
   if (contentType && !/(^|;)\s*(text\/css|text\/plain|application\/x-css)\b/.test(contentType)) {
-    console.warn(`MediaWiki ${context} CSS returned unexpected content type ${contentType}`);
+    logger.warn({ context, contentType }, 'MediaWiki CSS returned unexpected content type');
     return null;
   }
 
   const declaredLength = Number(response.headers?.get?.('content-length') ?? '');
   if (Number.isFinite(declaredLength) && declaredLength > MAX_MEDIAWIKI_CSS_BYTES) {
-    console.warn(`MediaWiki ${context} CSS declared ${declaredLength} bytes; rejecting`);
+    logger.warn({ context, declaredLength }, 'MediaWiki CSS declared too many bytes');
     return null;
   }
 
   const css = await response.text();
   if (css.length > MAX_MEDIAWIKI_CSS_BYTES) {
-    console.warn(`MediaWiki ${context} CSS exceeded ${MAX_MEDIAWIKI_CSS_BYTES} bytes; truncating`);
+    logger.warn(
+      { context, cssLength: css.length, maxBytes: MAX_MEDIAWIKI_CSS_BYTES },
+      'MediaWiki CSS exceeded max bytes'
+    );
   }
   return sanitizeCss(css);
 }
@@ -133,7 +137,10 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
       if (css?.trim()) cssParts.push(`/* ResourceLoader: ${skinCode} */\n${css}`);
     } catch (err) {
       if (err instanceof SsrfError) throw err;
-      console.error('Failed to fetch ResourceLoader CSS:', err);
+      logger.error(
+        { err: err instanceof Error ? err : new Error(String(err)) },
+        'Failed to fetch ResourceLoader CSS'
+      );
     }
 
     for (const page of ['MediaWiki:Common.css', `MediaWiki:${skinCode}.css`]) {
@@ -156,22 +163,31 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
         if (content) cssParts.push(`/* ${page} */\n${sanitizeCss(content)}`);
       } catch (err) {
         if (err instanceof SsrfError) throw err;
-        console.error(`Failed to fetch CSS page ${page}:`, err);
+        logger.error(
+          { page, err: err instanceof Error ? err : new Error(String(err)) },
+          `Failed to fetch CSS page ${page}`
+        );
       }
     }
 
     if (cssParts.length === 0) return null;
     const combined = cssParts.join('\n\n');
     if (combined.length > MAX_MEDIAWIKI_CSS_BYTES) {
-      console.warn(`Combined MediaWiki CSS exceeded ${MAX_MEDIAWIKI_CSS_BYTES} bytes; truncating`);
+      logger.warn(
+        { combinedLength: combined.length, maxBytes: MAX_MEDIAWIKI_CSS_BYTES },
+        'Combined MediaWiki CSS exceeded max bytes'
+      );
       return combined.slice(0, MAX_MEDIAWIKI_CSS_BYTES);
     }
     return combined;
   } catch (err) {
     if (err instanceof SsrfError) {
-      console.error(`SSRF blocked: ${err.url}`);
+      logger.error({ url: err.url }, 'SSRF blocked fetching CSS');
     } else {
-      console.error('Failed to fetch CSS from MediaWiki:', err);
+      logger.error(
+        { err: err instanceof Error ? err : new Error(String(err)) },
+        'Failed to fetch CSS from MediaWiki'
+      );
     }
     return null;
   }

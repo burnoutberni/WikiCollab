@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { mkdirSync } from 'fs';
 import { dirname } from 'path';
 
+import { logger } from '../logging.js';
 import * as schema from './schema.js';
 
 const dbPath = process.env.DATABASE_PATH || 'wikicollab.db';
@@ -40,7 +41,14 @@ try {
   sqlite.exec(`ALTER TABLE document_revisions ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`);
 } catch (err: unknown) {
   if (!String((err as Error)?.message).includes('duplicate column')) {
-    console.error('Migration failed (document_revisions.starred):', err);
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error(
+      {
+        migration: 'document_revisions.starred',
+        err: error,
+      },
+      'Migration failed'
+    );
   }
 }
 
@@ -54,7 +62,8 @@ for (const [column, definition] of [
     sqlite.exec(`ALTER TABLE documents ADD COLUMN ${column} ${definition}`);
   } catch (err: unknown) {
     if (!String((err as Error)?.message).includes('duplicate column')) {
-      console.error(`Migration failed (documents.${column}):`, err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error({ migration: `documents.${column}`, err: error }, 'Migration failed');
     }
   }
 }
@@ -64,7 +73,14 @@ try {
   sqlite.exec(`ALTER TABLE documents ADD COLUMN restored_version_id TEXT`);
 } catch (err: unknown) {
   if (!String((err as Error)?.message).includes('duplicate column')) {
-    console.error('Migration failed (documents.restored_version_id):', err);
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error(
+      {
+        migration: 'documents.restored_version_id',
+        err: error,
+      },
+      'Migration failed'
+    );
   }
 }
 
@@ -73,7 +89,8 @@ try {
   sqlite.exec(`ALTER TABLE documents ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'`);
 } catch (err: unknown) {
   if (!String((err as Error)?.message).includes('duplicate column')) {
-    console.error('Migration failed (documents.visibility):', err);
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error({ migration: 'documents.visibility', err: error }, 'Migration failed');
   }
 }
 
