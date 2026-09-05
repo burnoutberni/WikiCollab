@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import sanitizeHtml from 'sanitize-html';
 import { serverFetch, SsrfError } from 'server-fetch';
 
+import { logger } from './logging.js';
 import { mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';
 
 const REMOTE_PREVIEW_CACHE_TTL_MS = 30_000;
@@ -343,7 +344,10 @@ async function fetchRemotePreview(
     })
     .catch((err): RemotePreviewResult => {
       if (err instanceof SsrfError) throw err;
-      console.warn('MediaWiki preview request failed; treating instance as broken.', err);
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'MediaWiki preview request failed; treating instance as broken'
+      );
       return { status: 'broken' };
     });
 
@@ -412,11 +416,11 @@ export async function generatePreview(
       }
     } catch (err) {
       if (err instanceof SsrfError) {
-        console.error(`SSRF blocked: ${err.url}`);
+        logger.error({ url: err.url }, 'SSRF blocked in preview');
       } else {
-        console.warn(
-          'MediaWiki preview request failed; falling back because instance appears broken.',
-          err
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          'MediaWiki preview request failed; falling back because instance appears broken'
         );
       }
     }

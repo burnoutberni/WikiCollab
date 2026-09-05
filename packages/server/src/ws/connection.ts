@@ -11,6 +11,7 @@ import * as Y from 'yjs';
 
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
+import { logger } from '../logging.js';
 import { generatePreview } from '../preview.js';
 import { setVersionStarred } from '../services/versions.js';
 import { envInt } from '../utils/env.js';
@@ -235,7 +236,10 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
               responseBase.requestIds = JSON.stringify(pendingRequestIds);
             broadcastCustom(doc, encodeInnerPayload('preview_update', { ...responseBase, html }));
           } catch (err) {
-            console.error('WS preview generation failed:', err);
+            logger.error(
+              { docName: doc.name, err: err instanceof Error ? err.message : String(err) },
+              'WS preview generation failed'
+            );
             for (const responseBase of responseBases) {
               broadcastCustom(doc, encodeInnerPayload('preview_error', responseBase));
             }
@@ -275,7 +279,10 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
       }
     }
   } catch (err) {
-    console.error(err);
+    logger.error(
+      { docName: doc.name, err: err instanceof Error ? err.message : String(err) },
+      'WS message parsing failed'
+    );
   }
 }
 
@@ -463,7 +470,7 @@ export function setupWebSocket(server: ServerType) {
       });
 
       setupWSConnection(ws, req, { docName }).catch((err) => {
-        console.error('WS setup failed:', err);
+        logger.error({ err: err.message }, 'WS setup failed');
         try {
           ws.close(1011, 'Internal server error');
         } catch {

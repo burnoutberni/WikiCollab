@@ -1,3 +1,5 @@
+import { logger } from './logging.js';
+
 const MEDIAWIKI_CONTACT =
   process.env.APP_CONTACT_URL || 'https://github.com/burnoutberni/WikiCollab';
 export const MEDIAWIKI_USER_AGENT = `WikiCollab/${process.env.APP_VERSION || 'dev'} (MediaWiki preview; ${MEDIAWIKI_CONTACT})`;
@@ -49,8 +51,9 @@ export async function readMediaWikiJsonResult<T>(
     const body = await response.text().catch(() => '');
     const bodySnippet = body.slice(0, 120);
     const rateLimited = isRateLimitResponse(response.status, body);
-    console.warn(
-      `MediaWiki ${context} returned HTTP ${response.status || 'error'}${rateLimited ? ' rate limit' : ''}.${bodySnippet ? ` Body: ${bodySnippet}` : ''}`
+    logger.warn(
+      { context, status: response.status, rateLimited, bodySnippet },
+      'MediaWiki request failed'
     );
     return {
       data: null,
@@ -68,9 +71,7 @@ export async function readMediaWikiJsonResult<T>(
     const body = await response.text().catch(() => '');
     const bodySnippet = body.slice(0, 120);
     const rateLimited = isRateLimitResponse(response.status, body);
-    console.warn(
-      `MediaWiki ${context} returned ${contentType || 'non-JSON'}${rateLimited ? ' rate limit' : ''}.${bodySnippet ? ` Body: ${bodySnippet}` : ''}`
-    );
+    logger.warn({ context, contentType, rateLimited, bodySnippet }, 'MediaWiki returned non-JSON');
     return {
       data: null,
       rateLimited,
@@ -85,8 +86,9 @@ export async function readMediaWikiJsonResult<T>(
   try {
     return { data: (await response.json()) as T, rateLimited: false, status: response.status };
   } catch (err) {
-    console.warn(
-      `MediaWiki ${context} response was not valid JSON.${err instanceof Error ? ` ${err.message}` : ''}`
+    logger.warn(
+      { context, err: err instanceof Error ? err.message : String(err) },
+      'MediaWiki response was not valid JSON'
     );
     return { data: null, rateLimited: false, status: response.status };
   }

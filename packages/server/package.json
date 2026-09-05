@@ -24,6 +24,7 @@
     "hono": "^4.13.7",
     "lib0": "^0.2.117",
     "nanoid": "^6.0.1",
+    "pino": "^10.3.1",
     "sanitize-html": "^2.17.7",
     "server-fetch": "^1.0.10",
     "shared": "workspace:*",
