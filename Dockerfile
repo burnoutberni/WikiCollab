@@ -43,6 +43,11 @@ COPY --from=base /app/packages/client/dist ./packages/client/dist
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV APP_VERSION=$VERSION
+ENV DATABASE_PATH=/app/data/wikicollab.db
+
+RUN mkdir -p /app/data && chown node:node /app/data
+
+USER node
 
 EXPOSE 3000
 
