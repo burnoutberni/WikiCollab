@@ -2,28 +2,36 @@ import '@testing-library/jest-dom/vitest';
 
 import { vi } from 'vitest';
 
-// Node.js v26 declares `globalThis.localStorage` as undefined (requires --localstorage-file),
-// which prevents vitest's jsdom environment from populating it from the jsdom window.
+const createStorageMock = (): Storage => {
+  let store = new Map<string, string>();
+
+  return {
+    clear: () => {
+      store = new Map();
+    },
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size;
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, String(value));
+    },
+  };
+};
+
+// Node.js v26 owns `globalThis.localStorage`, so install a test storage explicitly.
+const localStorageMock = createStorageMock();
 Object.defineProperty(window, 'localStorage', {
-  value: (() => {
-    let store: Record<string, string> = {};
-    return {
-      getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, value: string) => {
-        store[key] = String(value);
-      },
-      removeItem: (key: string) => {
-        delete store[key];
-      },
-      clear: () => {
-        store = {};
-      },
-      get length() {
-        return Object.keys(store).length;
-      },
-      key: (index: number) => Object.keys(store)[index] ?? null,
-    };
-  })(),
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+});
+Object.defineProperty(globalThis, 'localStorage', {
+  value: localStorageMock,
   writable: true,
   configurable: true,
 });
