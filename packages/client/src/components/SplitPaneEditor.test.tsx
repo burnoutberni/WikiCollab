@@ -217,13 +217,13 @@ describe('SplitPaneEditor', () => {
       } as Response)
       .mockReturnValueOnce(new Promise<Response>(() => {}));
 
-    renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+    const { rerenderWithProviders } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
 
     await vi.waitFor(() => {
       expect(getPreviewShadowRoot().textContent).toContain('Preview text');
     });
 
-    renderWithProviders(<SplitPaneEditor {...defaultProps} previewBusy />);
+    rerenderWithProviders(<SplitPaneEditor {...defaultProps} previewBusy />);
 
     expect(document.querySelector('.mw-preview-container')).not.toHaveClass('pointer-events-none');
   });
