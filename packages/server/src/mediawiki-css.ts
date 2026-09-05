@@ -138,7 +138,7 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
     } catch (err) {
       if (err instanceof SsrfError) throw err;
       logger.error(
-        { err: err instanceof Error ? err.message : String(err) },
+        { err: err instanceof Error ? err : new Error(String(err)) },
         'Failed to fetch ResourceLoader CSS'
       );
     }
@@ -164,7 +164,7 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
       } catch (err) {
         if (err instanceof SsrfError) throw err;
         logger.error(
-          { page, err: err instanceof Error ? err.message : String(err) },
+          { page, err: err instanceof Error ? err : new Error(String(err)) },
           `Failed to fetch CSS page ${page}`
         );
       }
@@ -185,7 +185,7 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
       logger.error({ url: err.url }, 'SSRF blocked fetching CSS');
     } else {
       logger.error(
-        { err: err instanceof Error ? err.message : String(err) },
+        { err: err instanceof Error ? err : new Error(String(err)) },
         'Failed to fetch CSS from MediaWiki'
       );
     }

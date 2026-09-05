@@ -138,9 +138,12 @@ describe('WebSocket origin validation', () => {
       validator({ origin: 'https://attacker.com', req, secure: true }, cb);
 
       expect(warnSpy).toHaveBeenCalledOnce();
-      expect(warnSpy.mock.calls[0][0]).toContain('[WS REJECTED]');
-      expect(warnSpy.mock.calls[0][0]).toContain('origin=https://attacker.com');
-      expect(warnSpy.mock.calls[0][0]).toContain('url=/ws/doc-123');
+      expect(warnSpy.mock.calls[0][0]).toMatchObject({
+        origin: 'https://attacker.com',
+        clientIp: '127.0.0.1',
+        url: '/ws/doc-123',
+      });
+      expect(warnSpy.mock.calls[0][1]).toContain('[WS REJECTED]');
 
       warnSpy.mockRestore();
     });
@@ -155,7 +158,7 @@ describe('WebSocket origin validation', () => {
 
       logRejectedOrigin(req, 'https://attacker.com');
 
-      expect(warnSpy.mock.calls[0][0]).toContain('172.16.0.1');
+      expect(warnSpy.mock.calls[0][0]).toMatchObject({ clientIp: '172.16.0.1' });
       warnSpy.mockRestore();
     });
   });

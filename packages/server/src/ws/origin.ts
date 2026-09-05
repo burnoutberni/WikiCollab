@@ -44,7 +44,7 @@ export function logRejectedOrigin(req: IncomingMessage, origin: string | undefin
   const realIp = Array.isArray(ri) ? ri[0] : ri;
   const connectionIp = req.socket.remoteAddress;
   const clientIp = getClientIp(forwardedFor, realIp, connectionIp);
-  logger.warn(`[WS REJECTED] origin=${origin ?? 'none'} ip=${clientIp} url=${req.url}`);
+  logger.warn({ origin: origin ?? 'none', clientIp, url: req.url }, '[WS REJECTED]');
 }
 
 /** Creates the `ws` verifyClient callback used to reject unexpected browser origins. */

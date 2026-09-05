@@ -41,10 +41,11 @@ try {
   sqlite.exec(`ALTER TABLE document_revisions ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`);
 } catch (err: unknown) {
   if (!String((err as Error)?.message).includes('duplicate column')) {
+    const error = err instanceof Error ? err : new Error(String(err));
     logger.error(
       {
         migration: 'document_revisions.starred',
-        err: err instanceof Error ? err.message : String(err),
+        err: error,
       },
       'Migration failed'
     );
@@ -61,10 +62,8 @@ for (const [column, definition] of [
     sqlite.exec(`ALTER TABLE documents ADD COLUMN ${column} ${definition}`);
   } catch (err: unknown) {
     if (!String((err as Error)?.message).includes('duplicate column')) {
-      logger.error(
-        { migration: `documents.${column}`, err: err instanceof Error ? err.message : String(err) },
-        'Migration failed'
-      );
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error({ migration: `documents.${column}`, err: error }, 'Migration failed');
     }
   }
 }
@@ -74,10 +73,11 @@ try {
   sqlite.exec(`ALTER TABLE documents ADD COLUMN restored_version_id TEXT`);
 } catch (err: unknown) {
   if (!String((err as Error)?.message).includes('duplicate column')) {
+    const error = err instanceof Error ? err : new Error(String(err));
     logger.error(
       {
         migration: 'documents.restored_version_id',
-        err: err instanceof Error ? err.message : String(err),
+        err: error,
       },
       'Migration failed'
     );
@@ -89,10 +89,8 @@ try {
   sqlite.exec(`ALTER TABLE documents ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'`);
 } catch (err: unknown) {
   if (!String((err as Error)?.message).includes('duplicate column')) {
-    logger.error(
-      { migration: 'documents.visibility', err: err instanceof Error ? err.message : String(err) },
-      'Migration failed'
-    );
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error({ migration: 'documents.visibility', err: error }, 'Migration failed');
   }
 }
 
