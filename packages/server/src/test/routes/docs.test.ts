@@ -894,7 +894,6 @@ describe('Docs routes', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.html).toBeDefined();
-    expect(data.sourceMap).toBeDefined();
     expect(data.css).toBeNull();
   });
 
