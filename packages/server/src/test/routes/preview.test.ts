@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../../db/schema.js';
 import {
   generatePreview,
+  instrumentPreviewWikitext,
   resetRemotePreviewStateForTests,
   setRemotePreviewPendingJoinObserverForTests,
 } from '../../preview.js';
@@ -1094,6 +1095,214 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).toBe('');
+    });
+  });
+
+  describe('instrumentPreviewWikitext', () => {
+    it('returns source unchanged when no marker requests', () => {
+      const source = 'Hello world';
+      expect(instrumentPreviewWikitext(source)).toBe(source);
+      expect(instrumentPreviewWikitext(source, null)).toBe(source);
+      expect(instrumentPreviewWikitext(source, [])).toBe(source);
+    });
+
+    it('inserts caret marker at cursor position', () => {
+      const result = instrumentPreviewWikitext('Hello world', [
+        { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 5, head: 5 },
+      ]);
+      expect(result).toBe('Hello<span data-wc-marker="peer-1:caret"></span> world');
+    });
+
+    it('inserts start/end markers for selections', () => {
+      const result = instrumentPreviewWikitext('Hello world', [
+        { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 5 },
+      ]);
+      expect(result).toBe(
+        '<span data-wc-marker="peer-1:start"></span>Hello<span data-wc-marker="peer-1:end"></span> world'
+      );
+    });
+
+    it('normalizes reversed selections', () => {
+      const result = instrumentPreviewWikitext('Hello world', [
+        { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 5, head: 0 },
+      ]);
+      expect(result).toBe(
+        '<span data-wc-marker="peer-1:start"></span>Hello<span data-wc-marker="peer-1:end"></span> world'
+      );
+    });
+
+    it('clamps out-of-range offsets', () => {
+      const result = instrumentPreviewWikitext('abc', [
+        { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: -5, head: 99 },
+      ]);
+      expect(result).toBe(
+        '<span data-wc-marker="peer-1:start"></span>abc<span data-wc-marker="peer-1:end"></span>'
+      );
+    });
+
+    it('inserts template boundary markers when cursor intersects a template', () => {
+      const source = 'Hello {{template|param}} world';
+      const result = instrumentPreviewWikitext(source, [
+        { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 13, head: 15 },
+      ]);
+      expect(result).toContain('peer-1:start');
+      expect(result).toContain('peer-1:end');
+      expect(result).toContain('peer-1:template-start');
+      expect(result).toContain('peer-1:template-end');
+    });
+
+    it('ignores invalid marker ids', () => {
+      const result = instrumentPreviewWikitext('Hello', [
+        { id: '<script>', userName: 'X', color: '#FF0000', anchor: 0, head: 0 },
+      ]);
+      expect(result).toBe('Hello');
+    });
+
+    it('ignores invalid marker colors', () => {
+      const result = instrumentPreviewWikitext('Hello', [
+        { id: 'peer-1', userName: 'X', color: 'red', anchor: 0, head: 0 },
+      ]);
+      expect(result).toBe('Hello');
+    });
+
+    it('deduplicates marker ids', () => {
+      const result = instrumentPreviewWikitext('abc', [
+        { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 0 },
+        { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 3, head: 3 },
+      ]);
+      expect(result).toBe('<span data-wc-marker="peer-1:caret"></span>abc');
+      expect(result.split('peer-1:caret')).toHaveLength(2);
+    });
+
+    it('caps at 25 markers', () => {
+      const markers = Array.from({ length: 30 }, (_, i) => ({
+        id: `p${i}`,
+        userName: 'User',
+        color: '#FF0000',
+        anchor: 0,
+        head: 1,
+      }));
+      const result = instrumentPreviewWikitext('ab', markers);
+      const uniqueIds = new Set<string>();
+      for (const match of result.matchAll(/data-wc-marker="([^"]+)"/g)) {
+        uniqueIds.add(match[1].split(':')[0]);
+      }
+      expect(uniqueIds.size).toBe(25);
+    });
+
+    it('handles multiple peers in the same source', () => {
+      const result = instrumentPreviewWikitext('abcdef', [
+        { id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 1 },
+        { id: 'p2', userName: 'Bob', color: '#00FF00', anchor: 4, head: 6 },
+      ]);
+      expect(result).toContain('p1:start');
+      expect(result).toContain('p1:end');
+      expect(result).toContain('p2:start');
+      expect(result).toContain('p2:end');
+    });
+
+    it('truncates long user names', () => {
+      const result = instrumentPreviewWikitext('abc', [
+        {
+          id: 'peer-1',
+          userName: 'A'.repeat(200),
+          color: '#FF0000',
+          anchor: 0,
+          head: 0,
+        },
+      ]);
+      const markerEl = result.match(/data-wc-marker="peer-1:caret"/);
+      expect(markerEl).not.toBeNull();
+    });
+
+    it('preserves source text verbatim around markers', () => {
+      const source = 'Line 1\nLine 2\nLine 3';
+      const result = instrumentPreviewWikitext(source, [
+        { id: 'peer-1', userName: 'X', color: '#FF0000', anchor: 6, head: 6 },
+      ]);
+      expect(result).toBe('Line 1<span data-wc-marker="peer-1:caret"></span>\nLine 2\nLine 3');
+    });
+  });
+
+  describe('marker preservation through sanitization', () => {
+    it('preserves data-wc-marker on spans', async () => {
+      mockParser.toHtml.mockReturnValue('<p>Text<span data-wc-marker="p1:caret"></span>more</p>');
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('data-wc-marker="p1:caret"');
+      expect(data.html).toContain('<span');
+    });
+
+    it('strips arbitrary data-* attributes from non-marker elements', async () => {
+      mockParser.toHtml.mockReturnValue('<div data-evil="payload">Content</div>');
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).not.toContain('data-evil');
+      expect(data.html).toContain('Content');
+    });
+
+    it('strips script tags from marker-containing HTML', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<p>Hello<span data-wc-marker="p1:caret"></span></p><script>alert(1)</script>'
+      );
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('data-wc-marker');
+      expect(data.html).not.toContain('<script>');
+    });
+  });
+
+  describe('preview with marker requests via HTTP', () => {
+    it('passes markers to generatePreview', async () => {
+      mockParser.toHtml.mockReturnValue('<p>Hello</p>');
+
+      const markers = [{ id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 3, head: 5 }];
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wikitext: 'Hello',
+          markerRequests: JSON.stringify(markers),
+        }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('<p>');
+    });
+
+    it('ignores malformed markerRequests JSON gracefully', async () => {
+      mockParser.toHtml.mockReturnValue('<p>Hello</p>');
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wikitext: 'Hello',
+          markerRequests: 'not-json',
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.html).toBeDefined();
     });
   });
 });

@@ -220,6 +220,7 @@ function sanitize(html: string, allowStyleTags = false): string {
       col: ['span', 'width'],
       colgroup: ['span'],
       div: ['data-mw-fallback'],
+      span: ['data-wc-marker'],
       ol: ['start', 'type', 'reversed'],
       li: ['value'],
       style: ['data-mw-deduplicate'],
@@ -250,6 +251,110 @@ function sanitize(html: string, allowStyleTags = false): string {
 /** Preview payload returned to HTTP and WebSocket callers. */
 export interface PreviewResult {
   html: string;
+}
+
+export interface PreviewMarkerRequest {
+  id: string;
+  userName: string;
+  color: string;
+  anchor: number;
+  head: number;
+}
+
+const markerIdPattern = /^[a-zA-Z0-9_-]{1,80}$/;
+const markerColorPattern = /^#[0-9a-fA-F]{3,8}$/;
+
+function markerSpan(value: string): string {
+  return `<span data-wc-marker="${value}"></span>`;
+}
+
+function normalizeMarkerRequests(
+  markerRequests?: PreviewMarkerRequest[] | null,
+  sourceLength = 0
+): PreviewMarkerRequest[] {
+  if (!markerRequests?.length) return [];
+  const seen = new Set<string>();
+  const normalized: PreviewMarkerRequest[] = [];
+  for (const marker of markerRequests.slice(0, 25)) {
+    if (!markerIdPattern.test(marker.id) || seen.has(marker.id)) continue;
+    if (!markerColorPattern.test(marker.color)) continue;
+    const anchor = Math.max(0, Math.min(sourceLength, Math.trunc(marker.anchor)));
+    const head = Math.max(0, Math.min(sourceLength, Math.trunc(marker.head)));
+    normalized.push({
+      id: marker.id,
+      userName: marker.userName.slice(0, 80),
+      color: marker.color,
+      anchor,
+      head,
+    });
+    seen.add(marker.id);
+  }
+  return normalized;
+}
+
+function findTemplateRange(
+  source: string,
+  start: number,
+  end: number
+): { start: number; end: number } | null {
+  let open = -1;
+  let depth = 0;
+  for (let i = 0; i < source.length - 1; i++) {
+    const pair = source.slice(i, i + 2);
+    if (pair === '{{') {
+      if (depth === 0) open = i;
+      depth++;
+      i++;
+    } else if (pair === '}}' && depth > 0) {
+      depth--;
+      const close = i + 2;
+      if (depth === 0 && open !== -1) {
+        if (Math.max(start, open) <= Math.min(end, close)) return { start: open, end: close };
+        open = -1;
+      }
+      i++;
+    }
+  }
+  return null;
+}
+
+export function instrumentPreviewWikitext(
+  source: string,
+  markerRequests?: PreviewMarkerRequest[] | null
+): string {
+  const markers = normalizeMarkerRequests(markerRequests, source.length);
+  if (!markers.length) return source;
+
+  const insertions = new Map<number, string[]>();
+  const addInsertion = (offset: number, html: string) => {
+    const values = insertions.get(offset) || [];
+    values.push(html);
+    insertions.set(offset, values);
+  };
+
+  for (const marker of markers) {
+    const start = Math.min(marker.anchor, marker.head);
+    const end = Math.max(marker.anchor, marker.head);
+    if (start === end) {
+      addInsertion(start, markerSpan(`${marker.id}:caret`));
+    } else {
+      addInsertion(start, markerSpan(`${marker.id}:start`));
+      addInsertion(end, markerSpan(`${marker.id}:end`));
+    }
+    const templateRange = findTemplateRange(source, start, end);
+    if (templateRange) {
+      addInsertion(templateRange.start, markerSpan(`${marker.id}:template-start`));
+      addInsertion(templateRange.end, markerSpan(`${marker.id}:template-end`));
+    }
+  }
+
+  let instrumented = '';
+  for (let index = 0; index <= source.length; index++) {
+    const values = insertions.get(index);
+    if (values) instrumented += values.join('');
+    if (index < source.length) instrumented += source[index];
+  }
+  return instrumented;
 }
 
 async function fetchRemotePreview(
@@ -393,13 +498,15 @@ export async function generatePreview(
   wikitext?: string | null,
   api_url?: string | null,
   page?: string | null,
-  documentId?: string | null
+  documentId?: string | null,
+  markerRequests?: PreviewMarkerRequest[] | null
 ): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
+  const previewWikitext = instrumentPreviewWikitext(wikitext || '', markerRequests);
 
   if (api_url) {
     try {
-      const remotePreview = await fetchRemotePreview(api_url, wikitext || '', page, documentId);
+      const remotePreview = await fetchRemotePreview(api_url, previewWikitext, page, documentId);
       if ('html' in remotePreview && remotePreview.html) {
         return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true) };
       }
@@ -422,6 +529,6 @@ export async function generatePreview(
     }
   }
 
-  const html = Parser.toHtml(wikitext || '', false, undefined, page || undefined);
+  const html = Parser.toHtml(previewWikitext, false, undefined, page || undefined);
   return { html: sanitize(stripStyleBlocks(html)) };
 }
