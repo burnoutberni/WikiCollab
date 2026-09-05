@@ -1,6 +1,7 @@
 import type { IncomingMessage } from 'http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { logger } from '../../logging.js';
 import {
   createOriginValidator,
   getAllowedOrigins,
@@ -129,7 +130,7 @@ describe('WebSocket origin validation', () => {
     });
 
     it('logs rejected connections', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
       const validator = createOriginValidator();
       const cb = vi.fn();
       const req = mockReq('/ws/doc-123');
@@ -145,7 +146,7 @@ describe('WebSocket origin validation', () => {
     });
 
     it('logs the resolved client IP', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
       const req = {
         url: '/ws',
         headers: { 'x-forwarded-for': '10.0.0.1' },
