@@ -1094,7 +1094,6 @@ describe('Preview route sanitization', () => {
       const data = await res.json();
 
       expect(data.html).toBe('');
-      expect(data.sourceMap).toEqual([]);
     });
   });
 });

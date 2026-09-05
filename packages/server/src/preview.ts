@@ -1,14 +1,8 @@
 import { createHash } from 'crypto';
 import sanitizeHtml from 'sanitize-html';
 import { serverFetch, SsrfError } from 'server-fetch';
-import type wikiparser from 'wikiparser-node';
 
 import { mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';
-
-interface SourceMapEntry {
-  sourceLine: number;
-  blockIndex: number;
-}
 
 const REMOTE_PREVIEW_CACHE_TTL_MS = 30_000;
 const REMOTE_PREVIEW_THROTTLE_MS = 1_500;
@@ -253,34 +247,9 @@ function sanitize(html: string, allowStyleTags = false): string {
   });
 }
 
-type ParserRoot = Awaited<ReturnType<typeof wikiparser.default.parse>>;
-
-/** Maps rendered parser blocks back to source lines, skipping empty or zero-height nodes. */
-function generateSourceMap(root: ParserRoot): SourceMapEntry[] {
-  const sourceMap: SourceMapEntry[] = [];
-  let blockIndex = 0;
-
-  for (const child of root.childNodes) {
-    if (child.type === 'text') {
-      const text = child.toString().trim();
-      if (!text) continue;
-    }
-    const rect = child.getBoundingClientRect();
-    if (rect.height === 0) continue;
-    sourceMap.push({
-      sourceLine: rect.top,
-      blockIndex,
-    });
-    blockIndex++;
-  }
-
-  return sourceMap;
-}
-
 /** Preview payload returned to HTTP and WebSocket callers. */
 export interface PreviewResult {
   html: string;
-  sourceMap: SourceMapEntry[];
 }
 
 async function fetchRemotePreview(
@@ -427,21 +396,18 @@ export async function generatePreview(
   documentId?: string | null
 ): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
-  const root = Parser.parse(wikitext || '', page || 'API');
-  const sourceMap = generateSourceMap(root);
 
   if (api_url) {
     try {
       const remotePreview = await fetchRemotePreview(api_url, wikitext || '', page, documentId);
       if ('html' in remotePreview && remotePreview.html) {
-        return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true), sourceMap };
+        return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true) };
       }
       if (remotePreview.status === 'rate_limited') {
         return {
           html: sanitize(
             '<div class="mw-preview-status">Remote wiki preview is temporarily rate limited. Waiting before retrying...</div>'
           ),
-          sourceMap,
         };
       }
     } catch (err) {
@@ -457,5 +423,5 @@ export async function generatePreview(
   }
 
   const html = Parser.toHtml(wikitext || '', false, undefined, page || undefined);
-  return { html: sanitize(stripStyleBlocks(html)), sourceMap };
+  return { html: sanitize(stripStyleBlocks(html)) };
 }

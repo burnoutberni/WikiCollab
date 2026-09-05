@@ -200,18 +200,12 @@ docs.post('/:id/preview', async (c) => {
   }
 
   try {
-    const { html, sourceMap } = await generatePreview(
-      wikitext,
-      doc.mediawiki_instance_api_url,
-      page,
-      id
-    );
-    return c.json({ html, sourceMap, css: doc.mediawiki_instance_css });
+    const { html } = await generatePreview(wikitext, doc.mediawiki_instance_api_url, page, id);
+    return c.json({ html, css: doc.mediawiki_instance_css });
   } catch (err) {
     console.error('Preview generation failed:', err);
     return c.json({
       html: '<p class="text-red-500">Failed to generate preview</p>',
-      sourceMap: [],
       css: doc.mediawiki_instance_css,
     });
   }
