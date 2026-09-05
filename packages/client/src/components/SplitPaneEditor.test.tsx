@@ -183,6 +183,51 @@ describe('SplitPaneEditor', () => {
     expect(document.querySelector('.mw-preview-container')).toHaveClass('opacity-45');
   });
 
+  it('shows inline badge instead of overlay when preview already has content', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ html: '<p>Existing content</p>' }),
+      } as Response)
+      .mockReturnValueOnce(new Promise<Response>(() => {}));
+
+    const { rerenderWithProviders } = renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    await vi.waitFor(() => {
+      expect(getPreviewShadowRoot().textContent).toContain('Existing content');
+    });
+
+    rerenderWithProviders(
+      <SplitPaneEditor {...defaultProps} previewBusy previewLoadingLabel="Updating..." />
+    );
+
+    const statusEl = screen.getByRole('status');
+    expect(statusEl).toHaveTextContent('Updating...');
+    expect(document.querySelector('.mw-preview-container')).not.toHaveClass('opacity-45');
+    expect(document.querySelector('.mw-preview-container')).not.toHaveClass('pointer-events-none');
+  });
+
+  it('preview remains interactive during re-render badge', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ html: '<p>Preview text</p>' }),
+      } as Response)
+      .mockReturnValueOnce(new Promise<Response>(() => {}));
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} />);
+
+    await vi.waitFor(() => {
+      expect(getPreviewShadowRoot().textContent).toContain('Preview text');
+    });
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} previewBusy />);
+
+    expect(document.querySelector('.mw-preview-container')).not.toHaveClass('pointer-events-none');
+  });
+
   it('aborts stalled HTTP preview requests and clears loading', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.mocked(global.fetch);

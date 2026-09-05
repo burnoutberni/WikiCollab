@@ -102,6 +102,7 @@ export function SplitPaneEditor({
   const previewCss = instanceCss ? `${defaultCss}\n${instanceCss}` : defaultCss;
   const previewBusy = loading || externalPreviewBusy;
   const previewBusyLabel = previewLoadingLabel || 'Rendering preview...';
+  const isInitialSetup = previewBusy && !previewHtml;
 
   const sanitizePreviewHtml = useCallback(
     (html: string) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
@@ -313,14 +314,29 @@ export function SplitPaneEditor({
     setLinkModalUrl(href);
   }, []);
 
-  const previewLoadingOverlay = previewBusy ? (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
-      <LoadingSpinner
-        label={previewBusyLabel}
-        className="rounded-md border bg-background/95 px-4 py-3 shadow-sm"
-      />
-    </div>
-  ) : null;
+  const previewSetupOverlay =
+    previewBusy && isInitialSetup ? (
+      <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
+        <LoadingSpinner
+          label={previewBusyLabel}
+          className="rounded-md border bg-background/95 px-4 py-3 shadow-sm"
+        />
+      </div>
+    ) : null;
+
+  const previewBusyBadge =
+    previewBusy && !isInitialSetup ? (
+      <div className="absolute bottom-3 left-3 z-20">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-2 rounded-md border bg-background/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur-sm"
+        >
+          <div className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-muted-foreground/30 border-t-foreground" />
+          <span>{previewBusyLabel}</span>
+        </div>
+      </div>
+    ) : null;
 
   if (isMobile) {
     return (
@@ -344,11 +360,12 @@ export function SplitPaneEditor({
                 <PreviewContent
                   css={previewCss}
                   html={previewHtml}
-                  className={`mw-preview-container p-4 transition-opacity ${previewBusy ? 'opacity-45 pointer-events-none' : ''}`}
+                  className={`mw-preview-container p-4 transition-opacity ${previewBusy && isInitialSetup ? 'opacity-45 pointer-events-none' : ''}`}
                   onExternalLink={handleExternalPreviewLink}
                 />
               </div>
-              {previewLoadingOverlay}
+              {previewSetupOverlay}
+              {previewBusyBadge}
               <div className="absolute bottom-3 right-3 z-20 safe-area-bottom">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -398,11 +415,12 @@ export function SplitPaneEditor({
           <PreviewContent
             css={previewCss}
             html={previewHtml}
-            className={`mw-preview-container p-4 transition-opacity ${previewBusy ? 'opacity-45 pointer-events-none' : ''}`}
+            className={`mw-preview-container p-4 transition-opacity ${previewBusy && isInitialSetup ? 'opacity-45 pointer-events-none' : ''}`}
             onExternalLink={handleExternalPreviewLink}
           />
         </div>
-        {previewLoadingOverlay}
+        {previewSetupOverlay}
+        {previewBusyBadge}
         <div className="absolute bottom-3 right-3 z-20">
           <Tooltip>
             <TooltipTrigger asChild>
