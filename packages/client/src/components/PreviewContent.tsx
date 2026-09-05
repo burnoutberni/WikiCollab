@@ -43,7 +43,7 @@ export function PreviewContent({
 
     const style = document.createElement('style');
     style.textContent = `${css}
-[data-wc-marker]{display:inline-block;width:0;height:0;overflow:hidden;}
+.wc-marker{display:inline-block;width:0;height:0;overflow:hidden;}
 .wc-preview-shell{position:relative;}
 .wc-preview-overlay{position:absolute;inset:0;pointer-events:none;z-index:2147483647;}
 .wc-preview-caret{position:absolute;width:2px;min-height:1em;}
@@ -72,10 +72,9 @@ export function PreviewContent({
     overlay.classList.toggle('wc-preview-overlay-stale', markersStale);
 
     const markerElements = new Map<string, HTMLElement>();
-    for (const marker of content.querySelectorAll('[data-wc-marker]')) {
-      if (marker instanceof HTMLElement) {
-        const value = marker.getAttribute('data-wc-marker');
-        if (value) markerElements.set(value, marker);
+    for (const marker of content.querySelectorAll('.wc-marker[id]')) {
+      if (marker instanceof HTMLElement && marker.id) {
+        markerElements.set(marker.id, marker);
       }
     }
 

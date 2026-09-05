@@ -220,7 +220,6 @@ function sanitize(html: string, allowStyleTags = false): string {
       col: ['span', 'width'],
       colgroup: ['span'],
       div: ['data-mw-fallback'],
-      span: ['data-wc-marker'],
       ol: ['start', 'type', 'reversed'],
       li: ['value'],
       style: ['data-mw-deduplicate'],
@@ -264,8 +263,8 @@ export interface PreviewMarkerRequest {
 const markerIdPattern = /^[a-zA-Z0-9_-]{1,80}$/;
 const markerColorPattern = /^#[0-9a-fA-F]{3,8}$/;
 
-function markerSpan(value: string): string {
-  return `<span data-wc-marker="${value}"></span>`;
+function markerSpan(markerId: string): string {
+  return `<span class="wc-marker" id="${markerId}"></span>`;
 }
 
 function normalizeMarkerRequests(

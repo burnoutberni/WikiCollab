@@ -179,7 +179,7 @@ describe('PreviewContent', () => {
         render(
           <PreviewContent
             css=""
-            html='<p>Hello<span data-wc-marker="p1:caret"></span> world</p>'
+            html='<p>Hello<span class="wc-marker" id="p1:caret"></span> world</p>'
             onExternalLink={vi.fn()}
             markers={[{ id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 5, head: 5 }]}
           />
@@ -196,7 +196,7 @@ describe('PreviewContent', () => {
         render(
           <PreviewContent
             css=""
-            html='<p>Hello<span data-wc-marker="p1:caret"></span> world</p>'
+            html='<p>Hello<span class="wc-marker" id="p1:caret"></span> world</p>'
             onExternalLink={vi.fn()}
             markers={[{ id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 5, head: 5 }]}
           />
@@ -214,7 +214,7 @@ describe('PreviewContent', () => {
         render(
           <PreviewContent
             css=""
-            html='<p><span data-wc-marker="p1:start"></span>Hello<span data-wc-marker="p1:end"></span> world</p>'
+            html='<p><span class="wc-marker" id="p1:start"></span>Hello<span class="wc-marker" id="p1:end"></span> world</p>'
             onExternalLink={vi.fn()}
             markers={[{ id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 5 }]}
           />
@@ -223,8 +223,8 @@ describe('PreviewContent', () => {
 
       const shadow = screen.getByTestId('preview-content').shadowRoot!;
       const content = shadow.querySelector('.mw-preview-container');
-      expect(content?.querySelector('[data-wc-marker="p1:start"]')).not.toBeNull();
-      expect(content?.querySelector('[data-wc-marker="p1:end"]')).not.toBeNull();
+      expect(content?.querySelector('.wc-marker[id="p1:start"]')).not.toBeNull();
+      expect(content?.querySelector('.wc-marker[id="p1:end"]')).not.toBeNull();
       const overlay = shadow.querySelector('.wc-preview-overlay');
       expect(overlay).not.toBeNull();
     });
@@ -234,7 +234,7 @@ describe('PreviewContent', () => {
         render(
           <PreviewContent
             css=""
-            html='<p><span data-wc-marker="p1:template-start"></span>output<span data-wc-marker="p1:template-end"></span></p>'
+            html='<p><span class="wc-marker" id="p1:template-start"></span>output<span class="wc-marker" id="p1:template-end"></span></p>'
             onExternalLink={vi.fn()}
             markers={[{ id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 10, head: 15 }]}
           />
@@ -243,8 +243,8 @@ describe('PreviewContent', () => {
 
       const shadow = screen.getByTestId('preview-content').shadowRoot!;
       const content = shadow.querySelector('.mw-preview-container');
-      expect(content?.querySelector('[data-wc-marker="p1:template-start"]')).not.toBeNull();
-      expect(content?.querySelector('[data-wc-marker="p1:template-end"]')).not.toBeNull();
+      expect(content?.querySelector('.wc-marker[id="p1:template-start"]')).not.toBeNull();
+      expect(content?.querySelector('.wc-marker[id="p1:template-end"]')).not.toBeNull();
       const overlay = shadow.querySelector('.wc-preview-overlay');
       expect(overlay).not.toBeNull();
     });
@@ -254,7 +254,7 @@ describe('PreviewContent', () => {
         render(
           <PreviewContent
             css=""
-            html='<p><span data-wc-marker="p1:start"></span>Hel<span data-wc-marker="p1:end"></span>lo <span data-wc-marker="p2:caret"></span>world</p>'
+            html='<p><span class="wc-marker" id="p1:start"></span>Hel<span class="wc-marker" id="p1:end"></span>lo <span class="wc-marker" id="p2:caret"></span>world</p>'
             onExternalLink={vi.fn()}
             markers={[
               { id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 3 },
@@ -267,8 +267,8 @@ describe('PreviewContent', () => {
       const shadow = screen.getByTestId('preview-content').shadowRoot!;
       expect(shadow.querySelector('.wc-preview-caret')).not.toBeNull();
       const content = shadow.querySelector('.mw-preview-container');
-      expect(content?.querySelector('[data-wc-marker="p1:start"]')).not.toBeNull();
-      expect(content?.querySelector('[data-wc-marker="p1:end"]')).not.toBeNull();
+      expect(content?.querySelector('.wc-marker[id="p1:start"]')).not.toBeNull();
+      expect(content?.querySelector('.wc-marker[id="p1:end"]')).not.toBeNull();
       const labels = shadow.querySelectorAll('.wc-preview-label');
       expect(labels.length).toBeGreaterThanOrEqual(1);
     });
@@ -277,7 +277,7 @@ describe('PreviewContent', () => {
       const { rerender } = render(
         <PreviewContent
           css=""
-          html='<p><span data-wc-marker="p1:caret"></span>Hello</p>'
+          html='<p><span class="wc-marker" id="p1:caret"></span>Hello</p>'
           onExternalLink={vi.fn()}
           markers={[{ id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 0 }]}
         />
@@ -304,7 +304,7 @@ describe('PreviewContent', () => {
         render(
           <PreviewContent
             css=""
-            html='<p><span data-wc-marker="p1:caret"></span>Hello</p>'
+            html='<p><span class="wc-marker" id="p1:caret"></span>Hello</p>'
             onExternalLink={vi.fn()}
             markers={[{ id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 0 }]}
           />
@@ -313,7 +313,7 @@ describe('PreviewContent', () => {
 
       const shadow = screen.getByTestId('preview-content').shadowRoot!;
       const style = shadow.querySelector('style');
-      expect(style?.textContent).toContain('[data-wc-marker]');
+      expect(style?.textContent).toContain('.wc-marker');
       expect(style?.textContent).toContain('overflow:hidden');
     });
 
@@ -332,7 +332,7 @@ describe('PreviewContent', () => {
       const { rerender } = render(
         <PreviewContent
           css=""
-          html='<p><span data-wc-marker="p1:caret"></span>Hello</p>'
+          html='<p><span class="wc-marker" id="p1:caret"></span>Hello</p>'
           onExternalLink={vi.fn()}
           markers={[{ id: 'p1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 0 }]}
         />
@@ -342,7 +342,7 @@ describe('PreviewContent', () => {
         rerender(
           <PreviewContent
             css=""
-            html='<p><span data-wc-marker="p1:caret"></span>Hello</p>'
+            html='<p><span class="wc-marker" id="p1:caret"></span>Hello</p>'
             onExternalLink={vi.fn()}
             markers={[]}
           />

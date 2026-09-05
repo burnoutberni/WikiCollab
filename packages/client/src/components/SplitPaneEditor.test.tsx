@@ -895,7 +895,7 @@ describe('SplitPaneEditor', () => {
 
     act(() => {
       previewUpdate({
-        html: '<p>Hi<span data-wc-marker="peer-1:caret"></span> there</p>',
+        html: '<p>Hi<span class="wc-marker" id="peer-1:caret"></span> there</p>',
         page: 'Page',
         requestId: sendCustomMessage.mock.calls[0][1].requestId,
       });

@@ -131,12 +131,7 @@ export function SplitPaneEditor({
   const isInitialSetup = previewBusy && !previewHtml;
 
   const sanitizePreviewHtml = useCallback(
-    (html: string) =>
-      DOMPurify.sanitize(html, {
-        USE_PROFILES: { html: true },
-        ALLOW_DATA_ATTR: false,
-        ADD_ATTR: ['data-wc-marker'],
-      }),
+    (html: string) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
     []
   );
 

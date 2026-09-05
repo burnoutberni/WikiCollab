@@ -1110,7 +1110,7 @@ describe('Preview route sanitization', () => {
       const result = instrumentPreviewWikitext('Hello world', [
         { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 5, head: 5 },
       ]);
-      expect(result).toBe('Hello<span data-wc-marker="peer-1:caret"></span> world');
+      expect(result).toBe('Hello<span class="wc-marker" id="peer-1:caret"></span> world');
     });
 
     it('inserts start/end markers for selections', () => {
@@ -1118,7 +1118,7 @@ describe('Preview route sanitization', () => {
         { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 5 },
       ]);
       expect(result).toBe(
-        '<span data-wc-marker="peer-1:start"></span>Hello<span data-wc-marker="peer-1:end"></span> world'
+        '<span class="wc-marker" id="peer-1:start"></span>Hello<span class="wc-marker" id="peer-1:end"></span> world'
       );
     });
 
@@ -1127,7 +1127,7 @@ describe('Preview route sanitization', () => {
         { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 5, head: 0 },
       ]);
       expect(result).toBe(
-        '<span data-wc-marker="peer-1:start"></span>Hello<span data-wc-marker="peer-1:end"></span> world'
+        '<span class="wc-marker" id="peer-1:start"></span>Hello<span class="wc-marker" id="peer-1:end"></span> world'
       );
     });
 
@@ -1136,7 +1136,7 @@ describe('Preview route sanitization', () => {
         { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: -5, head: 99 },
       ]);
       expect(result).toBe(
-        '<span data-wc-marker="peer-1:start"></span>abc<span data-wc-marker="peer-1:end"></span>'
+        '<span class="wc-marker" id="peer-1:start"></span>abc<span class="wc-marker" id="peer-1:end"></span>'
       );
     });
 
@@ -1170,7 +1170,7 @@ describe('Preview route sanitization', () => {
         { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 0, head: 0 },
         { id: 'peer-1', userName: 'Alice', color: '#FF0000', anchor: 3, head: 3 },
       ]);
-      expect(result).toBe('<span data-wc-marker="peer-1:caret"></span>abc');
+      expect(result).toBe('<span class="wc-marker" id="peer-1:caret"></span>abc');
       expect(result.split('peer-1:caret')).toHaveLength(2);
     });
 
@@ -1184,7 +1184,7 @@ describe('Preview route sanitization', () => {
       }));
       const result = instrumentPreviewWikitext('ab', markers);
       const uniqueIds = new Set<string>();
-      for (const match of result.matchAll(/data-wc-marker="([^"]+)"/g)) {
+      for (const match of result.matchAll(/class="wc-marker" id="([^"]+)"/g)) {
         uniqueIds.add(match[1].split(':')[0]);
       }
       expect(uniqueIds.size).toBe(25);
@@ -1211,7 +1211,7 @@ describe('Preview route sanitization', () => {
           head: 0,
         },
       ]);
-      const markerEl = result.match(/data-wc-marker="peer-1:caret"/);
+      const markerEl = result.match(/class="wc-marker" id="peer-1:caret"/);
       expect(markerEl).not.toBeNull();
     });
 
@@ -1220,13 +1220,17 @@ describe('Preview route sanitization', () => {
       const result = instrumentPreviewWikitext(source, [
         { id: 'peer-1', userName: 'X', color: '#FF0000', anchor: 6, head: 6 },
       ]);
-      expect(result).toBe('Line 1<span data-wc-marker="peer-1:caret"></span>\nLine 2\nLine 3');
+      expect(result).toBe(
+        'Line 1<span class="wc-marker" id="peer-1:caret"></span>\nLine 2\nLine 3'
+      );
     });
   });
 
   describe('marker preservation through sanitization', () => {
-    it('preserves data-wc-marker on spans', async () => {
-      mockParser.toHtml.mockReturnValue('<p>Text<span data-wc-marker="p1:caret"></span>more</p>');
+    it('preserves marker spans with class and id', async () => {
+      mockParser.toHtml.mockReturnValue(
+        '<p>Text<span class="wc-marker" id="p1:caret"></span>more</p>'
+      );
 
       const res = await app.request('/api/docs/doc1/preview', {
         method: 'POST',
@@ -1235,7 +1239,8 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
-      expect(data.html).toContain('data-wc-marker="p1:caret"');
+      expect(data.html).toContain('class="wc-marker"');
+      expect(data.html).toContain('id="p1:caret"');
       expect(data.html).toContain('<span');
     });
 
@@ -1255,7 +1260,7 @@ describe('Preview route sanitization', () => {
 
     it('strips script tags from marker-containing HTML', async () => {
       mockParser.toHtml.mockReturnValue(
-        '<p>Hello<span data-wc-marker="p1:caret"></span></p><script>alert(1)</script>'
+        '<p>Hello<span class="wc-marker" id="p1:caret"></span></p><script>alert(1)</script>'
       );
 
       const res = await app.request('/api/docs/doc1/preview', {
@@ -1265,7 +1270,7 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
-      expect(data.html).toContain('data-wc-marker');
+      expect(data.html).toContain('wc-marker');
       expect(data.html).not.toContain('<script>');
     });
   });
