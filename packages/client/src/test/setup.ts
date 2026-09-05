@@ -2,6 +2,40 @@ import '@testing-library/jest-dom/vitest';
 
 import { vi } from 'vitest';
 
+const createStorageMock = (): Storage => {
+  let store = new Map<string, string>();
+
+  return {
+    clear: () => {
+      store = new Map();
+    },
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size;
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, String(value));
+    },
+  };
+};
+
+// Node.js v26 owns `globalThis.localStorage`, so install a test storage explicitly.
+const localStorageMock = createStorageMock();
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+});
+Object.defineProperty(globalThis, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+});
+
 class MockIntersectionObserver {
   observe() {}
   unobserve() {}

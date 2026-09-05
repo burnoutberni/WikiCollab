@@ -19,7 +19,7 @@ jobs:
       - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ['22.22.2', '24']
+        node-version: ['22.22.2', '24', '26']
     permissions:
       contents: read
       pull-requests: write
@@ -45,10 +45,10 @@ jobs:
       - run: pnpm --filter shared build
       - run: pnpm test
       - name: Coverage
-        if: github.event_name == 'pull_request' && matrix.node-version == '24'
+        if: github.event_name == 'pull_request' && matrix.node-version == '26'
         run: pnpm --filter server test:coverage
       - name: Post coverage comment
-        if: github.event_name == 'pull_request' && matrix.node-version == '24'
+        if: github.event_name == 'pull_request' && matrix.node-version == '26'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUM: ${{ github.event.number }}
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ['22.22.2', '24']
+        node-version: ['22.22.2', '24', '26']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -87,7 +87,7 @@ jobs:
       - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run audit
@@ -107,7 +107,7 @@ jobs:
       - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter shared build && pnpm --filter server build && pnpm --filter client build

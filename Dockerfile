@@ -1,11 +1,11 @@
-FROM node:24.19.0-alpine AS base
+FROM node:24-alpine AS base
 
 ARG VITE_DEMO_MODE
 ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
 
 RUN apk add --no-cache python3 make g++
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install --global pnpm@11.24.0
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY . .
 
 RUN pnpm run build
 
-FROM node:24.19.0-alpine AS production
+FROM node:24-alpine AS production
 
 ARG VERSION=0.0.0
 
@@ -43,6 +43,11 @@ COPY --from=base /app/packages/client/dist ./packages/client/dist
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV APP_VERSION=$VERSION
+ENV DATABASE_PATH=/app/data/wikicollab.db
+
+RUN mkdir -p /app/data && chown node:node /app/data
+
+USER node
 
 EXPOSE 3000
 
