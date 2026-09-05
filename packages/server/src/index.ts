@@ -13,8 +13,16 @@ import { getAllowedOrigins } from './ws/origin.js';
 const app = new Hono();
 
 app.onError((err, c) => {
+  const getCtx = c.get as unknown as (key: string) => unknown;
+  const requestId = getCtx('requestId') as string | undefined;
   logger.error(
-    { method: c.req.method, path: c.req.path, err: err.message, stack: err.stack },
+    {
+      requestId,
+      method: c.req.method,
+      path: c.req.path,
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    },
     'Unhandled error'
   );
   return c.json({ error: 'Internal server error' }, 500);
@@ -26,11 +34,14 @@ app.notFound((c) => {
 
 app.use('*', async (c, next) => {
   const requestId = crypto.randomUUID();
+  const setCtx = c.set as unknown as (key: string, value: unknown) => void;
+  setCtx('requestId', requestId);
   const start = Date.now();
   await next();
+  const getCtx = c.get as unknown as (key: string) => unknown;
   logger.info(
     {
-      requestId,
+      requestId: getCtx('requestId') as string,
       method: c.req.method,
       path: c.req.path,
       status: c.res.status,
@@ -79,9 +90,29 @@ const server = serve(
   }
 );
 
+const wss = setupWebSocket(server);
+
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down');
-  server.close();
+  const shutdownDeadline = setTimeout(() => {
+    logger.warn('Shutdown deadline reached, force-closing remaining WebSocket clients');
+    wss.clients.forEach((client) => {
+      try {
+        client.terminate();
+      } catch {
+        /* ignore */
+      }
+    });
+  }, 5000);
+  wss.clients.forEach((client) => {
+    try {
+      client.close(1001, 'Server shutting down');
+    } catch {
+      /* ignore */
+    }
+  });
+  server.close(() => {
+    clearTimeout(shutdownDeadline);
+    logger.info('Server shut down');
+  });
 });
-
-setupWebSocket(server);
