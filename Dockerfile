@@ -5,7 +5,7 @@ ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
 
 RUN apk add --no-cache python3 make g++
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install --global pnpm@11.24.0
 
 WORKDIR /app
 
