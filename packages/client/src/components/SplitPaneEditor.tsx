@@ -95,6 +95,7 @@ export function SplitPaneEditor({
   const skipNextContentRefreshRef = useRef(true);
   const previewRequestIdRef = useRef(0);
   const activeWsRequestIdRef = useRef<string | null>(null);
+  const previewTypingBurstActiveRef = useRef(false);
 
   const apiUrlRef = useRef(apiUrl);
   const titleRef = useRef(title);
@@ -266,13 +267,22 @@ export function SplitPaneEditor({
     }
   }, [clearWsTimeout, sendCustomMessage, provider, requestPreview, fetchPreview]);
 
-  const debouncedPreview = useCallback(() => {
+  const schedulePreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(refreshPreview, 500);
+
+    if (!previewTypingBurstActiveRef.current) {
+      previewTypingBurstActiveRef.current = true;
+      refreshPreview();
+    }
+
+    timerRef.current = setTimeout(() => {
+      previewTypingBurstActiveRef.current = false;
+      refreshPreview();
+    }, 500);
   }, [refreshPreview]);
 
-  const debouncedPreviewRef = useRef(debouncedPreview);
-  debouncedPreviewRef.current = debouncedPreview;
+  const schedulePreviewRef = useRef(schedulePreview);
+  schedulePreviewRef.current = schedulePreview;
   const refreshPreviewRef = useRef(refreshPreview);
   refreshPreviewRef.current = refreshPreview;
 
@@ -289,13 +299,13 @@ export function SplitPaneEditor({
       skipNextContentRefreshRef.current = false;
       return;
     }
-    debouncedPreviewRef.current();
+    schedulePreviewRef.current();
   }, [content, ytext, isMobile, initialMobileTab]);
 
   useEffect(() => {
     if (!ytext) return;
     if (isMobile && initialMobileTab !== 'preview') return;
-    const observer = () => debouncedPreviewRef.current();
+    const observer = () => schedulePreviewRef.current();
     ytext.observe(observer);
     return () => {
       ytext.unobserve(observer);

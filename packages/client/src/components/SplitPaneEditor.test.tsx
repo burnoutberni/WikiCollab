@@ -727,7 +727,7 @@ describe('SplitPaneEditor', () => {
     });
   });
 
-  it('debounces non-Yjs preview refreshes while typing', async () => {
+  it('refreshes immediately once while typing and once after typing pauses', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -744,15 +744,21 @@ describe('SplitPaneEditor', () => {
     rerenderWithProviders(<SplitPaneEditor {...defaultProps} content="Hello wikitext!" />);
     rerenderWithProviders(<SplitPaneEditor {...defaultProps} content="Hello wikitext!!" />);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1]?.body).toBe(
+      JSON.stringify({ wikitext: 'Hello wikitext!', page: null })
+    );
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
 
     await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
+    expect(fetchMock.mock.calls[2][1]?.body).toBe(
+      JSON.stringify({ wikitext: 'Hello wikitext!!', page: null })
+    );
 
     vi.useRealTimers();
   });
