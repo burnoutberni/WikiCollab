@@ -4,6 +4,9 @@ import { envInt } from './utils/env.js';
 type RuntimeMemoryLogger = Pick<typeof logger, 'info'>;
 
 const BYTES_PER_MB = 1024 * 1024;
+export const MEMORY_LOG_INTERVAL_MS_ENV = 'MEMORY_LOG_INTERVAL_MS';
+export const MEMORY_LOG_INTERVAL_MS_DEFAULT = 30_000;
+export const MEMORY_LOG_INTERVAL_MS_MAX = 2_147_483_647;
 
 function bytesToMb(bytes: number): number {
   return Math.round(bytes / BYTES_PER_MB);
@@ -29,7 +32,7 @@ export function startRuntimeMemoryLogging(
         'Memory usage'
       );
     },
-    envInt('MEMORY_LOG_INTERVAL_MS', 30_000)
+    envInt(MEMORY_LOG_INTERVAL_MS_ENV, MEMORY_LOG_INTERVAL_MS_DEFAULT, MEMORY_LOG_INTERVAL_MS_MAX)
   );
 
   timer.unref();

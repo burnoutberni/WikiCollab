@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { startRuntimeMemoryLogging } from '../runtime-memory-logging.js';
+import {
+  MEMORY_LOG_INTERVAL_MS_DEFAULT,
+  MEMORY_LOG_INTERVAL_MS_ENV,
+  MEMORY_LOG_INTERVAL_MS_MAX,
+  startRuntimeMemoryLogging,
+} from '../runtime-memory-logging.js';
 
 describe('startRuntimeMemoryLogging', () => {
   const originalEnv = process.env;
@@ -9,7 +14,7 @@ describe('startRuntimeMemoryLogging', () => {
     vi.useFakeTimers();
     process.env = { ...originalEnv };
     delete process.env.ENABLE_MEMORY_LOGGING;
-    delete process.env.MEMORY_LOG_INTERVAL_MS;
+    delete process.env[MEMORY_LOG_INTERVAL_MS_ENV];
   });
 
   afterEach(() => {
@@ -29,7 +34,7 @@ describe('startRuntimeMemoryLogging', () => {
 
   it('logs memory usage at the configured interval', () => {
     process.env.ENABLE_MEMORY_LOGGING = 'true';
-    process.env.MEMORY_LOG_INTERVAL_MS = '1000';
+    process.env[MEMORY_LOG_INTERVAL_MS_ENV] = '1000';
     const logger = { info: vi.fn() };
     vi.spyOn(process, 'memoryUsage').mockReturnValue({
       rss: 10 * 1024 * 1024,
@@ -61,12 +66,38 @@ describe('startRuntimeMemoryLogging', () => {
 
   it('falls back to the default interval when the configured interval is invalid', () => {
     process.env.ENABLE_MEMORY_LOGGING = 'true';
-    process.env.MEMORY_LOG_INTERVAL_MS = '-1';
+    process.env[MEMORY_LOG_INTERVAL_MS_ENV] = '-1';
     const logger = { info: vi.fn() };
 
     startRuntimeMemoryLogging(logger);
 
-    vi.advanceTimersByTime(29_999);
+    vi.advanceTimersByTime(MEMORY_LOG_INTERVAL_MS_DEFAULT - 1);
+    expect(logger.info).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(logger.info).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts the maximum Node.js timer delay and rejects larger values', () => {
+    process.env.ENABLE_MEMORY_LOGGING = 'true';
+    const logger = { info: vi.fn() };
+
+    process.env[MEMORY_LOG_INTERVAL_MS_ENV] = String(MEMORY_LOG_INTERVAL_MS_MAX);
+    startRuntimeMemoryLogging(logger);
+
+    vi.advanceTimersByTime(MEMORY_LOG_INTERVAL_MS_MAX - 1);
+    expect(logger.info).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(logger.info).toHaveBeenCalledTimes(1);
+
+    vi.clearAllTimers();
+    logger.info.mockClear();
+
+    process.env[MEMORY_LOG_INTERVAL_MS_ENV] = String(MEMORY_LOG_INTERVAL_MS_MAX + 1);
+    startRuntimeMemoryLogging(logger);
+
+    vi.advanceTimersByTime(MEMORY_LOG_INTERVAL_MS_DEFAULT - 1);
     expect(logger.info).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);

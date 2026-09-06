@@ -1,9 +1,9 @@
 /** Reads a positive integer environment variable, falling back on invalid values. */
-export function envInt(key: string, def: number): number {
+export function envInt(key: string, def: number, max = Number.MAX_SAFE_INTEGER): number {
   const val = process.env[key];
   if (val === undefined) return def;
   const parsed = Number(val);
-  if (!Number.isInteger(parsed) || parsed <= 0) return def;
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > max) return def;
   return parsed;
 }
 
