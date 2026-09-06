@@ -7,6 +7,7 @@ import { logger } from './logging.js';
 import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import docsRoutes from './routes/docs.js';
+import { startRuntimeMemoryLogging } from './runtime-memory-logging.js';
 import { setupWebSocket } from './ws/index.js';
 import { getAllowedOrigins } from './ws/origin.js';
 
@@ -91,9 +92,11 @@ const server = serve(
 );
 
 const wss = setupWebSocket(server);
+const memoryLoggingTimer = startRuntimeMemoryLogging();
 
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down');
+  if (memoryLoggingTimer) clearInterval(memoryLoggingTimer);
   const shutdownDeadline = setTimeout(() => {
     logger.warn('Shutdown deadline reached, force-closing remaining WebSocket clients');
     wss.clients.forEach((client) => {
