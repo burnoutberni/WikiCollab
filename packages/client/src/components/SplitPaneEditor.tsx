@@ -7,11 +7,12 @@ import type * as Y from 'yjs';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import type { Presence } from '@/hooks/useYjs';
 import defaultCss from '@/styles/wikipedia.css?inline';
 import { getWikiBaseUrlOrFallback } from '@/utils/wikiUrl';
 
 import { LoadingSpinner } from './LoadingSpinner';
-import { PreviewContent } from './PreviewContent';
+import { PreviewContent, type PreviewOverlayMarker } from './PreviewContent';
 import { PreviewLinkModal } from './PreviewLinkModal';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
@@ -37,6 +38,15 @@ interface SplitPaneEditorProps {
   previewRefreshKey?: number;
   previewBusy?: boolean;
   previewLoadingLabel?: string;
+  peers?: Presence[];
+}
+
+interface PreviewSnapshot {
+  html: string;
+  source: string;
+  sourceVersion: number;
+  markers: PreviewOverlayMarker[];
+  stale: boolean;
 }
 
 function rewriteRelativeUrls(html: string, baseUrl: string): string {
@@ -85,9 +95,23 @@ export function SplitPaneEditor({
   previewRefreshKey = 0,
   previewBusy: externalPreviewBusy = false,
   previewLoadingLabel,
+  peers = [],
 }: SplitPaneEditorProps) {
   const isMobile = useIsMobile();
-  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewSnapshot, setPreviewSnapshot] = useState<PreviewSnapshot>({
+    html: '',
+    source: '',
+    sourceVersion: 0,
+    markers: [],
+    stale: false,
+  });
+  const pendingPreviewSnapshotRef = useRef<PreviewSnapshot>({
+    html: '',
+    source: '',
+    sourceVersion: 0,
+    markers: [],
+    stale: false,
+  });
   const [loading, setLoading] = useState(false);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,6 +125,7 @@ export function SplitPaneEditor({
   const titleRef = useRef(title);
 
   const previewCss = instanceCss ? `${defaultCss}\n${instanceCss}` : defaultCss;
+  const previewHtml = previewSnapshot.html;
   const previewBusy = loading || externalPreviewBusy;
   const previewBusyLabel = previewLoadingLabel || 'Rendering preview...';
   const isInitialSetup = previewBusy && !previewHtml;
@@ -109,6 +134,37 @@ export function SplitPaneEditor({
     (html: string) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
     []
   );
+
+  const buildPreviewMarkers = useCallback(
+    (source: string): PreviewOverlayMarker[] =>
+      peers
+        .filter((peer) => peer.cursor)
+        .map((peer) => ({
+          id: `peer-${peer.clientId}`,
+          userName: peer.userName,
+          color: peer.color,
+          anchor: Math.max(0, Math.min(source.length, peer.cursor!.anchor)),
+          head: Math.max(0, Math.min(source.length, peer.cursor!.head)),
+        })),
+    [peers]
+  );
+
+  const setRenderedPreview = useCallback(
+    (html: string, source: string, sourceVersion: number, markers: PreviewOverlayMarker[]) => {
+      setPreviewSnapshot({
+        html: sanitizePreviewHtml(html),
+        source,
+        sourceVersion,
+        markers,
+        stale: false,
+      });
+    },
+    [sanitizePreviewHtml]
+  );
+
+  const markPreviewStale = useCallback(() => {
+    setPreviewSnapshot((snapshot) => (snapshot.html ? { ...snapshot, stale: true } : snapshot));
+  }, []);
 
   const clearWsTimeout = useCallback(() => {
     if (!wsTimeoutRef.current) return;
@@ -122,11 +178,12 @@ export function SplitPaneEditor({
   }, [apiUrl, title]);
 
   const requestPreview = useCallback(
-    (requestId: string) => {
+    (requestId: string, markers: PreviewOverlayMarker[]) => {
       if (sendCustomMessage) {
         sendCustomMessage('preview_request', {
           page: title || '',
           requestId,
+          markerRequests: JSON.stringify(markers),
         });
       }
     },
@@ -165,12 +222,17 @@ export function SplitPaneEditor({
           if (currentApiUrl) {
             html = rewriteRelativeUrls(html, getWikiBaseUrlOrFallback(currentApiUrl));
           }
-          setPreviewHtml(sanitizePreviewHtml(html));
+          setRenderedPreview(
+            html,
+            pendingPreviewSnapshotRef.current.source,
+            pendingPreviewSnapshotRef.current.sourceVersion,
+            pendingPreviewSnapshotRef.current.markers
+          );
         }
       }
     );
     return unsubscribe;
-  }, [clearWsTimeout, onCustomMessage, previewResponseMatchesActiveRequest, sanitizePreviewHtml]);
+  }, [clearWsTimeout, onCustomMessage, previewResponseMatchesActiveRequest, setRenderedPreview]);
 
   useEffect(() => {
     if (!onCustomMessage) return;
@@ -183,33 +245,55 @@ export function SplitPaneEditor({
         clearWsTimeout();
         setLoading(false);
         if (payload.page === currentTitle) {
-          setPreviewHtml(
-            sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
+          setRenderedPreview(
+            '<p class="text-red-500">Failed to generate preview</p>',
+            pendingPreviewSnapshotRef.current.source,
+            pendingPreviewSnapshotRef.current.sourceVersion,
+            pendingPreviewSnapshotRef.current.markers
           );
         }
       }
     );
     return unsubscribe;
-  }, [clearWsTimeout, onCustomMessage, sanitizePreviewHtml]);
+  }, [clearWsTimeout, onCustomMessage, setRenderedPreview]);
 
   const fetchPreview = useCallback(async () => {
     const requestId = ++previewRequestIdRef.current;
     const wikitext = ytext ? ytext.toString() : content;
+    const markers = buildPreviewMarkers(wikitext);
+    pendingPreviewSnapshotRef.current = {
+      html: '',
+      source: wikitext,
+      sourceVersion: requestId,
+      markers,
+      stale: false,
+    };
     if (!wikitext.trim()) {
       if (requestId === previewRequestIdRef.current) {
-        setPreviewHtml('');
+        setPreviewSnapshot({
+          html: '',
+          source: wikitext,
+          sourceVersion: requestId,
+          markers,
+          stale: false,
+        });
         setLoading(false);
       }
       return;
     }
     setLoading(true);
+    markPreviewStale();
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), HTTP_PREVIEW_TIMEOUT_MS);
     try {
       const res = await fetch(`/api/docs/${documentId}/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext, page: title || null }),
+        body: JSON.stringify({
+          wikitext,
+          page: title || null,
+          markerRequests: JSON.stringify(markers),
+        }),
         signal: controller.signal,
       });
 
@@ -220,24 +304,28 @@ export function SplitPaneEditor({
           html = rewriteRelativeUrls(html, getWikiBaseUrlOrFallback(apiUrl));
         }
         if (requestId === previewRequestIdRef.current) {
-          setPreviewHtml(sanitizePreviewHtml(html));
+          setRenderedPreview(html, wikitext, requestId, markers);
         }
       } else {
         if (requestId === previewRequestIdRef.current) {
-          setPreviewHtml(
-            sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
+          setRenderedPreview(
+            '<p class="text-red-500">Failed to generate preview</p>',
+            wikitext,
+            requestId,
+            markers
           );
         }
       }
     } catch (err) {
       console.error('Failed to fetch preview:', err);
       if (requestId === previewRequestIdRef.current) {
-        setPreviewHtml(
-          sanitizePreviewHtml(
-            apiUrl
-              ? '<p class="text-red-500">Failed to generate preview</p>'
-              : '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
-          )
+        setRenderedPreview(
+          apiUrl
+            ? '<p class="text-red-500">Failed to generate preview</p>'
+            : '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>',
+          wikitext,
+          requestId,
+          markers
         );
       }
     } finally {
@@ -246,26 +334,55 @@ export function SplitPaneEditor({
         setLoading(false);
       }
     }
-  }, [apiUrl, content, documentId, sanitizePreviewHtml, title, ytext]);
+  }, [
+    apiUrl,
+    buildPreviewMarkers,
+    content,
+    documentId,
+    markPreviewStale,
+    setRenderedPreview,
+    title,
+    ytext,
+  ]);
 
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {
       const requestId = `preview-${++previewRequestIdRef.current}`;
+      const wikitext = ytext ? ytext.toString() : content;
+      const markers = buildPreviewMarkers(wikitext);
+      pendingPreviewSnapshotRef.current = {
+        html: '',
+        source: wikitext,
+        sourceVersion: previewRequestIdRef.current,
+        markers,
+        stale: false,
+      };
       activeWsRequestIdRef.current = requestId;
       setLoading(true);
+      markPreviewStale();
       clearWsTimeout();
       wsTimeoutRef.current = setTimeout(() => {
         wsTimeoutRef.current = null;
         activeWsRequestIdRef.current = null;
         fetchPreview();
       }, WS_PREVIEW_TIMEOUT_MS);
-      requestPreview(requestId);
+      requestPreview(requestId, markers);
     } else {
       clearWsTimeout();
       activeWsRequestIdRef.current = null;
       fetchPreview();
     }
-  }, [clearWsTimeout, sendCustomMessage, provider, requestPreview, fetchPreview]);
+  }, [
+    buildPreviewMarkers,
+    clearWsTimeout,
+    content,
+    sendCustomMessage,
+    provider,
+    requestPreview,
+    fetchPreview,
+    markPreviewStale,
+    ytext,
+  ]);
 
   const schedulePreview = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -372,6 +489,8 @@ export function SplitPaneEditor({
                   html={previewHtml}
                   className={`mw-preview-container p-4 transition-opacity ${previewBusy && isInitialSetup ? 'opacity-45 pointer-events-none' : ''}`}
                   onExternalLink={handleExternalPreviewLink}
+                  markers={previewSnapshot.markers}
+                  markersStale={previewSnapshot.stale}
                 />
               </div>
               {previewSetupOverlay}
@@ -427,6 +546,8 @@ export function SplitPaneEditor({
             html={previewHtml}
             className={`mw-preview-container p-4 transition-opacity ${previewBusy && isInitialSetup ? 'opacity-45 pointer-events-none' : ''}`}
             onExternalLink={handleExternalPreviewLink}
+            markers={previewSnapshot.markers}
+            markersStale={previewSnapshot.stale}
           />
         </div>
         {previewSetupOverlay}

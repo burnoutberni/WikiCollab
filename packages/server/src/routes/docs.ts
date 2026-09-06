@@ -195,7 +195,7 @@ docs.post('/:id/preview', async (c) => {
   const id = c.req.param('id');
   const result = await parseAndValidate(c, PreviewSchema);
   if (!result.success) return result.response;
-  const { wikitext, page } = result.data;
+  const { wikitext, page, markerRequests } = result.data;
 
   const doc = getDocumentById(id);
   if (!doc) return c.json({ error: 'Document not found' }, 404);
@@ -204,7 +204,14 @@ docs.post('/:id/preview', async (c) => {
   }
 
   try {
-    const { html } = await generatePreview(wikitext, doc.mediawiki_instance_api_url, page, id);
+    const parsedMarkerRequests = markerRequests ? JSON.parse(markerRequests) : undefined;
+    const { html } = await generatePreview(
+      wikitext,
+      doc.mediawiki_instance_api_url,
+      page,
+      id,
+      Array.isArray(parsedMarkerRequests) ? parsedMarkerRequests : undefined
+    );
     return c.json({ html, css: doc.mediawiki_instance_css });
   } catch (err) {
     logger.error(

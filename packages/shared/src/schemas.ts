@@ -33,4 +33,5 @@ export const UpdateDocumentSchema = z.object({
 export const PreviewSchema = z.object({
   wikitext: z.string().max(50000).optional(),
   page: z.string().max(200).nullable().optional(),
+  markerRequests: z.string().max(20000).optional(),
 });
