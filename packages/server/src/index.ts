@@ -85,7 +85,7 @@ const server = serve(
     port,
   },
   (info) => {
-    logger.info({ port: info.port, version: process.env.APP_VERSION || '0.0.0' }, 'Server running');
+    logger.info({ port: info.port }, 'Server running');
     logger.info({ port: info.port }, 'WebSocket available');
   }
 );
