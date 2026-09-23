@@ -2,7 +2,6 @@ import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'shared';
-import * as Y from 'yjs';
 
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
@@ -10,6 +9,7 @@ import { logger } from '../logging.js';
 import { fetchMediaWikiCss } from '../mediawiki-css.js';
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
+import { reconstructRevisionContent, revisionMetadata } from '../services/revision-storage.js';
 import { setVersionStarred } from '../services/versions.js';
 
 /** REST endpoints for document CRUD, preview, and versioning. */
@@ -221,7 +221,7 @@ docs.post('/:id/preview', async (c) => {
 docs.get('/:id/versions', (c) => {
   const id = c.req.param('id');
   const versions = db
-    .select()
+    .select(revisionMetadata)
     .from(schema.documentRevisions)
     .where(eq(schema.documentRevisions.document_id, id))
     .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
@@ -236,7 +236,7 @@ docs.post('/:id/versions/:v/restore', (c) => {
 
   const version = getVersionById(vId);
 
-  if (!version) {
+  if (!version || version.document_id !== c.req.param('id')) {
     return c.json({ error: 'Version not found' }, 404);
   }
 
@@ -245,16 +245,8 @@ docs.post('/:id/versions/:v/restore', (c) => {
     .where(eq(schema.documents.id, id))
     .run();
 
-  if (!version.yjs_state) {
-    return c.json({ success: true, content: '' });
-  }
-
   try {
-    const state = Buffer.from(version.yjs_state, 'base64');
-    const doc = new Y.Doc();
-    Y.applyUpdate(doc, state);
-    const content = doc.getText('wikitext').toString();
-    doc.destroy();
+    const content = reconstructRevisionContent(version);
     return c.json({ success: true, content });
   } catch (err) {
     logger.error(
@@ -290,21 +282,12 @@ docs.get('/:id/versions/:v/preview', (c) => {
 
   const version = getVersionById(vId);
 
-  if (!version) {
+  if (!version || version.document_id !== c.req.param('id')) {
     return c.json({ error: 'Version not found' }, 404);
   }
 
-  if (!version.yjs_state) {
-    return c.json({ content: '' });
-  }
-
   try {
-    const state = Buffer.from(version.yjs_state, 'base64');
-    const doc = new Y.Doc();
-    Y.applyUpdate(doc, state);
-    const ytext = doc.getText('wikitext');
-    const content = ytext.toString();
-    doc.destroy();
+    const content = reconstructRevisionContent(version);
     return c.json({ content });
   } catch (error) {
     logger.error(
