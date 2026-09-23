@@ -29,21 +29,27 @@ export async function runContentInitializor(ydoc: Y.Doc): Promise<void> {
 export function initContentInitializor() {
   setContentInitializor(async (ydoc: Y.Doc) => {
     const docName = (ydoc as unknown as { name: string }).name;
-
-    const latestRevision = getLatestRevision(docName);
-
-    if (latestRevision?.has_state) {
-      const restored = reconstructRevision(latestRevision);
-      try {
-        Y.applyUpdate(ydoc, Y.encodeStateAsUpdate(restored));
-      } finally {
-        restored.destroy();
-      }
-    } else {
+    const seedPlainText = () => {
       const existingDoc = getDocumentById(docName);
       if (existingDoc?.content) {
         ydoc.getText('wikitext').insert(0, existingDoc.content);
       }
+    };
+
+    const latestRevision = getLatestRevision(docName);
+
+    if (latestRevision?.has_state) {
+      let restored: Y.Doc | undefined;
+      try {
+        restored = reconstructRevision(latestRevision);
+        Y.applyUpdate(ydoc, Y.encodeStateAsUpdate(restored));
+      } catch {
+        seedPlainText();
+      } finally {
+        restored?.destroy();
+      }
+    } else {
+      seedPlainText();
     }
   });
 }

@@ -278,6 +278,24 @@ describe('Checkpointed revision history', () => {
     await expectPreviewAndRestore(revisions()[0].id, 'pending');
   });
 
+  it('falls back to plain text when latest revision reconstruction fails during initialization', async () => {
+    testDb.db.update(schema.documents).set({ content: 'plain text fallback' }).run();
+    testDb.db
+      .insert(schema.documentRevisions)
+      .values({
+        id: 'corrupt-latest',
+        document_id: documentId,
+        kind: 'snapshot',
+        payload: Buffer.from('broken'),
+        created_at: '2026-09-22T12:00:00.000Z',
+      })
+      .run();
+
+    const doc = await openDoc();
+
+    expect(doc.getText('wikitext').toString()).toBe('plain text fallback');
+  });
+
   it('checkpoints initial plain text when there is no usable legacy state', async () => {
     testDb.db.update(schema.documents).set({ content: 'initial' }).run();
     testDb.db
