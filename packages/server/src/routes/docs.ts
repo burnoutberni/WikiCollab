@@ -240,20 +240,19 @@ docs.post('/:id/versions/:v/restore', (c) => {
     return c.json({ error: 'Version not found' }, 404);
   }
 
-  db.update(schema.documents)
-    .set({ restored_version_id: vId })
-    .where(eq(schema.documents.id, id))
-    .run();
-
   try {
     const content = reconstructRevisionContent(version);
+    db.update(schema.documents)
+      .set({ restored_version_id: vId })
+      .where(eq(schema.documents.id, id))
+      .run();
     return c.json({ success: true, content });
   } catch (err) {
     logger.error(
       { docId: id, err: err instanceof Error ? err.message : String(err) },
       'Failed to decode version for restore'
     );
-    return c.json({ success: true, content: '' });
+    return c.json({ error: 'Failed to restore version' }, 500);
   }
 });
 

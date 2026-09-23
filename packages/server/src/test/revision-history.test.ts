@@ -140,6 +140,32 @@ describe('Checkpointed revision history', () => {
     await expectPreviewAndRestore(delta.id, 'legacy plus delta');
   });
 
+  it('does not mark a version restored when reconstruction fails', async () => {
+    testDb.db
+      .update(schema.documents)
+      .set({ restored_version_id: 'previous' })
+      .where(eq(schema.documents.id, documentId))
+      .run();
+    testDb.db
+      .insert(schema.documentRevisions)
+      .values({
+        id: 'corrupt',
+        document_id: documentId,
+        kind: 'snapshot',
+        payload: Buffer.from('broken'),
+        created_at: '2026-09-22T12:00:00.000Z',
+      })
+      .run();
+
+    const restore = await app.request(`/api/docs/${documentId}/versions/corrupt/restore`, {
+      method: 'POST',
+    });
+
+    expect(restore.status).toBe(500);
+    expect(await restore.json()).toEqual({ error: 'Failed to restore version' });
+    expect(testDb.db.select().from(schema.documents).get()!.restored_version_id).toBe('previous');
+  });
+
   it('merges debounce updates into one binary delta, including deletions', async () => {
     const doc = await openDoc();
     const snapshot = save(doc, 'Hello world');
