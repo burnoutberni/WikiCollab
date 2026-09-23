@@ -15,11 +15,11 @@ export interface Document {
   visibility: DocumentVisibility;
 }
 
-/** Immutable revision snapshot metadata for restore and starring flows. */
+/** Revision history metadata. Content is loaded separately through preview/restore. */
 export interface DocumentRevision {
   id: string;
   document_id: string;
-  yjs_state: string | null;
+  kind: 'snapshot' | 'delta';
   starred: boolean;
   created_at: string;
 }

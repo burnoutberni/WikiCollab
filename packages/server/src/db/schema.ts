@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /** Primary document records; `content` mirrors the latest persisted Yjs text. */
 export const documents = sqliteTable('documents', {
@@ -15,13 +15,17 @@ export const documents = sqliteTable('documents', {
   visibility: text('visibility').notNull().default('public'),
 });
 
-/** Immutable revision snapshots stored as base64-encoded Yjs updates. */
+/** Immutable Yjs checkpoints/deltas, with legacy base64 snapshots retained for compatibility. */
 export const documentRevisions = sqliteTable('document_revisions', {
   id: text('id').primaryKey(),
   document_id: text('document_id')
     .notNull()
     .references(() => documents.id),
   yjs_state: text('yjs_state'),
+  kind: text('kind', { enum: ['snapshot', 'delta'] })
+    .notNull()
+    .default('snapshot'),
+  payload: blob('payload', { mode: 'buffer' }),
   starred: integer('starred', { mode: 'boolean' }).notNull().default(false),
   created_at: text('created_at').notNull().default(new Date().toISOString()),
 });

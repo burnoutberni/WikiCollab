@@ -4,6 +4,7 @@ import { mkdirSync } from 'fs';
 import { dirname } from 'path';
 
 import { logger } from '../logging.js';
+import { migrateRevisionStorage } from './revision-storage.js';
 import * as schema from './schema.js';
 
 const dbPath = process.env.DATABASE_PATH || 'wikicollab.db';
@@ -35,6 +36,8 @@ sqlite.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+migrateRevisionStorage(sqlite);
 
 // Migration: add starred column to existing document_revisions tables
 try {

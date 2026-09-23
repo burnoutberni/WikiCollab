@@ -11,14 +11,14 @@ const mockVersions = [
   {
     id: 'v1',
     document_id: 'doc1',
-    yjs_state: null,
+    kind: 'snapshot' as const,
     starred: false,
     created_at: '2025-01-03T00:00:00Z',
   },
   {
     id: 'v2',
     document_id: 'doc1',
-    yjs_state: null,
+    kind: 'snapshot' as const,
     starred: true,
     created_at: '2025-01-02T00:00:00Z',
   },

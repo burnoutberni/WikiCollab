@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 
+import { migrateRevisionStorage } from '../db/revision-storage.js';
 import * as schema from '../db/schema.js';
 
 const SCHEMA_SQL = `
@@ -35,6 +36,7 @@ export function createTestDb(): TestDb {
   const sqlite = new Database(':memory:');
   sqlite.pragma('foreign_keys = ON');
   sqlite.exec(SCHEMA_SQL);
+  migrateRevisionStorage(sqlite);
   const db = drizzle(sqlite, { schema });
   return {
     db,

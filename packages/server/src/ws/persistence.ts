@@ -1,14 +1,20 @@
-import { desc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import * as encoding from 'lib0/encoding';
 import { nanoid } from 'nanoid';
 import * as Y from 'yjs';
 
 import { getDocumentById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
+import {
+  getLatestRevision,
+  needsRevisionSnapshot,
+  reconstructRevision,
+} from '../services/revision-storage.js';
 import type { WSSharedDoc } from './connection.js';
 import { broadcastCustom } from './connection.js';
 
 let contentInitializor: (ydoc: Y.Doc) => Promise<void> = () => Promise.resolve();
+const forceSnapshotOnNextSave = new Set<string>();
 
 /** Overrides how newly opened Yjs docs are hydrated, primarily for app setup and tests. */
 export function setContentInitializor(f: (ydoc: Y.Doc) => Promise<void>) {
@@ -24,60 +30,78 @@ export async function runContentInitializor(ydoc: Y.Doc): Promise<void> {
 export function initContentInitializor() {
   setContentInitializor(async (ydoc: Y.Doc) => {
     const docName = (ydoc as unknown as { name: string }).name;
-
-    const latestRevision = db
-      .select()
-      .from(schema.documentRevisions)
-      .where(eq(schema.documentRevisions.document_id, docName))
-      .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
-      .get();
-
-    if (latestRevision?.yjs_state) {
-      const state = Buffer.from(latestRevision.yjs_state, 'base64');
-      Y.applyUpdate(ydoc, state);
-    } else {
+    const seedPlainText = () => {
+      forceSnapshotOnNextSave.add(docName);
       const existingDoc = getDocumentById(docName);
       if (existingDoc?.content) {
         ydoc.getText('wikitext').insert(0, existingDoc.content);
       }
+    };
+
+    const latestRevision = getLatestRevision(docName);
+
+    if (latestRevision?.has_state) {
+      let restored: Y.Doc | undefined;
+      try {
+        restored = reconstructRevision(latestRevision);
+        Y.applyUpdate(ydoc, Y.encodeStateAsUpdate(restored));
+      } catch {
+        seedPlainText();
+      } finally {
+        restored?.destroy();
+      }
+    } else {
+      seedPlainText();
     }
   });
 }
 
 const saveTimers = new Map<string, NodeJS.Timeout>();
+const pendingUpdates = new WeakMap<WSSharedDoc, Uint8Array[]>();
 
-/** Persists the current document content and writes a revision snapshot on content changes. */
+/** Atomically persist text and its checkpoint/delta before notifying clients. */
 function saveDoc(docName: string, doc: WSSharedDoc) {
-  const ytext = doc.getText('wikitext');
-  const content = ytext.toString();
+  const content = doc.getText('wikitext').toString();
+  const updates = pendingUpdates.get(doc) ?? [];
+  const saved = db.transaction(() => {
+    const existing = getDocumentById(docName);
+    if (!existing) return false;
+    const contentChanged = existing.content !== content;
+    // Even edits that cancel out can introduce Yjs structs needed by future deltas.
+    if (!contentChanged && updates.length === 0) return false;
 
-  const existing = getDocumentById(docName);
+    const latest = getLatestRevision(docName);
+    const delta = updates.length > 0 ? Y.mergeUpdates(updates) : undefined;
+    const snapshot =
+      forceSnapshotOnNextSave.has(docName) ||
+      !delta ||
+      needsRevisionSnapshot(latest, delta.byteLength);
+    const payload = snapshot ? Y.encodeStateAsUpdate(doc) : delta!;
+    // IDs are random, so force increasing timestamps for deterministic replay even
+    // when saves share a millisecond or the system clock moves backwards.
+    const createdAt = new Date(
+      Math.max(Date.now(), latest ? Date.parse(latest.created_at) + 1 : 0)
+    ).toISOString();
 
-  if (!existing) return;
-
-  const contentChanged = existing.content !== content;
-
-  db.update(schema.documents)
-    .set({
-      content,
-      updated_at: new Date().toISOString(),
-    })
-    .where(eq(schema.documents.id, docName))
-    .run();
-
-  if (contentChanged) {
-    const revisionId = nanoid(7);
-    const state = Y.encodeStateAsUpdate(doc);
-
+    db.update(schema.documents)
+      .set({ content, updated_at: createdAt })
+      .where(eq(schema.documents.id, docName))
+      .run();
     db.insert(schema.documentRevisions)
       .values({
-        id: revisionId,
+        id: nanoid(7),
         document_id: docName,
-        yjs_state: Buffer.from(state).toString('base64'),
-        created_at: new Date().toISOString(),
+        kind: snapshot ? 'snapshot' : 'delta',
+        payload: Buffer.from(payload),
+        created_at: createdAt,
       })
       .run();
+    return true;
+  });
+  pendingUpdates.delete(doc);
+  if (saved) forceSnapshotOnNextSave.delete(docName);
 
+  if (saved) {
     const responseEncoder = encoding.createEncoder();
     encoding.writeVarString(responseEncoder, 'new_version');
     encoding.writeVarString(responseEncoder, 'documentId');
@@ -87,16 +111,21 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
   }
 }
 
-/** Coalesces bursty Yjs updates into a single delayed database write per document. */
-export function saveDocDebounced(docName: string, doc: WSSharedDoc) {
+/** Collect bursty Yjs updates for a single merged delta per debounce window. */
+export function saveDocDebounced(docName: string, doc: WSSharedDoc, update?: Uint8Array) {
+  if (update) {
+    const updates = pendingUpdates.get(doc) ?? [];
+    updates.push(update);
+    pendingUpdates.set(doc, updates);
+  }
   if (saveTimers.has(docName)) {
     clearTimeout(saveTimers.get(docName)!);
   }
   saveTimers.set(
     docName,
     setTimeout(() => {
-      saveDoc(docName, doc);
       saveTimers.delete(docName);
+      saveDoc(docName, doc);
     }, 1000)
   );
 }
@@ -134,8 +163,8 @@ export function initPersistence() {
   setPersistence({
     provider: null,
     bindState: (docName: string, doc: WSSharedDoc) => {
-      doc.on('update', () => {
-        saveDocDebounced(docName, doc);
+      doc.on('update', (update: Uint8Array) => {
+        saveDocDebounced(docName, doc, update);
       });
     },
     writeState: async (docName: string, doc: WSSharedDoc) => {

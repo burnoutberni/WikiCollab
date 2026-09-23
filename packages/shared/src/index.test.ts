@@ -41,7 +41,7 @@ describe('Shared types', () => {
     const revision: DocumentRevision = {
       id: 'rev1',
       document_id: 'doc1',
-      yjs_state: null,
+      kind: 'snapshot' as const,
       starred: false,
       created_at: '2025-01-01',
     };
