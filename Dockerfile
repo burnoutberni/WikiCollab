@@ -1,11 +1,11 @@
-FROM node:24-alpine AS base
+FROM node:24.21.0-alpine AS base
 
 ARG VITE_DEMO_MODE
 ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
 
 RUN apk add --no-cache python3 make g++
 
-RUN npm install --global pnpm@11.24.0
+RUN npm install --global pnpm@11.27.0
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY . .
 
 RUN pnpm run build
 
-FROM node:24-alpine AS production
+FROM node:24.21.0-alpine AS production
 
 ARG VERSION=0.0.0
 
