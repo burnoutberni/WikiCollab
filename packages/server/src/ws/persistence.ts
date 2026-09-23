@@ -14,6 +14,7 @@ import type { WSSharedDoc } from './connection.js';
 import { broadcastCustom } from './connection.js';
 
 let contentInitializor: (ydoc: Y.Doc) => Promise<void> = () => Promise.resolve();
+const forceSnapshotOnNextSave = new Set<string>();
 
 /** Overrides how newly opened Yjs docs are hydrated, primarily for app setup and tests. */
 export function setContentInitializor(f: (ydoc: Y.Doc) => Promise<void>) {
@@ -30,6 +31,7 @@ export function initContentInitializor() {
   setContentInitializor(async (ydoc: Y.Doc) => {
     const docName = (ydoc as unknown as { name: string }).name;
     const seedPlainText = () => {
+      forceSnapshotOnNextSave.add(docName);
       const existingDoc = getDocumentById(docName);
       if (existingDoc?.content) {
         ydoc.getText('wikitext').insert(0, existingDoc.content);
@@ -70,7 +72,10 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
 
     const latest = getLatestRevision(docName);
     const delta = updates.length > 0 ? Y.mergeUpdates(updates) : undefined;
-    const snapshot = !delta || needsRevisionSnapshot(latest, delta.byteLength);
+    const snapshot =
+      forceSnapshotOnNextSave.has(docName) ||
+      !delta ||
+      needsRevisionSnapshot(latest, delta.byteLength);
     const payload = snapshot ? Y.encodeStateAsUpdate(doc) : delta!;
     // IDs are random, so force increasing timestamps for deterministic replay even
     // when saves share a millisecond or the system clock moves backwards.
@@ -94,6 +99,7 @@ function saveDoc(docName: string, doc: WSSharedDoc) {
     return true;
   });
   pendingUpdates.delete(doc);
+  if (saved) forceSnapshotOnNextSave.delete(docName);
 
   if (saved) {
     const responseEncoder = encoding.createEncoder();

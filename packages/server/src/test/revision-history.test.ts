@@ -294,6 +294,9 @@ describe('Checkpointed revision history', () => {
     const doc = await openDoc();
 
     expect(doc.getText('wikitext').toString()).toBe('plain text fallback');
+    const row = save(doc, ' changed');
+    expect(row.kind).toBe('snapshot');
+    await expectPreviewAndRestore(row.id, 'plain text fallback changed');
   });
 
   it('checkpoints initial plain text when there is no usable legacy state', async () => {
