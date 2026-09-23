@@ -1269,7 +1269,7 @@ describe('Docs routes', () => {
     expect(data.content).toBe('Restored content');
   });
 
-  it('POST /:id/versions/:v/restore returns empty content on corrupt yjs state', async () => {
+  it('POST /:id/versions/:v/restore fails on corrupt yjs state', async () => {
     const db = mockDbModule.db;
 
     const createRes = await app.request('/api/docs', {
@@ -1295,9 +1295,11 @@ describe('Docs routes', () => {
         method: 'POST',
       }
     );
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.content).toBe('');
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'Failed to restore version' });
+    expect(
+      db.select().from(schema.documents).where(eq(schema.documents.id, created.id)).get()!
+        .restored_version_id
+    ).toBeNull();
   });
 });
