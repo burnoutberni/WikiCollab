@@ -56,14 +56,20 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchRefreshedInstanceCss(id: string): Promise<Document | null> {
+function hasMediaWikiUrlMetadata(doc: Document): boolean {
+  return Boolean(
+    doc.mediawiki_canonical_server || doc.mediawiki_article_path || doc.mediawiki_script_path
+  );
+}
+
+async function fetchRefreshedInstanceData(id: string): Promise<Document | null> {
   for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
     try {
       const res = await fetch(`${API_BASE}/docs/${id}`);
       if (!res.ok) return null;
       const doc = (await res.json()) as Document;
-      if (doc.mediawiki_instance_css) return doc;
+      if (doc.mediawiki_instance_css || hasMediaWikiUrlMetadata(doc)) return doc;
     } catch {
       return null;
     }
@@ -333,10 +339,10 @@ export function DocumentEditor() {
         let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
         if (!res.ok) throw new Error(updatedDoc.error || 'Failed to update MediaWiki instance');
         if (updatedDoc.mediawiki_instance_api_url && !updatedDoc.mediawiki_instance_css) {
-          const refreshedDoc = await fetchRefreshedInstanceCss(id);
+          const refreshedDoc = await fetchRefreshedInstanceData(id);
           if (
             refreshedDoc?.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url &&
-            refreshedDoc.mediawiki_instance_css
+            (refreshedDoc.mediawiki_instance_css || hasMediaWikiUrlMetadata(refreshedDoc))
           ) {
             updatedDoc = refreshedDoc;
           }

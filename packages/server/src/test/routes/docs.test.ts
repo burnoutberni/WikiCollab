@@ -527,7 +527,9 @@ describe('Docs routes', () => {
     expect(text).not.toHaveBeenCalled();
   });
 
-  it('PATCH /:id preserves existing CSS and skips refresh when API URL is unchanged', async () => {
+  it('PATCH /:id preserves existing CSS and metadata when same-URL refresh fails', async () => {
+    mockServerFetch.mockRejectedValueOnce(new Error('siteinfo failed'));
+
     const createRes = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -540,6 +542,9 @@ describe('Docs routes', () => {
         mediawiki_instance_name: 'Example',
         mediawiki_instance_api_url: 'https://example.com/w/api.php',
         mediawiki_instance_css: '.cached{}',
+        mediawiki_canonical_server: 'https://example.com',
+        mediawiki_article_path: '/wiki/$1',
+        mediawiki_script_path: '/w',
       })
       .where(eq(schema.documents.id, created.id))
       .run();
@@ -560,7 +565,121 @@ describe('Docs routes', () => {
       .where(eq(schema.documents.id, created.id))
       .get();
     expect(stored?.mediawiki_instance_css).toBe('.cached{}');
+    expect(stored?.mediawiki_canonical_server).toBe('https://example.com');
+    expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
+    expect(stored?.mediawiki_script_path).toBe('/w');
     expect(mockServerFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('PATCH /:id does not let a stale same-URL refresh overwrite a newer API URL', async () => {
+    let resolveOldSiteInfo: () => void = () => {};
+    mockServerFetch.mockImplementation((url: string) => {
+      if (url.includes('https://old.example.com') && url.includes('meta=siteinfo')) {
+        return new Promise((resolve) => {
+          resolveOldSiteInfo = () =>
+            resolve({
+              json: () =>
+                Promise.resolve({
+                  query: { general: { server: 'https://old.example.com' }, skins: [] },
+                }),
+            });
+        });
+      }
+      return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Concurrent Instance Update' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({
+        mediawiki_instance_name: 'Old Example',
+        mediawiki_instance_api_url: 'https://old.example.com/w/api.php',
+        mediawiki_instance_css: '.cached{}',
+        mediawiki_canonical_server: 'https://old.example.com',
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const oldPatch = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediawiki_instance_api_url: 'https://old.example.com/w/api.php' }),
+    });
+    const newPatch = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediawiki_instance_api_url: 'https://new.example.com/w/api.php' }),
+    });
+
+    expect(oldPatch.status).toBe(200);
+    expect(newPatch.status).toBe(200);
+
+    resolveOldSiteInfo();
+
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_api_url).toBe('https://new.example.com/w/api.php');
+    });
+  });
+
+  it('persists URL metadata when siteinfo succeeds but CSS fetches fail', async () => {
+    mockServerFetch
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            query: {
+              general: {
+                server: 'https://metadata.example',
+                articlepath: '/$1',
+                scriptpath: '/w',
+              },
+              skins: [{ code: 'vector', default: '' }],
+            },
+          }),
+      })
+      .mockRejectedValueOnce(new Error('resource loader failed'))
+      .mockRejectedValueOnce(new Error('common css failed'))
+      .mockRejectedValueOnce(new Error('skin css failed'));
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Metadata Without CSS' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({ mediawiki_instance_api_url: 'https://metadata.example/w/api.php' })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediawiki_instance_api_url: 'https://metadata.example/w/api.php' }),
+    });
+
+    expect(res.status).toBe(200);
+    await vi.waitFor(() => {
+      const stored = mockDbModule.db
+        .select()
+        .from(schema.documents)
+        .where(eq(schema.documents.id, created.id))
+        .get();
+      expect(stored?.mediawiki_instance_css).toBeNull();
+      expect(stored?.mediawiki_canonical_server).toBe('https://metadata.example');
+      expect(stored?.mediawiki_article_path).toBe('/$1');
+      expect(stored?.mediawiki_script_path).toBe('/w');
+    });
   });
 
   it('PATCH /:id preserves the MediaWiki instance name when omitted', async () => {

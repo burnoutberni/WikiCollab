@@ -37,10 +37,13 @@ function fallbackEditUrl(apiUrl: string, title: string): string | null {
   }
 }
 
-function normalizeServer(server: string | null | undefined): string | null {
+function normalizeServer(
+  server: string | null | undefined,
+  baseUrl?: string | null
+): string | null {
   if (!server) return null;
   try {
-    const url = new URL(server);
+    const url = new URL(server, baseUrl || undefined);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
     url.pathname = url.pathname.replace(/\/$/, '');
     url.search = '';
@@ -56,7 +59,7 @@ export function buildMediaWikiPageUrl(
   title: string,
   metadata?: MediaWikiUrlMetadata | null
 ): string | null {
-  const server = normalizeServer(metadata?.server);
+  const server = normalizeServer(metadata?.server, apiUrl);
   if (server && metadata?.articlePath?.includes('$1')) {
     try {
       return new URL(
@@ -75,7 +78,7 @@ export function buildMediaWikiEditUrl(
   title: string,
   metadata?: MediaWikiUrlMetadata | null
 ): string | null {
-  const server = normalizeServer(metadata?.server);
+  const server = normalizeServer(metadata?.server, apiUrl);
   if (server && metadata?.scriptPath !== null && metadata?.scriptPath !== undefined) {
     try {
       const scriptPath = metadata.scriptPath.replace(/\/$/, '');
@@ -90,8 +93,12 @@ export function buildMediaWikiEditUrl(
   return apiUrl ? fallbackEditUrl(apiUrl, title) : null;
 }
 
-export function absolutizeMediaWikiUrl(value: string, server: string | null | undefined): string {
-  const canonicalServer = normalizeServer(server);
+export function absolutizeMediaWikiUrl(
+  value: string,
+  server: string | null | undefined,
+  baseUrl?: string | null
+): string {
+  const canonicalServer = normalizeServer(server, baseUrl);
   if (!canonicalServer || !value || value.startsWith('#')) return value;
   if (/^(?:[a-z][a-z0-9+.-]*:)/i.test(value) && !/^https?:/i.test(value)) return value;
   try {

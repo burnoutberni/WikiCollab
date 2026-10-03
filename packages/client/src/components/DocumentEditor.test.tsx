@@ -482,6 +482,65 @@ describe('DocumentEditor', () => {
     );
   });
 
+  it('refetches instance URL metadata even when async refresh has no CSS', async () => {
+    vi.useFakeTimers();
+    const emptyInstanceDoc = {
+      ...mockDoc,
+      mediawiki_instance_name: null,
+      mediawiki_instance_api_url: null,
+      mediawiki_instance_css: null,
+      mediawiki_canonical_server: null,
+      mediawiki_article_path: null,
+      mediawiki_script_path: null,
+    };
+    const patchedDoc = {
+      ...emptyInstanceDoc,
+      mediawiki_instance_name: 'English Wikipedia',
+      mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
+    };
+    const refreshedDoc = {
+      ...patchedDoc,
+      mediawiki_canonical_server: 'https://en.wikipedia.org',
+      mediawiki_article_path: '/wiki/$1',
+      mediawiki_script_path: '/w',
+    };
+    const setDocument = vi.fn();
+    useDocumentMock.mockReturnValue({ document: emptyInstanceDoc, loading: false, setDocument });
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => patchedDoc })
+        .mockResolvedValueOnce({ ok: true, json: async () => patchedDoc })
+        .mockResolvedValueOnce({ ok: true, json: async () => refreshedDoc })
+    );
+
+    renderWithProviders(<DocumentEditor />);
+
+    let savePromise: Promise<void> | undefined;
+    React.act(() => {
+      savePromise = mockInstanceManager.mock.calls
+        .at(-1)?.[0]
+        .onChange('English Wikipedia', 'https://en.wikipedia.org/w/api.php');
+    });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+    await React.act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+      await savePromise;
+    });
+
+    expect(setDocument).toHaveBeenCalledWith(expect.any(Function));
+    expect(setDocument.mock.calls[0][0]({ ...emptyInstanceDoc })).toEqual(
+      expect.objectContaining({
+        mediawiki_instance_css: null,
+        mediawiki_canonical_server: 'https://en.wikipedia.org',
+        mediawiki_article_path: '/wiki/$1',
+        mediawiki_script_path: '/w',
+      })
+    );
+  });
+
   it('keeps a successful instance PATCH when CSS refresh polling fails', async () => {
     const emptyInstanceDoc = {
       ...mockDoc,

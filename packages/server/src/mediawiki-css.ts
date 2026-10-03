@@ -1,8 +1,12 @@
 import { serverFetch, SsrfError } from 'server-fetch';
-import type { MediaWikiUrlMetadata } from 'shared';
 
 import { logger } from './logging.js';
 import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import {
+  emptyMediaWikiUrlMetadata,
+  type MediaWikiUrlMetadataResult,
+  readMediaWikiUrlMetadata,
+} from './mediawiki-siteinfo.js';
 
 const MAX_MEDIAWIKI_CSS_BYTES = 500_000;
 
@@ -110,8 +114,8 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
 
 export async function fetchMediaWikiCssAndUrlMetadata(
   apiUrl: string
-): Promise<{ css: string | null; urlMetadata: MediaWikiUrlMetadata }> {
-  const emptyMetadata: MediaWikiUrlMetadata = { server: null, articlePath: null, scriptPath: null };
+): Promise<{ css: string | null; urlMetadata: MediaWikiUrlMetadataResult }> {
+  let urlMetadata = emptyMediaWikiUrlMetadata;
   try {
     const siteInfoUrl = getApiUrl(apiUrl, {
       action: 'query',
@@ -128,11 +132,9 @@ export async function fetchMediaWikiCssAndUrlMetadata(
         skins?: Array<{ code: string; name: string; default?: boolean | string }>;
       };
     }>(siteInfoRes, 'siteinfo');
-    const urlMetadata = {
-      server: siteInfoData?.query?.general?.server || null,
-      articlePath: siteInfoData?.query?.general?.articlepath || null,
-      scriptPath: siteInfoData?.query?.general?.scriptpath || null,
-    };
+    if (siteInfoData) {
+      urlMetadata = readMediaWikiUrlMetadata(siteInfoData.query?.general, apiUrl);
+    }
 
     const defaultSkin = siteInfoData?.query?.skins?.find(
       (skin) => skin.default === true || skin.default === ''
@@ -205,6 +207,6 @@ export async function fetchMediaWikiCssAndUrlMetadata(
         'Failed to fetch CSS from MediaWiki'
       );
     }
-    return { css: null, urlMetadata: emptyMetadata };
+    return { css: null, urlMetadata };
   }
 }

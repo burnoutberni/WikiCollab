@@ -7,7 +7,6 @@ import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
 import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
-import { fetchMediaWikiUrlMetadata } from '../mediawiki-siteinfo.js';
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 import { reconstructRevisionContent, revisionMetadata } from '../services/revision-storage.js';
@@ -20,12 +19,14 @@ const inFlightCssRefreshes = new Map<string, CssRefresh>();
 
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(apiUrl);
-  const updates: Record<string, string | null> = {
-    mediawiki_canonical_server: urlMetadata.server,
-    mediawiki_article_path: urlMetadata.articlePath,
-    mediawiki_script_path: urlMetadata.scriptPath,
-  };
+  const updates: Record<string, string | null> = {};
+  if (urlMetadata.fetched) {
+    updates.mediawiki_canonical_server = urlMetadata.server;
+    updates.mediawiki_article_path = urlMetadata.articlePath;
+    updates.mediawiki_script_path = urlMetadata.scriptPath;
+  }
   if (css !== null) updates.mediawiki_instance_css = css;
+  if (Object.keys(updates).length === 0) return;
 
   db.update(schema.documents)
     .set(updates)
@@ -180,11 +181,6 @@ docs.patch('/:id', async (c) => {
         updates.mediawiki_canonical_server = null;
         updates.mediawiki_article_path = null;
         updates.mediawiki_script_path = null;
-      } else if (existingDoc.mediawiki_instance_css) {
-        const urlMetadata = await fetchMediaWikiUrlMetadata(body.mediawiki_instance_api_url);
-        updates.mediawiki_canonical_server = urlMetadata.server;
-        updates.mediawiki_article_path = urlMetadata.articlePath;
-        updates.mediawiki_script_path = urlMetadata.scriptPath;
       }
     }
   } else if (body.mediawiki_instance_name !== undefined) {
@@ -202,10 +198,7 @@ docs.patch('/:id', async (c) => {
   }
 
   const doc = getDocumentById(id);
-  const apiUrlChanged =
-    body.mediawiki_instance_api_url !== undefined &&
-    body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url;
-  if (body.mediawiki_instance_api_url && (apiUrlChanged || !existingDoc.mediawiki_instance_css)) {
+  if (body.mediawiki_instance_api_url) {
     refreshDocumentMediaWikiCssInBackground(id, body.mediawiki_instance_api_url);
   }
   return c.json(doc);

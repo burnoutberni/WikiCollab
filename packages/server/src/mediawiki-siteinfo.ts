@@ -12,11 +12,51 @@ function getApiUrl(apiUrl: string, params: Record<string, string>): string {
   return url.toString();
 }
 
+export interface MediaWikiUrlMetadataResult extends MediaWikiUrlMetadata {
+  fetched: boolean;
+}
+
+export const emptyMediaWikiUrlMetadata: MediaWikiUrlMetadataResult = {
+  server: null,
+  articlePath: null,
+  scriptPath: null,
+  fetched: false,
+};
+
 function nonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
-export async function fetchMediaWikiUrlMetadata(apiUrl: string): Promise<MediaWikiUrlMetadata> {
+function normalizeServer(value: unknown, apiUrl: string): string | null {
+  const server = nonEmptyString(value);
+  if (!server) return null;
+  try {
+    const url = new URL(server, apiUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    url.pathname = url.pathname.replace(/\/$/, '');
+    url.search = '';
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+export function readMediaWikiUrlMetadata(
+  general: { server?: unknown; articlepath?: unknown; scriptpath?: unknown } | undefined,
+  apiUrl: string
+): MediaWikiUrlMetadataResult {
+  return {
+    server: normalizeServer(general?.server, apiUrl),
+    articlePath: nonEmptyString(general?.articlepath),
+    scriptPath: typeof general?.scriptpath === 'string' ? general.scriptpath : null,
+    fetched: true,
+  };
+}
+
+export async function fetchMediaWikiUrlMetadata(
+  apiUrl: string
+): Promise<MediaWikiUrlMetadataResult> {
   try {
     const res = await serverFetch(
       getApiUrl(apiUrl, {
@@ -30,17 +70,13 @@ export async function fetchMediaWikiUrlMetadata(apiUrl: string): Promise<MediaWi
     const data = await readMediaWikiJson<{
       query?: { general?: { server?: unknown; articlepath?: unknown; scriptpath?: unknown } };
     }>(res, 'siteinfo general');
-    const general = data?.query?.general;
-    return {
-      server: nonEmptyString(general?.server),
-      articlePath: nonEmptyString(general?.articlepath),
-      scriptPath: nonEmptyString(general?.scriptpath),
-    };
+    if (!data) return emptyMediaWikiUrlMetadata;
+    return readMediaWikiUrlMetadata(data.query?.general, apiUrl);
   } catch (err) {
     logger.warn(
       { apiUrl, err: err instanceof Error ? err.message : String(err) },
       'Failed to fetch MediaWiki URL metadata'
     );
-    return { server: null, articlePath: null, scriptPath: null };
+    return emptyMediaWikiUrlMetadata;
   }
 }

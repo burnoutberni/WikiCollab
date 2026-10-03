@@ -108,6 +108,16 @@ describe('MediaWiki URL helpers', () => {
     ).toBe('https://wiki.example/Ada_Lovelace');
   });
 
+  it('resolves protocol-relative canonical servers against the API URL', () => {
+    expect(
+      buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'Ada Lovelace', {
+        server: '//canonical.example',
+        articlePath: '/$1',
+        scriptPath: '/w',
+      })
+    ).toBe('https://canonical.example/Ada_Lovelace');
+  });
+
   it('builds /w/index.php?title=$1 canonical page URLs', () => {
     expect(
       buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'Ada Lovelace', {
