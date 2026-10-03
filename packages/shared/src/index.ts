@@ -11,6 +11,9 @@ export interface Document {
   mediawiki_instance_name: string | null;
   mediawiki_instance_api_url: string | null;
   mediawiki_instance_css: string | null;
+  mediawiki_canonical_server: string | null;
+  mediawiki_article_path: string | null;
+  mediawiki_script_path: string | null;
   restored_version_id: string | null;
   visibility: DocumentVisibility;
 }
@@ -87,6 +90,12 @@ export interface RestorePayload {
   documentId: string;
 }
 
+export type { MediaWikiUrlMetadata } from './mediawiki-url.js';
+export {
+  absolutizeMediaWikiUrl,
+  buildMediaWikiEditUrl,
+  buildMediaWikiPageUrl,
+} from './mediawiki-url.js';
 export {
   decodeCustomMessage,
   encodeCustomMessage,

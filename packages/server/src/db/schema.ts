@@ -11,6 +11,9 @@ export const documents = sqliteTable('documents', {
   mediawiki_instance_name: text('mediawiki_instance_name'),
   mediawiki_instance_api_url: text('mediawiki_instance_api_url'),
   mediawiki_instance_css: text('mediawiki_instance_css'),
+  mediawiki_canonical_server: text('mediawiki_canonical_server'),
+  mediawiki_article_path: text('mediawiki_article_path'),
+  mediawiki_script_path: text('mediawiki_script_path'),
   restored_version_id: text('restored_version_id'),
   visibility: text('visibility').notNull().default('public'),
 });

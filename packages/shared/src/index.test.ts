@@ -10,6 +10,7 @@ import type {
   PreviewResponse,
   ViewMode,
 } from '../src/index';
+import { absolutizeMediaWikiUrl, buildMediaWikiEditUrl, buildMediaWikiPageUrl } from './index';
 import {
   decodeCustomMessage,
   encodeCustomMessage,
@@ -30,6 +31,9 @@ describe('Shared types', () => {
       mediawiki_instance_name: null,
       mediawiki_instance_api_url: null,
       mediawiki_instance_css: null,
+      mediawiki_canonical_server: null,
+      mediawiki_article_path: null,
+      mediawiki_script_path: null,
       restored_version_id: null,
       visibility: 'public',
     };
@@ -80,6 +84,83 @@ describe('Shared types', () => {
     };
     expect(response.html).toContain('Hello');
     expect(response.sourceMap).toHaveLength(1);
+  });
+});
+
+describe('MediaWiki URL helpers', () => {
+  it('builds /wiki/$1 canonical page URLs', () => {
+    expect(
+      buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'Ada Lovelace', {
+        server: 'https://wiki.example',
+        articlePath: '/wiki/$1',
+        scriptPath: '/w',
+      })
+    ).toBe('https://wiki.example/wiki/Ada_Lovelace');
+  });
+
+  it('builds /$1 canonical page URLs', () => {
+    expect(
+      buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'Ada Lovelace', {
+        server: 'https://wiki.example',
+        articlePath: '/$1',
+        scriptPath: '/w',
+      })
+    ).toBe('https://wiki.example/Ada_Lovelace');
+  });
+
+  it('resolves protocol-relative canonical servers against the API URL', () => {
+    expect(
+      buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'Ada Lovelace', {
+        server: '//canonical.example',
+        articlePath: '/$1',
+        scriptPath: '/w',
+      })
+    ).toBe('https://canonical.example/Ada_Lovelace');
+  });
+
+  it('builds /w/index.php?title=$1 canonical page URLs', () => {
+    expect(
+      buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'Ada Lovelace', {
+        server: 'https://wiki.example',
+        articlePath: '/w/index.php?title=$1',
+        scriptPath: '/w',
+      })
+    ).toBe('https://wiki.example/w/index.php?title=Ada_Lovelace');
+  });
+
+  it('encodes special characters and preserves underscores', () => {
+    expect(
+      buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'A&B #Q?/Sub_Name', {
+        server: 'https://wiki.example',
+        articlePath: '/wiki/$1',
+        scriptPath: '/w',
+      })
+    ).toBe('https://wiki.example/wiki/A%26B_%23Q%3F%2FSub_Name');
+  });
+
+  it('builds edit URLs from scriptpath', () => {
+    expect(
+      buildMediaWikiEditUrl('https://wiki.example/api.php', 'Ada Lovelace', {
+        server: 'https://wiki.example',
+        articlePath: '/$1',
+        scriptPath: '',
+      })
+    ).toBe('https://wiki.example/index.php?title=Ada+Lovelace&action=edit');
+  });
+
+  it('falls back to legacy API-derived URLs when metadata is missing', () => {
+    expect(buildMediaWikiPageUrl('https://wiki.example/w/api.php', 'Ada Lovelace', null)).toBe(
+      'https://wiki.example/wiki/Ada_Lovelace'
+    );
+    expect(buildMediaWikiEditUrl('https://wiki.example/w/api.php', 'Ada Lovelace', null)).toBe(
+      'https://wiki.example/w/index.php?title=Ada+Lovelace&action=edit'
+    );
+  });
+
+  it('absolutizes relative preview URLs against the canonical server', () => {
+    expect(absolutizeMediaWikiUrl('/wiki/File:Example.png', 'https://wiki.example')).toBe(
+      'https://wiki.example/wiki/File:Example.png'
+    );
   });
 });
 
