@@ -85,7 +85,14 @@ describe('Docs routes', () => {
       .mockResolvedValueOnce({
         json: () =>
           Promise.resolve({
-            query: { skins: [{ code: 'vector-2022', name: 'Vector', default: '' }] },
+            query: {
+              general: {
+                server: 'https://en.wikipedia.org',
+                articlepath: '/wiki/$1',
+                scriptpath: '/w',
+              },
+              skins: [{ code: 'vector-2022', name: 'Vector', default: '' }],
+            },
           }),
       })
       .mockResolvedValueOnce({
@@ -123,6 +130,9 @@ describe('Docs routes', () => {
         .where(eq(schema.documents.id, data.id))
         .get();
       expect(stored?.mediawiki_instance_css).toContain('.mw-parser-output{font-size:14px}');
+      expect(stored?.mediawiki_canonical_server).toBe('https://en.wikipedia.org');
+      expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
+      expect(stored?.mediawiki_script_path).toBe('/w');
     });
   });
 
@@ -540,7 +550,7 @@ describe('Docs routes', () => {
       .where(eq(schema.documents.id, created.id))
       .get();
     expect(stored?.mediawiki_instance_css).toBe('.cached{}');
-    expect(mockServerFetch).not.toHaveBeenCalled();
+    expect(mockServerFetch).toHaveBeenCalledTimes(1);
   });
 
   it('PATCH /:id preserves the MediaWiki instance name when omitted', async () => {

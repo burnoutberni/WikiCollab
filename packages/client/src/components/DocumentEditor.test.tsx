@@ -24,6 +24,9 @@ const mockDoc = {
   mediawiki_instance_name: 'English Wikipedia',
   mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
   mediawiki_instance_css: '.mw-parser-output { color: red; }',
+  mediawiki_canonical_server: 'https://en.wikipedia.org',
+  mediawiki_article_path: '/wiki/$1',
+  mediawiki_script_path: '/w',
   restored_version_id: null,
   visibility: 'public' as DocumentVisibility,
 };
@@ -339,6 +342,9 @@ describe('DocumentEditor', () => {
       mediawiki_instance_name: null,
       mediawiki_instance_api_url: null,
       mediawiki_instance_css: null,
+      mediawiki_canonical_server: null,
+      mediawiki_article_path: null,
+      mediawiki_script_path: null,
     };
     const setDocument = vi.fn();
     useDocumentMock.mockReturnValue({ document: emptyInstanceDoc, loading: false, setDocument });
@@ -413,6 +419,9 @@ describe('DocumentEditor', () => {
       mediawiki_instance_name: null,
       mediawiki_instance_api_url: null,
       mediawiki_instance_css: null,
+      mediawiki_canonical_server: null,
+      mediawiki_article_path: null,
+      mediawiki_script_path: null,
     };
     const patchedDoc = {
       ...emptyInstanceDoc,
@@ -479,6 +488,9 @@ describe('DocumentEditor', () => {
       mediawiki_instance_name: null,
       mediawiki_instance_api_url: null,
       mediawiki_instance_css: null,
+      mediawiki_canonical_server: null,
+      mediawiki_article_path: null,
+      mediawiki_script_path: null,
     };
     const patchedDoc = {
       ...emptyInstanceDoc,

@@ -11,6 +11,9 @@ export interface Document {
   mediawiki_instance_name: string | null;
   mediawiki_instance_api_url: string | null;
   mediawiki_instance_css: string | null;
+  mediawiki_canonical_server: string | null;
+  mediawiki_article_path: string | null;
+  mediawiki_script_path: string | null;
   restored_version_id: string | null;
   visibility: DocumentVisibility;
 }
@@ -94,6 +97,12 @@ export {
   messageCustom,
   wrapCustomMessage,
 } from './protocol.js';
+export type { MediaWikiUrlMetadata } from './mediawiki-url.js';
+export {
+  absolutizeMediaWikiUrl,
+  buildMediaWikiEditUrl,
+  buildMediaWikiPageUrl,
+} from './mediawiki-url.js';
 export { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from './schemas.js';
 export { replaceYText } from './yjs.js';
 export type { z } from 'zod';

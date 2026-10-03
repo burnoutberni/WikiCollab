@@ -68,6 +68,48 @@ describe('PushToWiki', () => {
     );
   });
 
+  it('uses detected root article paths when available', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <PushToWiki
+        title="Ada Lovelace"
+        content="'''Ada'''"
+        instanceApiUrl="https://wiki.example/w/api.php"
+        urlMetadata={{ server: 'https://wiki.example', articlePath: '/$1', scriptPath: '/w' }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+
+    expect(screen.getByText('https://wiki.example/Ada_Lovelace')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open editor/i })).toHaveAttribute(
+      'href',
+      'https://wiki.example/w/index.php?title=Ada+Lovelace&action=edit'
+    );
+  });
+
+  it('uses detected query article paths when available', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <PushToWiki
+        title="Ada Lovelace"
+        content="'''Ada'''"
+        instanceApiUrl="https://wiki.example/w/api.php"
+        urlMetadata={{
+          server: 'https://wiki.example',
+          articlePath: '/w/index.php?title=$1',
+          scriptPath: '/w',
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /publish/i }));
+
+    expect(screen.getByText('https://wiki.example/w/index.php?title=Ada_Lovelace')).toBeInTheDocument();
+  });
+
   it('encodes reserved title characters in pretty and editor URLs', async () => {
     const user = userEvent.setup();
 
