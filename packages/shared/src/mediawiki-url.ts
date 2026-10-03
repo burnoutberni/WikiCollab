@@ -59,7 +59,10 @@ export function buildMediaWikiPageUrl(
   const server = normalizeServer(metadata?.server);
   if (server && metadata?.articlePath?.includes('$1')) {
     try {
-      return new URL(metadata.articlePath.replace('$1', titleForArticlePath(title)), server).toString();
+      return new URL(
+        metadata.articlePath.replace('$1', titleForArticlePath(title)),
+        server
+      ).toString();
     } catch {
       // Fall through to legacy derivation.
     }

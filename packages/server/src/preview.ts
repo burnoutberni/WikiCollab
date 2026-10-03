@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import sanitizeHtml from 'sanitize-html';
-import { absolutizeMediaWikiUrl } from 'shared';
 import { serverFetch, SsrfError } from 'server-fetch';
+import { absolutizeMediaWikiUrl } from 'shared';
 
 import { logger } from './logging.js';
 import { mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';

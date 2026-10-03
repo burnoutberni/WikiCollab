@@ -1,5 +1,5 @@
-import type { MediaWikiUrlMetadata } from 'shared';
 import { serverFetch } from 'server-fetch';
+import type { MediaWikiUrlMetadata } from 'shared';
 
 import { logger } from './logging.js';
 import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';

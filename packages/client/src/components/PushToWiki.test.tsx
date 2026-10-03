@@ -107,7 +107,9 @@ describe('PushToWiki', () => {
 
     await user.click(screen.getByRole('button', { name: /publish/i }));
 
-    expect(screen.getByText('https://wiki.example/w/index.php?title=Ada_Lovelace')).toBeInTheDocument();
+    expect(
+      screen.getByText('https://wiki.example/w/index.php?title=Ada_Lovelace')
+    ).toBeInTheDocument();
   });
 
   it('encodes reserved title characters in pretty and editor URLs', async () => {

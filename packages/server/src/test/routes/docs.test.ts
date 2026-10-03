@@ -260,7 +260,14 @@ describe('Docs routes', () => {
       .mockResolvedValueOnce({
         json: () =>
           Promise.resolve({
-            query: { skins: [{ code: 'vector-2022', name: 'Vector', default: '' }] },
+            query: {
+              general: {
+                server: 'https://en.wikipedia.org',
+                articlepath: '/wiki/$1',
+                scriptpath: '/w',
+              },
+              skins: [{ code: 'vector-2022', name: 'Vector', default: '' }],
+            },
           }),
       })
       .mockResolvedValueOnce({
@@ -320,6 +327,9 @@ describe('Docs routes', () => {
       expect(stored?.mediawiki_instance_css).toContain('.common{color:red}');
       expect(stored?.mediawiki_instance_css).toContain('MediaWiki:vector-2022.css');
       expect(stored?.mediawiki_instance_css).toContain('.vector{color:blue}');
+      expect(stored?.mediawiki_canonical_server).toBe('https://en.wikipedia.org');
+      expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
+      expect(stored?.mediawiki_script_path).toBe('/w');
     });
     expect(mockServerFetch.mock.calls[1][0]).toContain('https://en.wikipedia.org/w/load.php?');
     expect(mockServerFetch.mock.calls[1][0]).toContain('skin=vector-2022');

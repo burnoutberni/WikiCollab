@@ -90,6 +90,12 @@ export interface RestorePayload {
   documentId: string;
 }
 
+export type { MediaWikiUrlMetadata } from './mediawiki-url.js';
+export {
+  absolutizeMediaWikiUrl,
+  buildMediaWikiEditUrl,
+  buildMediaWikiPageUrl,
+} from './mediawiki-url.js';
 export {
   decodeCustomMessage,
   encodeCustomMessage,
@@ -97,12 +103,6 @@ export {
   messageCustom,
   wrapCustomMessage,
 } from './protocol.js';
-export type { MediaWikiUrlMetadata } from './mediawiki-url.js';
-export {
-  absolutizeMediaWikiUrl,
-  buildMediaWikiEditUrl,
-  buildMediaWikiPageUrl,
-} from './mediawiki-url.js';
 export { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from './schemas.js';
 export { replaceYText } from './yjs.js';
 export type { z } from 'zod';

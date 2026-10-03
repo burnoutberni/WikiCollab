@@ -10,13 +10,13 @@ import type {
   PreviewResponse,
   ViewMode,
 } from '../src/index';
+import { absolutizeMediaWikiUrl, buildMediaWikiEditUrl, buildMediaWikiPageUrl } from './index';
 import {
   decodeCustomMessage,
   encodeCustomMessage,
   messageCustom,
   wrapCustomMessage,
 } from './protocol';
-import { absolutizeMediaWikiUrl, buildMediaWikiEditUrl, buildMediaWikiPageUrl } from './index';
 import { replaceYText } from './yjs';
 
 describe('Shared types', () => {
