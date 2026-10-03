@@ -17,3 +17,7 @@ overrides:
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
