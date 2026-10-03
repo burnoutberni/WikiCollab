@@ -559,6 +559,7 @@ describe('Docs routes', () => {
     });
 
     expect(res.status).toBe(200);
+    await drainDocumentMediaWikiCssRefreshesForTest();
     const stored = mockDbModule.db
       .select()
       .from(schema.documents)
@@ -569,6 +570,50 @@ describe('Docs routes', () => {
     expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
     expect(stored?.mediawiki_script_path).toBe('/w');
     expect(mockServerFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('PATCH /:id preserves metadata when siteinfo omits general data', async () => {
+    mockServerFetch.mockImplementation((url: string) => {
+      if (url.includes('meta=siteinfo')) {
+        return Promise.resolve({ json: () => Promise.resolve({ query: { skins: [] } }) });
+      }
+      return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
+    });
+
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Missing Siteinfo General' }),
+    });
+    const created = await createRes.json();
+    mockDbModule.db
+      .update(schema.documents)
+      .set({
+        mediawiki_instance_api_url: 'https://example.com/w/api.php',
+        mediawiki_instance_css: '.cached{}',
+        mediawiki_canonical_server: 'https://example.com',
+        mediawiki_article_path: '/wiki/$1',
+        mediawiki_script_path: '/w',
+      })
+      .where(eq(schema.documents.id, created.id))
+      .run();
+
+    const res = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediawiki_instance_api_url: 'https://example.com/w/api.php' }),
+    });
+
+    expect(res.status).toBe(200);
+    await drainDocumentMediaWikiCssRefreshesForTest();
+    const stored = mockDbModule.db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, created.id))
+      .get();
+    expect(stored?.mediawiki_canonical_server).toBe('https://example.com');
+    expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
+    expect(stored?.mediawiki_script_path).toBe('/w');
   });
 
   it('PATCH /:id does not let a stale same-URL refresh overwrite a newer API URL', async () => {
@@ -584,6 +629,9 @@ describe('Docs routes', () => {
                 }),
             });
         });
+      }
+      if (url.includes('https://new.example.com') && url.includes('meta=siteinfo')) {
+        return Promise.reject(new Error('siteinfo failed'));
       }
       return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
     });
@@ -621,14 +669,14 @@ describe('Docs routes', () => {
 
     resolveOldSiteInfo();
 
-    await vi.waitFor(() => {
-      const stored = mockDbModule.db
-        .select()
-        .from(schema.documents)
-        .where(eq(schema.documents.id, created.id))
-        .get();
-      expect(stored?.mediawiki_instance_api_url).toBe('https://new.example.com/w/api.php');
-    });
+    await drainDocumentMediaWikiCssRefreshesForTest();
+    const stored = mockDbModule.db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, created.id))
+      .get();
+    expect(stored?.mediawiki_instance_api_url).toBe('https://new.example.com/w/api.php');
+    expect(stored?.mediawiki_canonical_server).toBeNull();
   });
 
   it('persists URL metadata when siteinfo succeeds but CSS fetches fail', async () => {

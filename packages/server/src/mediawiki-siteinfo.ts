@@ -46,6 +46,7 @@ export function readMediaWikiUrlMetadata(
   general: { server?: unknown; articlepath?: unknown; scriptpath?: unknown } | undefined,
   apiUrl: string
 ): MediaWikiUrlMetadataResult {
+  if (!general) return emptyMediaWikiUrlMetadata;
   return {
     server: normalizeServer(general?.server, apiUrl),
     articlePath: nonEmptyString(general?.articlepath),
