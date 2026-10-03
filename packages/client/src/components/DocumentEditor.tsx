@@ -62,14 +62,17 @@ function hasMediaWikiUrlMetadata(doc: Document): boolean {
   );
 }
 
-async function fetchRefreshedInstanceData(id: string): Promise<Document | null> {
+async function fetchRefreshedInstanceData(
+  id: string,
+  isReady: (doc: Document) => boolean
+): Promise<Document | null> {
   for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
     try {
       const res = await fetch(`${API_BASE}/docs/${id}`);
       if (!res.ok) return null;
       const doc = (await res.json()) as Document;
-      if (doc.mediawiki_instance_css || hasMediaWikiUrlMetadata(doc)) return doc;
+      if (isReady(doc)) return doc;
     } catch {
       return null;
     }
@@ -338,19 +341,27 @@ export function DocumentEditor() {
         });
         let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
         if (!res.ok) throw new Error(updatedDoc.error || 'Failed to update MediaWiki instance');
-        if (
-          updatedDoc.mediawiki_instance_api_url &&
-          (!updatedDoc.mediawiki_instance_css || !hasMediaWikiUrlMetadata(updatedDoc))
-        ) {
-          const refreshedDoc = await fetchRefreshedInstanceData(id);
-          if (
-            refreshedDoc?.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url &&
-            (refreshedDoc.mediawiki_instance_css || hasMediaWikiUrlMetadata(refreshedDoc))
-          ) {
+        const isMissingCss = !updatedDoc.mediawiki_instance_css;
+        const isMissingUrlMetadata = !hasMediaWikiUrlMetadata(updatedDoc);
+        if (updatedDoc.mediawiki_instance_api_url && (isMissingCss || isMissingUrlMetadata)) {
+          const refreshedDoc = await fetchRefreshedInstanceData(
+            id,
+            (doc) =>
+              doc.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url &&
+              (!isMissingCss || Boolean(doc.mediawiki_instance_css)) &&
+              (!isMissingUrlMetadata || hasMediaWikiUrlMetadata(doc))
+          );
+          if (refreshedDoc?.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url) {
             updatedDoc = {
-              ...refreshedDoc,
+              ...updatedDoc,
               mediawiki_instance_css:
                 refreshedDoc.mediawiki_instance_css ?? updatedDoc.mediawiki_instance_css,
+              mediawiki_canonical_server:
+                refreshedDoc.mediawiki_canonical_server ?? updatedDoc.mediawiki_canonical_server,
+              mediawiki_article_path:
+                refreshedDoc.mediawiki_article_path ?? updatedDoc.mediawiki_article_path,
+              mediawiki_script_path:
+                refreshedDoc.mediawiki_script_path ?? updatedDoc.mediawiki_script_path,
             };
           }
         }
