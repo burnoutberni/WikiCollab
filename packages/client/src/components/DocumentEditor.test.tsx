@@ -110,6 +110,7 @@ vi.mock('@/components/CollaboratorList', () => ({
 }));
 
 const mockInstanceManager = vi.fn();
+const mockPushToWiki = vi.fn();
 
 vi.mock('@/components/InstanceManager', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,7 +121,11 @@ vi.mock('@/components/InstanceManager', () => ({
 }));
 
 vi.mock('@/components/PushToWiki', () => ({
-  PushToWiki: () => <div data-testid="push-to-wiki">PushToWiki</div>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  PushToWiki: (props: any) => {
+    mockPushToWiki(props);
+    return <div data-testid="push-to-wiki">PushToWiki</div>;
+  },
 }));
 
 vi.mock('lucide-react', () => {
@@ -182,6 +187,7 @@ describe('DocumentEditor', () => {
     mockConnectionStatePopover.mockReset();
     mockSplitPaneEditor.mockReset();
     mockInstanceManager.mockReset();
+    mockPushToWiki.mockReset();
     localStorage.clear();
     useDocumentMock.mockReturnValue({ document: mockDoc, loading: false, setDocument: vi.fn() });
     useEditorLockMock.mockReturnValue({
@@ -388,6 +394,9 @@ describe('DocumentEditor', () => {
           mediawiki_instance_name: 'English Wikipedia',
           mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
           mediawiki_instance_css: '.remote-css{}',
+          mediawiki_canonical_server: 'https://en.wikipedia.org',
+          mediawiki_article_path: '/wiki/$1',
+          mediawiki_script_path: '/w',
         }),
       } as Response);
       await savePromise;
@@ -534,6 +543,64 @@ describe('DocumentEditor', () => {
     expect(setDocument.mock.calls[0][0]({ ...emptyInstanceDoc })).toEqual(
       expect.objectContaining({
         mediawiki_instance_css: null,
+        mediawiki_canonical_server: 'https://en.wikipedia.org',
+        mediawiki_article_path: '/wiki/$1',
+        mediawiki_script_path: '/w',
+      })
+    );
+  });
+
+  it('refetches missing URL metadata while preserving cached instance CSS', async () => {
+    const cachedCssDoc = {
+      ...mockDoc,
+      mediawiki_canonical_server: null,
+      mediawiki_article_path: null,
+      mediawiki_script_path: null,
+    };
+    const refreshedDoc = {
+      ...cachedCssDoc,
+      mediawiki_instance_css: null,
+      mediawiki_canonical_server: 'https://en.wikipedia.org',
+      mediawiki_article_path: '/wiki/$1',
+      mediawiki_script_path: '/w',
+    };
+    const setDocument = vi.fn();
+    useDocumentMock.mockReturnValue({ document: cachedCssDoc, loading: false, setDocument });
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => cachedCssDoc })
+        .mockResolvedValueOnce({ ok: true, json: async () => refreshedDoc })
+    );
+
+    renderWithProviders(<DocumentEditor />);
+
+    await React.act(async () => {
+      await mockInstanceManager.mock.calls
+        .at(-1)?.[0]
+        .onChange('English Wikipedia', 'https://en.wikipedia.org/w/api.php');
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mockSplitPaneEditor.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        instanceCss: '.mw-parser-output { color: red; }',
+      })
+    );
+    expect(mockPushToWiki.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        urlMetadata: {
+          server: 'https://en.wikipedia.org',
+          articlePath: '/wiki/$1',
+          scriptPath: '/w',
+        },
+      })
+    );
+    expect(setDocument).toHaveBeenCalledWith(expect.any(Function));
+    expect(setDocument.mock.calls[0][0]({ ...cachedCssDoc })).toEqual(
+      expect.objectContaining({
+        mediawiki_instance_css: '.mw-parser-output { color: red; }',
         mediawiki_canonical_server: 'https://en.wikipedia.org',
         mediawiki_article_path: '/wiki/$1',
         mediawiki_script_path: '/w',

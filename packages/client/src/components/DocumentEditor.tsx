@@ -338,13 +338,20 @@ export function DocumentEditor() {
         });
         let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
         if (!res.ok) throw new Error(updatedDoc.error || 'Failed to update MediaWiki instance');
-        if (updatedDoc.mediawiki_instance_api_url && !updatedDoc.mediawiki_instance_css) {
+        if (
+          updatedDoc.mediawiki_instance_api_url &&
+          (!updatedDoc.mediawiki_instance_css || !hasMediaWikiUrlMetadata(updatedDoc))
+        ) {
           const refreshedDoc = await fetchRefreshedInstanceData(id);
           if (
             refreshedDoc?.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url &&
             (refreshedDoc.mediawiki_instance_css || hasMediaWikiUrlMetadata(refreshedDoc))
           ) {
-            updatedDoc = refreshedDoc;
+            updatedDoc = {
+              ...refreshedDoc,
+              mediawiki_instance_css:
+                refreshedDoc.mediawiki_instance_css ?? updatedDoc.mediawiki_instance_css,
+            };
           }
         }
         setInstanceName(updatedDoc.mediawiki_instance_name);
