@@ -112,7 +112,7 @@ describe('SplitPaneEditor', () => {
         '/api/docs/doc1/preview',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ wikitext: 'Hello wikitext', page: null }),
+          body: JSON.stringify({ wikitext: 'Hello wikitext', page: null, markerRequests: '[]' }),
         })
       );
     });
@@ -306,6 +306,7 @@ describe('SplitPaneEditor', () => {
     expect(sendCustomMessage).toHaveBeenCalledWith('preview_request', {
       page: 'Same Page',
       requestId: expect.any(String),
+      markerRequests: '[]',
     });
   });
 
@@ -746,7 +747,7 @@ describe('SplitPaneEditor', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[1][1]?.body).toBe(
-      JSON.stringify({ wikitext: 'Hello wikitext!', page: null })
+      JSON.stringify({ wikitext: 'Hello wikitext!', page: null, markerRequests: '[]' })
     );
 
     await act(async () => {
@@ -757,7 +758,7 @@ describe('SplitPaneEditor', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3);
     });
     expect(fetchMock.mock.calls[2][1]?.body).toBe(
-      JSON.stringify({ wikitext: 'Hello wikitext!!', page: null })
+      JSON.stringify({ wikitext: 'Hello wikitext!!', page: null, markerRequests: '[]' })
     );
 
     vi.useRealTimers();
@@ -788,5 +789,224 @@ describe('SplitPaneEditor', () => {
 
     expect(screen.getByTestId('preview-link-modal')).toBeInTheDocument();
     expect(screen.getByText('URL: https://example.com')).toBeInTheDocument();
+  });
+
+  it('sends peer cursor positions in preview marker requests', async () => {
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+    const peers = [
+      {
+        clientId: 1,
+        userId: 'user1',
+        userName: 'Alice',
+        color: '#FF0000',
+        cursor: { anchor: 5, head: 5 },
+      },
+    ];
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Test"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        peers={peers}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const payload = sendCustomMessage.mock.calls[0][1];
+    expect(payload.page).toBe('Test');
+    expect(typeof payload.markerRequests).toBe('string');
+    const markers = JSON.parse(payload.markerRequests as string);
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({
+      id: 'peer-1',
+      userName: 'Alice',
+      color: '#FF0000',
+      anchor: 5,
+      head: 5,
+    });
+  });
+
+  it('sends selection range markers when anchor differs from head', async () => {
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+    const peers = [
+      {
+        clientId: 2,
+        userId: 'user2',
+        userName: 'Bob',
+        color: '#00FF00',
+        cursor: { anchor: 0, head: 10 },
+      },
+    ];
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        peers={peers}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const markers = JSON.parse(sendCustomMessage.mock.calls[0][1].markerRequests as string);
+    expect(markers[0].anchor).toBe(0);
+    expect(markers[0].head).toBe(10);
+  });
+
+  it('shows preview overlay with marker content from websocket', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+    }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+    const peers = [
+      {
+        clientId: 1,
+        userId: 'u1',
+        userName: 'Alice',
+        color: '#FF0000',
+        cursor: { anchor: 3, head: 3 },
+      },
+    ];
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        peers={peers}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      previewUpdate({
+        html: '<p>Hi<span class="wc-marker" id="peer-1:caret"></span> there</p>',
+        page: 'Page',
+        requestId: sendCustomMessage.mock.calls[0][1].requestId,
+      });
+    });
+
+    const shadow = getPreviewShadowRoot();
+    expect(shadow.textContent).toContain('Hi there');
+    expect(shadow.querySelector('[data-testid="preview-cursor-overlay"]')).not.toBeNull();
+  });
+
+  it('marks preview stale while waiting for websocket response', async () => {
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+
+    const shadow = getPreviewShadowRoot();
+    const overlay = shadow.querySelector('[data-testid="preview-cursor-overlay"]');
+    expect(overlay).not.toBeNull();
+  });
+
+  it('clamps peer cursor offsets to source bounds', async () => {
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+    const peers = [
+      {
+        clientId: 1,
+        userId: 'u1',
+        userName: 'Alice',
+        color: '#FF0000',
+        cursor: { anchor: -10, head: 99999 },
+      },
+    ];
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        content="abc"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        peers={peers}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const markers = JSON.parse(sendCustomMessage.mock.calls[0][1].markerRequests as string);
+    expect(markers[0].anchor).toBe(0);
+    expect(markers[0].head).toBe(3);
+  });
+
+  it('does not send markers when no peers have cursors', async () => {
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn(() => vi.fn());
+    const peers = [
+      {
+        clientId: 1,
+        userId: 'u1',
+        userName: 'Alice',
+        color: '#FF0000',
+        cursor: null,
+      },
+    ];
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        peers={peers}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    const markers = JSON.parse(sendCustomMessage.mock.calls[0][1].markerRequests as string);
+    expect(markers).toHaveLength(0);
+  });
+
+  it('includes markerRequests in HTTP preview fallback', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ html: '<p>Preview</p>' }),
+    } as Response);
+    global.fetch = fetchMock;
+    const peers = [
+      {
+        clientId: 1,
+        userId: 'u1',
+        userName: 'Alice',
+        color: '#FF0000',
+        cursor: { anchor: 2, head: 4 },
+      },
+    ];
+
+    renderWithProviders(<SplitPaneEditor {...defaultProps} content="abcde" peers={peers} />);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.markerRequests).toBeTruthy();
+    const markers = JSON.parse(body.markerRequests);
+    expect(markers).toHaveLength(1);
+    expect(markers[0].userName).toBe('Alice');
   });
 });

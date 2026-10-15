@@ -658,6 +658,7 @@ export function DocumentEditor() {
                 sendCustomMessage={sendCustomMessage}
                 onCustomMessage={onCustomMessage}
                 initialMobileTab={isMobile ? 'preview' : 'source'}
+                peers={peers}
               />
             )}
           </main>

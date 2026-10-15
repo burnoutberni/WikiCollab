@@ -208,6 +208,8 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
     case 'preview_request': {
       const page = typeof payload.page === 'string' ? payload.page : '';
       const requestId = typeof payload.requestId === 'string' ? payload.requestId : undefined;
+      const markerRequests =
+        typeof payload.markerRequests === 'string' ? payload.markerRequests : undefined;
 
       const key = `${doc.name}:${page}`;
       const existing = previewDebounces.get(key);
@@ -230,7 +232,14 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
             const wikitext = doc.getText('wikitext').toString();
             const storedDoc = getDocumentById(doc.name);
             const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
-            const { html } = await generatePreview(wikitext, apiUrl, page || null, doc.name);
+            const parsedMarkerRequests = markerRequests ? JSON.parse(markerRequests) : undefined;
+            const { html } = await generatePreview(
+              wikitext,
+              apiUrl,
+              page || null,
+              doc.name,
+              Array.isArray(parsedMarkerRequests) ? parsedMarkerRequests : undefined
+            );
             const responseBase: Record<string, string> = { page };
             if (pendingRequestIds.length)
               responseBase.requestIds = JSON.stringify(pendingRequestIds);
