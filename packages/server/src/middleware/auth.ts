@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from 'crypto';
 import type { Context, MiddlewareHandler } from 'hono';
 
 const COOKIE_NAME = 'wikicollab_session';
@@ -82,7 +88,11 @@ export function readSession(c: Context): SessionData | null {
   return value ? unsealSession(value) : null;
 }
 
-export function setSession(c: Context, data: Omit<SessionData, 'expiresAt'>, oauthOnly = false): void {
+export function setSession(
+  c: Context,
+  data: Omit<SessionData, 'expiresAt'>,
+  oauthOnly = false
+): void {
   const expiresAt = Date.now() + (oauthOnly ? OAUTH_SESSION_TTL_MS : SESSION_TTL_MS);
   const value = sealSession({ ...data, expiresAt });
   const maxAge = Math.floor((expiresAt - Date.now()) / 1000);
@@ -93,10 +103,7 @@ export function setSession(c: Context, data: Omit<SessionData, 'expiresAt'>, oau
 }
 
 export function clearSession(c: Context): void {
-  c.header(
-    'Set-Cookie',
-    `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`
-  );
+  c.header('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`);
 }
 
 export function currentUserId(c: Context): string | null {
