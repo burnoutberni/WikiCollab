@@ -6,9 +6,9 @@ import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'share
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
+import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
 import { currentUserId } from '../middleware/auth.js';
 import { decryptSecret, encryptSecret } from '../middleware/encryption.js';
-import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 import { reconstructRevisionContent, revisionMetadata } from '../services/revision-storage.js';
@@ -227,6 +227,7 @@ docs.patch('/:id', async (c) => {
       updates.mediawiki_instance_name = null;
       updates.mediawiki_instance_api_url = null;
       updates.mediawiki_instance_css = null;
+      updates.mediawiki_api_key = null;
       updates.mediawiki_canonical_server = null;
       updates.mediawiki_article_path = null;
       updates.mediawiki_script_path = null;
