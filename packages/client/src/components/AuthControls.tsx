@@ -31,21 +31,24 @@ export function AuthControls({ isOwner = false, stacked = false }: { isOwner?: b
   }
 
   return (
-    <div className={stacked ? 'flex flex-col gap-2' : 'flex items-center gap-2'}>
-      <div className="flex items-center gap-2">
-        <span className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
-          <UserRound className="h-4 w-4" />
-          {user.wiki_username}
-        </span>
-        {isOwner && (
-          <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium">Owner</span>
-        )}
-      </div>
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+        <UserRound className="h-4 w-4 shrink-0" />
+        <span className="truncate">{user.wiki_username}</span>
+      </span>
+      {isOwner && (
+        <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium shrink-0">Owner</span>
+      )}
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" className={stacked ? 'w-fit' : undefined} onClick={() => void logout()}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Log out
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 ml-auto"
+            aria-label="Log out"
+            onClick={() => void logout()}
+          >
+            <LogOut className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>Log out of your Wikimedia account</TooltipContent>
