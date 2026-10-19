@@ -55,7 +55,12 @@ auth.get('/callback', async (c): Promise<Response> => {
   }
 
   const client: oauth.Client = { client_id: clientId };
-  const params = oauth.validateAuthResponse(as, client, new URL(c.req.url), session.oauthState);
+  const params = oauth.validateAuthResponse(
+    as,
+    client,
+    new URL(c.req.url),
+    session.oauthState
+  );
   const tokenResponse = await oauth.authorizationCodeGrantRequest(
     as,
     client,
