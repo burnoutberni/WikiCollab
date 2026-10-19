@@ -25,9 +25,11 @@ const requiredEnv = [
   'ENCRYPTION_KEY',
 ];
 const missing = requiredEnv.filter((key) => !process.env[key]);
-if (missing.length > 0) {
+const key = process.env.ENCRYPTION_KEY || '';
+const invalidKey = !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(key) || Buffer.from(key, 'base64').length !== 32;
+if (missing.length > 0 || invalidKey) {
   logger.fatal(
-    { missing },
+    { missing, invalidEncryptionKey: invalidKey },
     'Missing required environment variables. Set them in .env or export them before starting the server.'
   );
   process.exit(1);
