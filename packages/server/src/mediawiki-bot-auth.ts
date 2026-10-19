@@ -77,6 +77,10 @@ export async function loginWithBotPassword(apiUrl: string, bot: BotCredentials):
   return cookie;
 }
 
+export function invalidateBotSession(apiUrl: string, bot: BotCredentials): void {
+  sessions.delete(sessionKey(apiUrl, bot));
+}
+
 export async function botSessionCookie(
   apiUrl: string,
   bot: BotCredentials,
