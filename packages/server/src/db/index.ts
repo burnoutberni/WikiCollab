@@ -24,6 +24,9 @@ sqlite.exec(`
     mediawiki_instance_name TEXT,
     mediawiki_instance_api_url TEXT,
     mediawiki_instance_css TEXT,
+    mediawiki_canonical_server TEXT,
+    mediawiki_article_path TEXT,
+    mediawiki_script_path TEXT,
     restored_version_id TEXT,
     visibility TEXT NOT NULL DEFAULT 'public'
   );
@@ -60,6 +63,9 @@ for (const [column, definition] of [
   ['mediawiki_instance_name', 'TEXT'],
   ['mediawiki_instance_api_url', 'TEXT'],
   ['mediawiki_instance_css', 'TEXT'],
+  ['mediawiki_canonical_server', 'TEXT'],
+  ['mediawiki_article_path', 'TEXT'],
+  ['mediawiki_script_path', 'TEXT'],
 ] as const) {
   try {
     sqlite.exec(`ALTER TABLE documents ADD COLUMN ${column} ${definition}`);

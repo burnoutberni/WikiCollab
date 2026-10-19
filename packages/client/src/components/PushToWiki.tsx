@@ -1,5 +1,6 @@
 import { Check, Copy, ExternalLink, Send } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { buildMediaWikiEditUrl, buildMediaWikiPageUrl, type MediaWikiUrlMetadata } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -15,35 +16,7 @@ interface PushToWikiProps {
   title: string;
   content: string;
   instanceApiUrl: string | null;
-}
-
-function getPageUrl(apiUrl: string, title: string): string | null {
-  try {
-    const url = new URL(apiUrl);
-    if (!/\/api\.php$/.test(url.pathname)) return null;
-    const pathPrefix = url.pathname
-      .replace(/\/w\/api\.php$/, '/wiki/')
-      .replace(/\/api\.php$/, '/wiki/');
-    url.pathname = `${pathPrefix}${encodeURIComponent(title.replaceAll(' ', '_'))}`;
-    url.search = '';
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
-
-function getEditUrl(apiUrl: string, title: string): string | null {
-  try {
-    const url = new URL(apiUrl);
-    if (!/\/api\.php$/.test(url.pathname)) return null;
-    url.pathname = url.pathname.replace(/\/api\.php$/, '/index.php');
-    url.search = '';
-    url.searchParams.set('title', title);
-    url.searchParams.set('action', 'edit');
-    return url.toString();
-  } catch {
-    return null;
-  }
+  urlMetadata?: MediaWikiUrlMetadata | null;
 }
 
 function isValidUrl(value: string): boolean {
@@ -56,15 +29,15 @@ function isValidUrl(value: string): boolean {
 }
 
 /** Manual publishing helper: copy wikitext, open the target wiki editor, publish there. */
-export function PushToWiki({ title, content, instanceApiUrl }: PushToWikiProps) {
+export function PushToWiki({ title, content, instanceApiUrl, urlMetadata }: PushToWikiProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const targetUrl = useMemo(
-    () => (instanceApiUrl && title ? getPageUrl(instanceApiUrl, title) : null),
-    [instanceApiUrl, title]
+    () => (title ? buildMediaWikiPageUrl(instanceApiUrl, title, urlMetadata) : null),
+    [instanceApiUrl, title, urlMetadata]
   );
-  const targetEditUrl = instanceApiUrl && title ? getEditUrl(instanceApiUrl, title) : null;
+  const targetEditUrl = title ? buildMediaWikiEditUrl(instanceApiUrl, title, urlMetadata) : null;
   const canOpenTarget = targetEditUrl !== null && isValidUrl(targetEditUrl);
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {

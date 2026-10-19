@@ -567,6 +567,38 @@ describe('Preview route sanitization', () => {
       expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
     });
 
+    it('absolutizes relative preview links and assets against canonical server', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: () =>
+          Promise.resolve({
+            parse: {
+              text: {
+                '*': '<a href="/wiki/Ada_Lovelace">Ada</a><img src="/images/a.png" alt="A">',
+              },
+            },
+          }),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+          mediawiki_instance_css: '.cached{}',
+          mediawiki_canonical_server: 'https://wiki.example.com',
+        })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: 'test' }),
+      });
+      const data = await res.json();
+
+      expect(data.html).toContain('href="https://wiki.example.com/wiki/Ada_Lovelace"');
+      expect(data.html).toContain('src="https://wiki.example.com/images/a.png"');
+    });
+
     it('does not fall back to local parser for remote rate limits', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');

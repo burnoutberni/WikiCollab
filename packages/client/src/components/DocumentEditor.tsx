@@ -56,14 +56,23 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchRefreshedInstanceCss(id: string): Promise<Document | null> {
+function hasMediaWikiUrlMetadata(doc: Document): boolean {
+  return Boolean(
+    doc.mediawiki_canonical_server || doc.mediawiki_article_path || doc.mediawiki_script_path
+  );
+}
+
+async function fetchRefreshedInstanceData(
+  id: string,
+  isReady: (doc: Document) => boolean
+): Promise<Document | null> {
   for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
     try {
       const res = await fetch(`${API_BASE}/docs/${id}`);
       if (!res.ok) return null;
       const doc = (await res.json()) as Document;
-      if (doc.mediawiki_instance_css) return doc;
+      if (isReady(doc)) return doc;
     } catch {
       return null;
     }
@@ -122,16 +131,25 @@ export function DocumentEditor() {
     name: string | null;
     apiUrl: string | null;
     css: string | null;
+    canonicalServer: string | null;
+    articlePath: string | null;
+    scriptPath: string | null;
   }>({
     name: null,
     apiUrl: null,
     css: null,
+    canonicalServer: null,
+    articlePath: null,
+    scriptPath: null,
   });
   const collaboratorCount = peers.length + 1;
   const [visibility, setVisibility] = useState<DocumentVisibility>('public');
   const [instanceName, setInstanceName] = useState<string | null>(null);
   const [instanceApiUrl, setInstanceApiUrl] = useState<string | null>(null);
   const [instanceCss, setInstanceCss] = useState<string | null>(null);
+  const [canonicalServer, setCanonicalServer] = useState<string | null>(null);
+  const [articlePath, setArticlePath] = useState<string | null>(null);
+  const [scriptPath, setScriptPath] = useState<string | null>(null);
   const [instanceSaving, setInstanceSaving] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
@@ -153,11 +171,17 @@ export function DocumentEditor() {
       setInstanceName(doc.mediawiki_instance_name);
       setInstanceApiUrl(doc.mediawiki_instance_api_url);
       setInstanceCss(doc.mediawiki_instance_css);
+      setCanonicalServer(doc.mediawiki_canonical_server);
+      setArticlePath(doc.mediawiki_article_path);
+      setScriptPath(doc.mediawiki_script_path);
       lastPersistedVisibilityRef.current = doc.visibility;
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
         apiUrl: doc.mediawiki_instance_api_url,
         css: doc.mediawiki_instance_css,
+        canonicalServer: doc.mediawiki_canonical_server,
+        articlePath: doc.mediawiki_article_path,
+        scriptPath: doc.mediawiki_script_path,
       };
       if (isMobile && !doc.content) {
         setViewMode('source');
@@ -317,23 +341,44 @@ export function DocumentEditor() {
         });
         let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
         if (!res.ok) throw new Error(updatedDoc.error || 'Failed to update MediaWiki instance');
-        if (updatedDoc.mediawiki_instance_api_url && !updatedDoc.mediawiki_instance_css) {
-          const refreshedDoc = await fetchRefreshedInstanceCss(id);
-          if (
-            refreshedDoc?.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url &&
-            refreshedDoc.mediawiki_instance_css
-          ) {
-            updatedDoc = refreshedDoc;
+        const isMissingCss = !updatedDoc.mediawiki_instance_css;
+        const isMissingUrlMetadata = !hasMediaWikiUrlMetadata(updatedDoc);
+        if (updatedDoc.mediawiki_instance_api_url && (isMissingCss || isMissingUrlMetadata)) {
+          const refreshedDoc = await fetchRefreshedInstanceData(
+            id,
+            (doc) =>
+              doc.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url &&
+              (!isMissingCss || Boolean(doc.mediawiki_instance_css)) &&
+              (!isMissingUrlMetadata || hasMediaWikiUrlMetadata(doc))
+          );
+          if (refreshedDoc?.mediawiki_instance_api_url === updatedDoc.mediawiki_instance_api_url) {
+            updatedDoc = {
+              ...updatedDoc,
+              mediawiki_instance_css:
+                refreshedDoc.mediawiki_instance_css ?? updatedDoc.mediawiki_instance_css,
+              mediawiki_canonical_server:
+                refreshedDoc.mediawiki_canonical_server ?? updatedDoc.mediawiki_canonical_server,
+              mediawiki_article_path:
+                refreshedDoc.mediawiki_article_path ?? updatedDoc.mediawiki_article_path,
+              mediawiki_script_path:
+                refreshedDoc.mediawiki_script_path ?? updatedDoc.mediawiki_script_path,
+            };
           }
         }
         setInstanceName(updatedDoc.mediawiki_instance_name);
         setInstanceApiUrl(updatedDoc.mediawiki_instance_api_url);
         setInstanceCss(updatedDoc.mediawiki_instance_css);
+        setCanonicalServer(updatedDoc.mediawiki_canonical_server);
+        setArticlePath(updatedDoc.mediawiki_article_path);
+        setScriptPath(updatedDoc.mediawiki_script_path);
         setPreviewRefreshKey((key) => key + 1);
         lastPersistedInstanceRef.current = {
           name: updatedDoc.mediawiki_instance_name,
           apiUrl: updatedDoc.mediawiki_instance_api_url,
           css: updatedDoc.mediawiki_instance_css,
+          canonicalServer: updatedDoc.mediawiki_canonical_server,
+          articlePath: updatedDoc.mediawiki_article_path,
+          scriptPath: updatedDoc.mediawiki_script_path,
         };
         setDocument((currentDoc) =>
           currentDoc
@@ -342,6 +387,9 @@ export function DocumentEditor() {
                 mediawiki_instance_name: updatedDoc.mediawiki_instance_name,
                 mediawiki_instance_api_url: updatedDoc.mediawiki_instance_api_url,
                 mediawiki_instance_css: updatedDoc.mediawiki_instance_css,
+                mediawiki_canonical_server: updatedDoc.mediawiki_canonical_server,
+                mediawiki_article_path: updatedDoc.mediawiki_article_path,
+                mediawiki_script_path: updatedDoc.mediawiki_script_path,
                 updated_at: updatedDoc.updated_at,
               }
             : updatedDoc
@@ -351,6 +399,9 @@ export function DocumentEditor() {
         setInstanceName(previous.name);
         setInstanceApiUrl(previous.apiUrl);
         setInstanceCss(previous.css);
+        setCanonicalServer(previous.canonicalServer);
+        setArticlePath(previous.articlePath);
+        setScriptPath(previous.scriptPath);
         throw error;
       } finally {
         setInstanceSaving(false);
@@ -547,7 +598,12 @@ export function DocumentEditor() {
             <Suspense
               fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
             >
-              <PushToWiki title={title} content={content} instanceApiUrl={instanceApiUrl} />
+              <PushToWiki
+                title={title}
+                content={content}
+                instanceApiUrl={instanceApiUrl}
+                urlMetadata={{ server: canonicalServer, articlePath, scriptPath }}
+              />
             </Suspense>
 
             <Tooltip>
@@ -791,7 +847,12 @@ export function DocumentEditor() {
             <Suspense
               fallback={<LoadingSpinner label="Loading publish tools..." className="py-0" />}
             >
-              <PushToWiki title={title} content={content} instanceApiUrl={instanceApiUrl} />
+              <PushToWiki
+                title={title}
+                content={content}
+                instanceApiUrl={instanceApiUrl}
+                urlMetadata={{ server: canonicalServer, articlePath, scriptPath }}
+              />
             </Suspense>
 
             <Button

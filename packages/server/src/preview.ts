@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import sanitizeHtml from 'sanitize-html';
 import { serverFetch, SsrfError } from 'server-fetch';
+import { absolutizeMediaWikiUrl } from 'shared';
 
 import { logger } from './logging.js';
 import { mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';
@@ -147,7 +148,7 @@ function stripStyleBlocks(html: string): string {
 }
 
 /** Sanitizes parser HTML while preserving MediaWiki markup needed by the preview UI. */
-function sanitize(html: string, allowStyleTags = false): string {
+function sanitize(html: string, allowStyleTags = false, canonicalServer?: string | null): string {
   const allowedTags = [
     'h1',
     'h2',
@@ -232,10 +233,20 @@ function sanitize(html: string, allowStyleTags = false): string {
     },
     transformTags: {
       a: (tagName, attribs) => {
-        if (attribs.target === '_blank') {
-          return { tagName, attribs: { ...attribs, rel: 'noopener noreferrer' } };
+        const nextAttribs = canonicalServer
+          ? { ...attribs, href: absolutizeMediaWikiUrl(attribs.href || '', canonicalServer) }
+          : attribs;
+        if (nextAttribs.target === '_blank') {
+          return { tagName, attribs: { ...nextAttribs, rel: 'noopener noreferrer' } };
         }
-        return { tagName, attribs };
+        return { tagName, attribs: nextAttribs };
+      },
+      img: (tagName, attribs) => {
+        if (!canonicalServer) return { tagName, attribs };
+        return {
+          tagName,
+          attribs: { ...attribs, src: absolutizeMediaWikiUrl(attribs.src || '', canonicalServer) },
+        };
       },
       '*': (tagName, attribs) => {
         if (attribs.style) {
@@ -397,7 +408,8 @@ export async function generatePreview(
   wikitext?: string | null,
   api_url?: string | null,
   page?: string | null,
-  documentId?: string | null
+  documentId?: string | null,
+  canonicalServer?: string | null
 ): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
 
@@ -405,7 +417,7 @@ export async function generatePreview(
     try {
       const remotePreview = await fetchRemotePreview(api_url, wikitext || '', page, documentId);
       if ('html' in remotePreview && remotePreview.html) {
-        return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true) };
+        return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true, canonicalServer) };
       }
       if (remotePreview.status === 'rate_limited') {
         return {
@@ -427,5 +439,5 @@ export async function generatePreview(
   }
 
   const html = Parser.toHtml(wikitext || '', false, undefined, page || undefined);
-  return { html: sanitize(stripStyleBlocks(html)) };
+  return { html: sanitize(stripStyleBlocks(html), false, canonicalServer) };
 }

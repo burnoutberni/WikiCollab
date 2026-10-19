@@ -6,7 +6,7 @@ import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'share
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
-import { fetchMediaWikiCss } from '../mediawiki-css.js';
+import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 import { reconstructRevisionContent, revisionMetadata } from '../services/revision-storage.js';
@@ -18,11 +18,18 @@ type CssRefresh = { apiUrl: string; nextApiUrl: string | null; promise: Promise<
 const inFlightCssRefreshes = new Map<string, CssRefresh>();
 
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
-  const css = await fetchMediaWikiCss(apiUrl);
-  if (css === null) return;
+  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(apiUrl);
+  const updates: Record<string, string | null> = {};
+  if (urlMetadata.fetched) {
+    updates.mediawiki_canonical_server = urlMetadata.server;
+    updates.mediawiki_article_path = urlMetadata.articlePath;
+    updates.mediawiki_script_path = urlMetadata.scriptPath;
+  }
+  if (css !== null) updates.mediawiki_instance_css = css;
+  if (Object.keys(updates).length === 0) return;
 
   db.update(schema.documents)
-    .set({ mediawiki_instance_css: css })
+    .set(updates)
     .where(
       and(
         eq(schema.documents.id, documentId),
@@ -102,6 +109,9 @@ docs.post('/', async (c) => {
       : null,
     mediawiki_instance_api_url: body.mediawiki_instance_api_url ?? null,
     mediawiki_instance_css: null,
+    mediawiki_canonical_server: null,
+    mediawiki_article_path: null,
+    mediawiki_script_path: null,
     restored_version_id: null,
     visibility: body.visibility || 'public',
   };
@@ -158,6 +168,9 @@ docs.patch('/:id', async (c) => {
       updates.mediawiki_instance_name = null;
       updates.mediawiki_instance_api_url = null;
       updates.mediawiki_instance_css = null;
+      updates.mediawiki_canonical_server = null;
+      updates.mediawiki_article_path = null;
+      updates.mediawiki_script_path = null;
     } else {
       updates.mediawiki_instance_api_url = body.mediawiki_instance_api_url;
       if (body.mediawiki_instance_name !== undefined) {
@@ -165,6 +178,9 @@ docs.patch('/:id', async (c) => {
       }
       if (body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url) {
         updates.mediawiki_instance_css = null;
+        updates.mediawiki_canonical_server = null;
+        updates.mediawiki_article_path = null;
+        updates.mediawiki_script_path = null;
       }
     }
   } else if (body.mediawiki_instance_name !== undefined) {
@@ -182,10 +198,7 @@ docs.patch('/:id', async (c) => {
   }
 
   const doc = getDocumentById(id);
-  const apiUrlChanged =
-    body.mediawiki_instance_api_url !== undefined &&
-    body.mediawiki_instance_api_url !== existingDoc.mediawiki_instance_api_url;
-  if (body.mediawiki_instance_api_url && (apiUrlChanged || !existingDoc.mediawiki_instance_css)) {
+  if (body.mediawiki_instance_api_url) {
     refreshDocumentMediaWikiCssInBackground(id, body.mediawiki_instance_api_url);
   }
   return c.json(doc);
@@ -204,7 +217,13 @@ docs.post('/:id/preview', async (c) => {
   }
 
   try {
-    const { html } = await generatePreview(wikitext, doc.mediawiki_instance_api_url, page, id);
+    const { html } = await generatePreview(
+      wikitext,
+      doc.mediawiki_instance_api_url,
+      page,
+      id,
+      doc.mediawiki_canonical_server
+    );
     return c.json({ html, css: doc.mediawiki_instance_css });
   } catch (err) {
     logger.error(

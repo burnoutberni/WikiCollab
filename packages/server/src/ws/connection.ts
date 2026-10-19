@@ -230,7 +230,13 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
             const wikitext = doc.getText('wikitext').toString();
             const storedDoc = getDocumentById(doc.name);
             const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
-            const { html } = await generatePreview(wikitext, apiUrl, page || null, doc.name);
+            const { html } = await generatePreview(
+              wikitext,
+              apiUrl,
+              page || null,
+              doc.name,
+              storedDoc?.mediawiki_canonical_server || null
+            );
             const responseBase: Record<string, string> = { page };
             if (pendingRequestIds.length)
               responseBase.requestIds = JSON.stringify(pendingRequestIds);

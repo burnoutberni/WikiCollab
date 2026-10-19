@@ -2,6 +2,11 @@ import { serverFetch, SsrfError } from 'server-fetch';
 
 import { logger } from './logging.js';
 import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import {
+  emptyMediaWikiUrlMetadata,
+  type MediaWikiUrlMetadataResult,
+  readMediaWikiUrlMetadata,
+} from './mediawiki-siteinfo.js';
 
 const MAX_MEDIAWIKI_CSS_BYTES = 500_000;
 
@@ -104,19 +109,32 @@ async function readCssResponse(
 
 /** Fetches common and default-skin MediaWiki CSS for a document-scoped instance. */
 export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> {
+  return (await fetchMediaWikiCssAndUrlMetadata(apiUrl)).css;
+}
+
+export async function fetchMediaWikiCssAndUrlMetadata(
+  apiUrl: string
+): Promise<{ css: string | null; urlMetadata: MediaWikiUrlMetadataResult }> {
+  let urlMetadata = emptyMediaWikiUrlMetadata;
   try {
     const siteInfoUrl = getApiUrl(apiUrl, {
       action: 'query',
       meta: 'siteinfo',
-      siprop: 'skins',
+      siprop: 'skins|general',
       format: 'json',
     });
     const siteInfoRes = await serverFetch(siteInfoUrl, {
       headers: mediaWikiHeaders({ Accept: 'application/json' }),
     });
     const siteInfoData = await readMediaWikiJson<{
-      query?: { skins?: Array<{ code: string; name: string; default?: boolean | string }> };
+      query?: {
+        general?: { server?: string; articlepath?: string; scriptpath?: string };
+        skins?: Array<{ code: string; name: string; default?: boolean | string }>;
+      };
     }>(siteInfoRes, 'siteinfo');
+    if (siteInfoData) {
+      urlMetadata = readMediaWikiUrlMetadata(siteInfoData.query?.general, apiUrl);
+    }
 
     const defaultSkin = siteInfoData?.query?.skins?.find(
       (skin) => skin.default === true || skin.default === ''
@@ -170,16 +188,16 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
       }
     }
 
-    if (cssParts.length === 0) return null;
+    if (cssParts.length === 0) return { css: null, urlMetadata };
     const combined = cssParts.join('\n\n');
     if (combined.length > MAX_MEDIAWIKI_CSS_BYTES) {
       logger.warn(
         { combinedLength: combined.length, maxBytes: MAX_MEDIAWIKI_CSS_BYTES },
         'Combined MediaWiki CSS exceeded max bytes'
       );
-      return combined.slice(0, MAX_MEDIAWIKI_CSS_BYTES);
+      return { css: combined.slice(0, MAX_MEDIAWIKI_CSS_BYTES), urlMetadata };
     }
-    return combined;
+    return { css: combined, urlMetadata };
   } catch (err) {
     if (err instanceof SsrfError) {
       logger.error({ url: err.url }, 'SSRF blocked fetching CSS');
@@ -189,6 +207,6 @@ export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> 
         'Failed to fetch CSS from MediaWiki'
       );
     }
-    return null;
+    return { css: null, urlMetadata };
   }
 }
