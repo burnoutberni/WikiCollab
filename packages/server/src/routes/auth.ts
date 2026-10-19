@@ -47,7 +47,7 @@ auth.get('/login', async (c) => {
   return c.redirect(url.toString());
 });
 
-auth.get('/callback', async (c) => {
+auth.get('/callback', async (c): Promise<Response> => {
   const { clientId, clientSecret, redirectUri } = config();
   const session = readSession(c);
   if (!session?.oauthState || !session.codeVerifier) {
@@ -56,9 +56,6 @@ auth.get('/callback', async (c) => {
 
   const client: oauth.Client = { client_id: clientId };
   const params = oauth.validateAuthResponse(as, client, new URL(c.req.url), session.oauthState);
-  if (oauth.isOAuth2Error(params)) {
-    return c.json({ error: params.error_description || params.error }, 400);
-  }
   const tokenResponse = await oauth.authorizationCodeGrantRequest(
     as,
     client,
@@ -68,9 +65,6 @@ auth.get('/callback', async (c) => {
     session.codeVerifier
   );
   const tokens = await oauth.processAuthorizationCodeResponse(as, client, tokenResponse);
-  if (oauth.isOAuth2Error(tokens)) {
-    return c.json({ error: tokens.error_description || tokens.error }, 502);
-  }
 
   const profileResponse = await fetch(profileEndpoint, {
     headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json' },
