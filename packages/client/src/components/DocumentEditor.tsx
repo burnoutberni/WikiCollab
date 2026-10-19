@@ -843,6 +843,8 @@ export function DocumentEditor() {
         title="Settings"
       >
         <div className="space-y-4">
+          <AuthControls isOwner={doc.is_owner} stacked />
+          <Separator />
           {doc.is_owner ? (
             <>
               <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
