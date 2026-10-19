@@ -1,4 +1,5 @@
 import { LogIn, LogOut, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,11 @@ export function AuthControls({
 }) {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
+  const [copy, setCopy] = useState({ loginLabel: 'Log in', loginTooltip: 'Sign in', logoutTooltip: 'Log out' });
+  useEffect(() => {
+    fetch('/auth/config').then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (data) setCopy(data); }).catch(() => {});
+  }, []);
 
   if (loading) {
     return <span className="text-sm text-muted-foreground">Checking login…</span>;
@@ -27,11 +33,11 @@ export function AuthControls({
           <Button asChild variant="outline" className={stacked ? 'w-full' : undefined}>
             <a href={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`}>
               <LogIn className="h-4 w-4 mr-2" />
-              Log in with Wikimedia
+              {copy.loginLabel}
             </a>
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Sign in with your Wikimedia account</TooltipContent>
+        <TooltipContent>{copy.loginTooltip}</TooltipContent>
       </Tooltip>
     );
   }
@@ -57,7 +63,7 @@ export function AuthControls({
             <LogOut className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Log out of your Wikimedia account</TooltipContent>
+        <TooltipContent>{copy.logoutTooltip}</TooltipContent>
       </Tooltip>
     </div>
   );
