@@ -15,7 +15,9 @@ export function mediaWikiHeaders(
 ): Record<string, string> {
   return {
     'User-Agent': MEDIAWIKI_USER_AGENT,
-    ...(typeof accessToken === 'string' && accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(typeof accessToken === 'string' && accessToken
+      ? { Authorization: `Bearer ${accessToken}` }
+      : {}),
     ...(accessToken && typeof accessToken !== 'string' ? { Cookie: accessToken.cookie } : {}),
     ...headers,
   };
