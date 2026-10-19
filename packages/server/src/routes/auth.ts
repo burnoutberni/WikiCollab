@@ -76,9 +76,7 @@ function config(): { clientId: string; clientSecret: string; redirectUri: string
 }
 auth.get('/config', (c) =>
   c.json({
-    loginLabel: process.env.OAUTH_LOGIN_LABEL || 'Log in with Wikimedia',
-    loginTooltip: process.env.OAUTH_LOGIN_TOOLTIP || 'Sign in with your Wikimedia account',
-    logoutTooltip: process.env.OAUTH_LOGOUT_TOOLTIP || 'Log out of your account',
+    providerName: process.env.OAUTH_PROVIDER_NAME?.trim() || 'Wikimedia',
   })
 );
 auth.get('/login', async (c) => {
