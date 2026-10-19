@@ -417,6 +417,8 @@ export function DocumentEditor() {
                 mediawiki_article_path: updatedDoc.mediawiki_article_path,
                 mediawiki_script_path: updatedDoc.mediawiki_script_path,
                 has_mediawiki_api_key: updatedDoc.has_mediawiki_api_key,
+                mediawiki_bot_username: updatedDoc.mediawiki_bot_username,
+                has_mediawiki_bot_password: updatedDoc.has_mediawiki_bot_password,
                 updated_at: updatedDoc.updated_at,
               }
             : updatedDoc
