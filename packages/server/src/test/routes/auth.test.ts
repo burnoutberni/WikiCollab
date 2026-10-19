@@ -151,11 +151,11 @@ describe('Wikimedia OAuth routes', () => {
 
   it('uses a configured OAuth provider and public copy without exposing secrets', async () => {
     vi.stubEnv('OAUTH_AUTHORIZATION_URL', 'https://login.example/authorize');
-    vi.stubEnv('OAUTH_LOGIN_LABEL', 'Login with Google');
+    vi.stubEnv('OAUTH_PROVIDER_NAME', 'Google');
     const app = new Hono();
     app.route('/auth', authRoutes);
     const config = await app.request('/auth/config');
-    expect(await config.json()).toMatchObject({ loginLabel: 'Login with Google' });
+    expect(await config.json()).toEqual({ providerName: 'Google' });
     const login = await app.request('/auth/login');
     expect(login.headers.get('location')).toContain('https://login.example/authorize');
     expect(config.headers.get('content-type')).toContain('application/json');
