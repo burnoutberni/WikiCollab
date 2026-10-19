@@ -13,7 +13,9 @@ const DEFAULT_PROFILE_ENDPOINT = 'https://meta.wikimedia.org/w/rest.php/oauth2/r
 
 /** Permit only local paths, never controls, backslashes, or another origin. */
 export function safeReturnPath(value: string | undefined): string {
-  if (!value || !value.startsWith('/') || /[\\\\\\u0000-\\u001f\\u007f]/.test(value)) return '/';
+  if (!value || !value.startsWith('/') || [...value].some(
+    (char) => char === String.fromCharCode(92) || char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127
+  )) return '/';
   try {
     const base = new URL('https://wikicollab.invalid/');
     const parsed = new URL(value, base);
@@ -118,13 +120,13 @@ auth.get('/callback', async (c): Promise<Response> => {
     profile = (await profileResponse.json()) as Record<string, unknown>;
   } catch {
     clearSession(c);
-    return c.json({ error: 'Failed to load Wikimedia profile' }, 502);
+    return c.json({ error: 'Failed to load OAuth provider profile' }, 502);
   }
   const subject = profile[provider.subjectField];
   const username = profile[provider.usernameField];
   if ((typeof subject !== 'string' && typeof subject !== 'number') || typeof username !== 'string' || !username) {
     clearSession(c);
-    return c.json({ error: 'Wikimedia profile response was incomplete' }, 502);
+    return c.json({ error: 'OAuth provider profile response was incomplete' }, 502);
   }
   const id = String(subject);
   const now = new Date().toISOString();
