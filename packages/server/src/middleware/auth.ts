@@ -7,6 +7,7 @@ export interface SessionData {
   userId?: string;
   oauthState?: string;
   codeVerifier?: string;
+  returnTo?: string;
   expiresAt: number;
 }
 function sessionSecret(): Buffer {

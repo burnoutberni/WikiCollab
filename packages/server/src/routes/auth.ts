@@ -41,7 +41,12 @@ auth.get('/login', async (c) => {
   const codeVerifier = oauth.generateRandomCodeVerifier();
   const codeChallenge = await oauth.calculatePKCECodeChallenge(codeVerifier);
   const state = oauth.generateRandomState();
-  setSession(c, { oauthState: state, codeVerifier }, true);
+  const returnTo = c.req.query('returnTo');
+  const safeReturnTo =
+    returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') && !returnTo.startsWith('/\\')
+      ? returnTo
+      : undefined;
+  setSession(c, { oauthState: state, codeVerifier, returnTo: safeReturnTo }, true);
   const url = new URL(authorizationEndpoint);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
@@ -100,7 +105,7 @@ auth.get('/callback', async (c): Promise<Response> => {
       .run();
   }
   setSession(c, { userId: id });
-  return c.redirect('/');
+  return c.redirect(session.returnTo ?? '/');
 });
 auth.post('/logout', (c) => {
   clearSession(c);

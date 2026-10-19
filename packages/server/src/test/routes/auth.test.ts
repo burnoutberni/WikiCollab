@@ -122,4 +122,33 @@ describe('Wikimedia OAuth routes', () => {
     expect(sessionCookie).toContain('HttpOnly');
     expect(sessionCookie).not.toContain('oauth-access-token');
   });
+
+  it('redirects back to the requested document after login', async () => {
+    const app = new Hono();
+    app.route('/auth', authRoutes);
+
+    const login = await app.request('/auth/login?returnTo=%2Fdoc%2Fabc123');
+    expect(login.status).toBe(302);
+    const cookie = login.headers.get('set-cookie');
+
+    const callback = await app.request('/auth/callback?code=auth-code&state=oauth-state', {
+      headers: { Cookie: cookie!.split(';')[0] },
+    });
+    expect(callback.status).toBe(302);
+    expect(callback.headers.get('location')).toBe('/doc/abc123');
+  });
+
+  it('ignores unsafe returnTo values and falls back to the frontpage', async () => {
+    const app = new Hono();
+    app.route('/auth', authRoutes);
+
+    const login = await app.request('/auth/login?returnTo=https%3A%2F%2Fevil.example%2Fphish');
+    const cookie = login.headers.get('set-cookie');
+
+    const callback = await app.request('/auth/callback?code=auth-code&state=oauth-state', {
+      headers: { Cookie: cookie!.split(';')[0] },
+    });
+    expect(callback.status).toBe(302);
+    expect(callback.headers.get('location')).toBe('/');
+  });
 });
