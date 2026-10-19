@@ -208,6 +208,7 @@ export function SplitPaneEditor({
     try {
       const res = await fetch(`/api/docs/${documentId}/preview`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext, page: title || null }),
         signal: controller.signal,
