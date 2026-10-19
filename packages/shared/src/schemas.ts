@@ -19,6 +19,8 @@ export const CreateDocumentSchema = z.object({
   mediawiki_instance_name: z.string().max(200).nullable().optional(),
   mediawiki_instance_api_url: MediaWikiApiUrlSchema.nullable().optional(),
   mediawiki_api_key: MediaWikiApiKeySchema.nullable().optional(),
+  mediawiki_bot_username: z.string().max(255).nullable().optional(),
+  mediawiki_bot_password: z.string().max(4096).nullable().optional(),
   visibility: DocumentVisibilitySchema.optional(),
 });
 
