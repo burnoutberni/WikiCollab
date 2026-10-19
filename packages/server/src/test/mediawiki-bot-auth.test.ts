@@ -80,6 +80,12 @@ describe('MediaWiki Bot Password authentication', () => {
     expect(count).toBe(2);
   });
 
+  it('never sends Bot Passwords to an HTTP wiki', async () => {
+    await expect(loginWithBotPassword('http://private.example/w/api.php', credentials))
+      .rejects.toThrow(/HTTPS/);
+    expect(mockServerFetch).not.toHaveBeenCalled();
+  });
+
   it('rejects failed credentials without returning a session', async () => {
     mockServerFetch
       .mockResolvedValueOnce({
