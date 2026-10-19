@@ -1,8 +1,11 @@
 import { eq } from 'drizzle-orm';
+import type { Context } from 'hono';
 import { Hono } from 'hono';
 import * as oauth from 'oauth4webapi';
 
 import { db, schema } from '../db/index.js';
+import { logger } from '../logging.js';
+import { mediaWikiHeaders } from '../mediawiki-http.js';
 import { clearSession, readSession, setSession } from '../middleware/auth.js';
 import { encryptSecret } from '../middleware/encryption.js';
 const auth = new Hono();
@@ -10,6 +13,27 @@ const DEFAULT_ISSUER = 'https://meta.wikimedia.org';
 const DEFAULT_AUTHORIZATION_ENDPOINT = 'https://meta.wikimedia.org/w/rest.php/oauth2/authorize';
 const DEFAULT_TOKEN_ENDPOINT = 'https://meta.wikimedia.org/w/rest.php/oauth2/access_token';
 const DEFAULT_PROFILE_ENDPOINT = 'https://meta.wikimedia.org/w/rest.php/oauth2/resource/profile';
+
+// OAuth errors may carry tokens, request bodies, or callback URLs in their cause.
+// Log only diagnostic identifiers, never serialize the error or provider body.
+function errorDetails(error: unknown) {
+  const record = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+  const identifier = (value: unknown) =>
+    typeof value === 'string' && /^[a-zA-Z0-9_]{1,100}$/.test(value) ? value : undefined;
+  const cause = record.cause;
+  return {
+    errorName: identifier(record.name),
+    errorCode: identifier(record.code),
+    providerError: identifier(record.error),
+    causeCode: identifier(
+      cause && typeof cause === 'object' && 'code' in cause ? cause.code : undefined
+    ),
+  };
+}
+
+function logContext(c: Context, stage: string) {
+  return { requestId: c.get('requestId') as string | undefined, stage };
+}
 
 /** Permit only local paths, never controls, backslashes, or another origin. */
 export function safeReturnPath(value: string | undefined): string {
@@ -95,6 +119,10 @@ auth.get('/login', async (c) => {
   url.searchParams.set('state', state);
   url.searchParams.set('code_challenge', codeChallenge);
   url.searchParams.set('code_challenge_method', 'S256');
+  logger.info(
+    { ...logContext(c, 'authorization_redirect'), callbackUrl: redirectUri },
+    'OAuth login started'
+  );
   return c.redirect(url.toString());
 });
 auth.get('/callback', async (c): Promise<Response> => {
@@ -102,9 +130,15 @@ auth.get('/callback', async (c): Promise<Response> => {
   const provider = providerConfig();
   const session = readSession(c);
   if (!session?.oauthState || !session.codeVerifier) {
+    logger.warn(
+      { ...logContext(c, 'session'), cookiePresent: Boolean(c.req.header('Cookie')) },
+      'OAuth session missing or invalid; check callback host, cookie expiry, and consistent SESSION_SECRET'
+    );
     return c.json({ error: 'OAuth session expired or missing' }, 400);
   }
   let tokens: oauth.TokenEndpointResponse;
+  let stage = 'authorization_response';
+  let tokenResponse: Response | undefined;
   try {
     const client: oauth.Client = { client_id: clientId };
     const params = oauth.validateAuthResponse(
@@ -113,28 +147,54 @@ auth.get('/callback', async (c): Promise<Response> => {
       new URL(c.req.url),
       session.oauthState
     );
-    const tokenResponse = await oauth.authorizationCodeGrantRequest(
+    stage = 'token_exchange';
+    tokenResponse = await oauth.authorizationCodeGrantRequest(
       provider.as,
       client,
       oauth.ClientSecretPost(clientSecret),
       params,
       redirectUri,
-      session.codeVerifier
+      session.codeVerifier,
+      { headers: mediaWikiHeaders(), signal: AbortSignal.timeout(10_000) }
     );
+    stage = 'token_response';
     tokens = await oauth.processAuthorizationCodeResponse(provider.as, client, tokenResponse);
-  } catch {
+  } catch (error) {
+    logger.warn(
+      {
+        ...logContext(c, stage),
+        ...errorDetails(error),
+        status: tokenResponse?.status,
+        contentType: tokenResponse?.headers?.get('content-type'),
+      },
+      'OAuth authorization failed'
+    );
     clearSession(c);
     return c.json({ error: 'OAuth authorization failed or was cancelled' }, 400);
   }
   let profile: Record<string, unknown>;
+  let profileResponse: Response | undefined;
   try {
-    const profileResponse = await fetch(provider.profileEndpoint, {
+    profileResponse = await fetch(provider.profileEndpoint, {
       signal: AbortSignal.timeout(10_000),
-      headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json' },
+      redirect: 'error',
+      headers: mediaWikiHeaders({ Accept: 'application/json' }, tokens.access_token),
     });
     if (!profileResponse.ok) throw new Error('Profile request failed');
     profile = (await profileResponse.json()) as Record<string, unknown>;
-  } catch {
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+      throw new Error('Invalid profile response');
+    }
+  } catch (error) {
+    logger.warn(
+      {
+        ...logContext(c, 'profile_request'),
+        ...errorDetails(error),
+        status: profileResponse?.status,
+        contentType: profileResponse?.headers?.get('content-type'),
+      },
+      'OAuth profile request failed'
+    );
     clearSession(c);
     return c.json({ error: 'Failed to load OAuth provider profile' }, 502);
   }
@@ -145,6 +205,16 @@ auth.get('/callback', async (c): Promise<Response> => {
     typeof username !== 'string' ||
     !username
   ) {
+    logger.warn(
+      {
+        ...logContext(c, 'profile_validation'),
+        subjectField: provider.subjectField,
+        usernameField: provider.usernameField,
+        subjectType: typeof subject,
+        usernameType: typeof username,
+      },
+      'OAuth profile is missing the configured identity fields'
+    );
     clearSession(c);
     return c.json({ error: 'OAuth provider profile response was incomplete' }, 502);
   }
@@ -164,6 +234,7 @@ auth.get('/callback', async (c): Promise<Response> => {
       .run();
   }
   setSession(c, { userId: id });
+  logger.info(logContext(c, 'complete'), 'OAuth login completed');
   return c.redirect(safeReturnPath(session.returnTo));
 });
 auth.post('/logout', (c) => {
