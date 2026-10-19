@@ -46,10 +46,16 @@ describe('mediawiki-http', () => {
 
   it('rejects HTTP for bearer and Bot Password sessions, while permitting anonymous HTTP', async () => {
     const { assertCredentialTransport } = await import('../mediawiki-http.js');
-    expect(() => assertCredentialTransport('http://wiki.example/w/api.php', 'token')).toThrow(/HTTPS/);
-    expect(() => assertCredentialTransport('http://wiki.example/w/api.php', { cookie: 'session=secret' })).toThrow(/HTTPS/);
+    expect(() => assertCredentialTransport('http://wiki.example/w/api.php', 'token')).toThrow(
+      /HTTPS/
+    );
+    expect(() =>
+      assertCredentialTransport('http://wiki.example/w/api.php', { cookie: 'session=secret' })
+    ).toThrow(/HTTPS/);
     expect(() => assertCredentialTransport('http://wiki.example/w/api.php', null)).not.toThrow();
-    expect(() => assertCredentialTransport('https://wiki.example/w/api.php', 'token')).not.toThrow();
+    expect(() =>
+      assertCredentialTransport('https://wiki.example/w/api.php', 'token')
+    ).not.toThrow();
   });
 
   it('does not classify arbitrary prose as rate limited', async () => {
