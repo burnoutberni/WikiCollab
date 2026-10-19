@@ -1,4 +1,4 @@
-import { and, desc, eq, or } from 'drizzle-orm';
+import { and, desc, eq, isNull, or } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'shared';
@@ -158,7 +158,7 @@ docs.get('/:id', (c) => {
   if (userId && doc.owner_user_id === null) {
     db.update(schema.documents)
       .set({ owner_user_id: userId })
-      .where(and(eq(schema.documents.id, id), eq(schema.documents.owner_user_id, null)))
+      .where(and(eq(schema.documents.id, id), isNull(schema.documents.owner_user_id)))
       .run();
     doc = getDocumentById(id);
   }
@@ -257,8 +257,11 @@ docs.patch('/:id', async (c) => {
   }
 
   const doc = getDocumentById(id);
-  if (body.mediawiki_instance_api_url) {
-    refreshDocumentMediaWikiCssInBackground(id, body.mediawiki_instance_api_url);
+  const refreshApiUrl =
+    body.mediawiki_instance_api_url ??
+    (body.mediawiki_api_key !== undefined ? doc?.mediawiki_instance_api_url : null);
+  if (refreshApiUrl) {
+    refreshDocumentMediaWikiCssInBackground(id, refreshApiUrl);
   }
   return c.json(apiDocument(doc, userId));
 });
