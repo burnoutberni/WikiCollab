@@ -2,7 +2,12 @@ import { serverFetch } from 'server-fetch';
 import type { MediaWikiUrlMetadata } from 'shared';
 
 import { logger } from './logging.js';
-import { assertCredentialTransport, type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import {
+  assertCredentialTransport,
+  type MediaWikiAuth,
+  mediaWikiHeaders,
+  readMediaWikiJson,
+} from './mediawiki-http.js';
 
 function getApiUrl(apiUrl: string, params: Record<string, string>): string {
   const url = new URL(apiUrl);
