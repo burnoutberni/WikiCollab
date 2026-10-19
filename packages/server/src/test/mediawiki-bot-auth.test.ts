@@ -22,12 +22,16 @@ describe('MediaWiki Bot Password authentication', () => {
     mockServerFetch
       .mockResolvedValueOnce({
         ok: true,
-        headers: { get: (name: string) => name === 'set-cookie' ? 'session=initial; Path=/' : null },
+        headers: {
+          get: (name: string) => (name === 'set-cookie' ? 'session=initial; Path=/' : null),
+        },
         json: async () => ({ query: { tokens: { logintoken: 'LOGIN_TOKEN' } } }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        headers: { get: (name: string) => name === 'set-cookie' ? 'session=authenticated; Path=/' : null },
+        headers: {
+          get: (name: string) => (name === 'set-cookie' ? 'session=authenticated; Path=/' : null),
+        },
         json: async () => ({ login: { result: 'Success' } }),
       });
 
