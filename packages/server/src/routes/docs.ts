@@ -8,7 +8,11 @@ import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
 import { botSessionCookie, invalidateBotSession } from '../mediawiki-bot-auth.js';
 import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
-import { assertCredentialTransport, type MediaWikiAuth, validateMediaWikiConfig } from '../mediawiki-http.js';
+import {
+  assertCredentialTransport,
+  type MediaWikiAuth,
+  validateMediaWikiConfig,
+} from '../mediawiki-http.js';
 import { currentUserId } from '../middleware/auth.js';
 import { decryptSecret, encryptSecret } from '../middleware/encryption.js';
 import { parseAndValidate } from '../middleware/validate.js';
