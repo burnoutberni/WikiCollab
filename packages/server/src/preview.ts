@@ -1,10 +1,15 @@
 import { createHash } from 'crypto';
 import sanitizeHtml from 'sanitize-html';
 import { serverFetch, SsrfError } from 'server-fetch';
-import { absolutizeMediaWikiUrl } from 'shared';
+import { absolutizeMediaWikiUrl, type PreviewRenderer } from 'shared';
 
 import { logger } from './logging.js';
-import { mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';
+import {
+  assertCredentialTransport,
+  type MediaWikiAuth,
+  mediaWikiHeaders,
+  readMediaWikiJsonResult,
+} from './mediawiki-http.js';
 
 const REMOTE_PREVIEW_CACHE_TTL_MS = 30_000;
 const REMOTE_PREVIEW_THROTTLE_MS = 1_500;
@@ -22,28 +27,46 @@ const remotePreviewTargetQueueDepth = new Map<string, number>();
 let remotePreviewPendingJoinObserver: (() => void) | null = null;
 
 type RemotePreviewResult =
-  { status: 'ok'; html: string } | { status: 'rate_limited'; html?: string } | { status: 'broken' };
+  | { status: 'ok'; html: string }
+  | { status: 'rate_limited'; html?: string; statusCode?: number }
+  | { status: 'broken'; html?: string; statusCode?: number; errorCode?: string };
 
 function remotePreviewKey(
   apiUrl: string,
   page: string | null | undefined,
-  wikitext: string
+  wikitext: string,
+  accessToken?: MediaWikiAuth
 ): string {
+  const authScope = accessToken
+    ? createHash('sha256')
+        .update(typeof accessToken === 'string' ? accessToken : accessToken.cookie)
+        .digest('base64url')
+    : '';
   return createHash('sha256')
-    .update(`${apiUrl}\0${page || ''}\0${wikitext}`)
+    .update(`${apiUrl}\0${page || ''}\0${wikitext}\0${authScope}`)
     .digest('base64url');
 }
 
-function remotePreviewTargetKey(apiUrl: string, page: string | null | undefined): string {
-  return `${apiUrl}\0${page || ''}`;
+function remotePreviewTargetKey(
+  apiUrl: string,
+  page: string | null | undefined,
+  accessToken?: MediaWikiAuth
+): string {
+  const authScope = accessToken
+    ? createHash('sha256')
+        .update(typeof accessToken === 'string' ? accessToken : accessToken.cookie)
+        .digest('base64url')
+    : '';
+  return `${apiUrl}\0${page || ''}\0${authScope}`;
 }
 
 function remotePreviewLatestKey(
   apiUrl: string,
   page: string | null | undefined,
-  documentId: string | null | undefined
+  documentId: string | null | undefined,
+  accessToken?: MediaWikiAuth
 ): string | null {
-  return documentId ? `${apiUrl}\0${page || ''}\0${documentId}` : null;
+  return documentId ? `${remotePreviewTargetKey(apiUrl, page, accessToken)}\0${documentId}` : null;
 }
 
 function evictRemotePreviewCache(now: number): void {
@@ -262,20 +285,32 @@ function sanitize(html: string, allowStyleTags = false, canonicalServer?: string
 /** Preview payload returned to HTTP and WebSocket callers. */
 export interface PreviewResult {
   html: string;
+  /** Which renderer produced `html`; `error` means a configured instance failed. */
+  renderer: PreviewRenderer;
+  remoteStatusCode?: number;
+  remoteErrorCode?: string;
 }
+
+const RATE_LIMITED_PREVIEW_HTML =
+  '<div class="mw-preview-status">Remote wiki preview is temporarily rate limited. Waiting before retrying...</div>';
+
+const INSTANCE_UNAVAILABLE_PREVIEW_HTML =
+  '<div class="mw-preview-status mw-preview-error">The configured MediaWiki instance could not render this preview. Fix the instance settings — WikiCollab will not fall back to its built-in renderer while an instance is configured.</div>';
 
 async function fetchRemotePreview(
   apiUrl: string,
   wikitext: string,
   page?: string | null,
-  documentId?: string | null
+  documentId?: string | null,
+  accessToken?: MediaWikiAuth
 ): Promise<RemotePreviewResult> {
+  assertCredentialTransport(apiUrl, accessToken);
   const now = Date.now();
   evictRemotePreviewCache(now);
 
-  const cacheKey = remotePreviewKey(apiUrl, page, wikitext);
-  const targetKey = remotePreviewTargetKey(apiUrl, page);
-  const latestKey = remotePreviewLatestKey(apiUrl, page, documentId);
+  const cacheKey = remotePreviewKey(apiUrl, page, wikitext, accessToken);
+  const targetKey = remotePreviewTargetKey(apiUrl, page, accessToken);
+  const latestKey = remotePreviewLatestKey(apiUrl, page, documentId, accessToken);
   const cached = remotePreviewCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     if (latestKey) remotePreviewLatestByTarget.set(latestKey, cached);
@@ -318,16 +353,21 @@ async function fetchRemotePreview(
       formData.append('prop', 'text');
       formData.append('contentmodel', 'wikitext');
       formData.append('format', 'json');
+      formData.append('pst', 'true');
       if (page) {
         formData.append('title', page);
       }
 
       const res = await serverFetch(apiUrl, {
         method: 'POST',
-        headers: mediaWikiHeaders({
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        }),
+        ...(accessToken ? { redirect: 'manual' as const } : {}),
+        headers: mediaWikiHeaders(
+          {
+            Accept: 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          accessToken
+        ),
         body: formData.toString(),
       });
 
@@ -342,11 +382,12 @@ async function fetchRemotePreview(
           result.retryAfterMs ?? REMOTE_PREVIEW_RATE_LIMIT_COOLDOWN_MS
         );
         remotePreviewRateLimitUntil.set(targetKey, Date.now() + cooldownMs);
-        return { status: 'rate_limited' };
+        return { status: 'rate_limited', statusCode: res.status };
       }
 
       const html = result.data?.parse?.text?.['*'];
-      if (!html) return { status: 'broken' };
+      if (!html)
+        return { status: 'broken', statusCode: res.status, errorCode: result.data?.error?.code };
 
       const expiresAt = Date.now() + REMOTE_PREVIEW_CACHE_TTL_MS;
       remotePreviewCache.set(cacheKey, { html, expiresAt });
@@ -354,7 +395,10 @@ async function fetchRemotePreview(
       return { status: 'ok', html };
     })
     .catch((err): RemotePreviewResult => {
-      if (err instanceof SsrfError) throw err;
+      if (err instanceof SsrfError) {
+        logger.error({ url: err.url }, 'SSRF blocked fetching MediaWiki preview');
+        return { status: 'broken', statusCode: 0 };
+      }
       logger.warn(
         { err: err instanceof Error ? err.message : String(err) },
         'MediaWiki preview request failed; treating instance as broken'
@@ -401,43 +445,56 @@ async function resolveRemotePreviewForTarget(
 
 /**
  * Generates sanitized preview HTML and a coarse source map.
- * Uses the configured MediaWiki parser when available. Rate limits never fall
- * back to local parsing; broken instance/API failures do.
+ * Uses the configured MediaWiki parser when available. Rate limits keep the
+ * remote renderer and never fall back; broken instance/API failures return an
+ * explicit error payload instead of silently rendering with the local parser.
  */
 export async function generatePreview(
   wikitext?: string | null,
   api_url?: string | null,
   page?: string | null,
   documentId?: string | null,
-  canonicalServer?: string | null
+  canonicalServer?: string | null,
+  accessToken?: MediaWikiAuth
 ): Promise<PreviewResult> {
-  const Parser = (await import('wikiparser-node')).default;
-
-  if (api_url) {
-    try {
-      const remotePreview = await fetchRemotePreview(api_url, wikitext || '', page, documentId);
-      if ('html' in remotePreview && remotePreview.html) {
-        return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true, canonicalServer) };
-      }
-      if (remotePreview.status === 'rate_limited') {
-        return {
-          html: sanitize(
-            '<div class="mw-preview-status">Remote wiki preview is temporarily rate limited. Waiting before retrying...</div>'
-          ),
-        };
-      }
-    } catch (err) {
-      if (err instanceof SsrfError) {
-        logger.error({ url: err.url }, 'SSRF blocked in preview');
-      } else {
-        logger.warn(
-          { err: err instanceof Error ? err.message : String(err) },
-          'MediaWiki preview request failed; falling back because instance appears broken'
-        );
-      }
-    }
+  if (!api_url) {
+    const Parser = (await import('wikiparser-node')).default;
+    const html = Parser.toHtml(wikitext || '', false, undefined, page || undefined);
+    return { html: sanitize(stripStyleBlocks(html), false, canonicalServer), renderer: 'local' };
   }
 
-  const html = Parser.toHtml(wikitext || '', false, undefined, page || undefined);
-  return { html: sanitize(stripStyleBlocks(html), false, canonicalServer) };
+  try {
+    const remotePreview = await fetchRemotePreview(
+      api_url,
+      wikitext || '',
+      page,
+      documentId,
+      accessToken
+    );
+    if ('html' in remotePreview && remotePreview.html) {
+      return {
+        html: sanitize(sanitizeStyleBlocks(remotePreview.html), true, canonicalServer),
+        renderer: 'mediawiki',
+      };
+    }
+    if (remotePreview.status === 'rate_limited') {
+      return { html: sanitize(RATE_LIMITED_PREVIEW_HTML), renderer: 'mediawiki' };
+    }
+    return {
+      html: sanitize(INSTANCE_UNAVAILABLE_PREVIEW_HTML),
+      renderer: 'error',
+      ...(remotePreview.status === 'broken' && remotePreview.statusCode !== undefined
+        ? { remoteStatusCode: remotePreview.statusCode }
+        : {}),
+      ...(remotePreview.status === 'broken' && remotePreview.errorCode
+        ? { remoteErrorCode: remotePreview.errorCode }
+        : {}),
+    };
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'MediaWiki preview request failed; reporting instance as unavailable'
+    );
+    return { html: sanitize(INSTANCE_UNAVAILABLE_PREVIEW_HTML), renderer: 'error' };
+  }
 }

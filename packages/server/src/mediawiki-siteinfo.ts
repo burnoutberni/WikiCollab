@@ -2,7 +2,12 @@ import { serverFetch } from 'server-fetch';
 import type { MediaWikiUrlMetadata } from 'shared';
 
 import { logger } from './logging.js';
-import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import {
+  assertCredentialTransport,
+  type MediaWikiAuth,
+  mediaWikiHeaders,
+  readMediaWikiJson,
+} from './mediawiki-http.js';
 
 function getApiUrl(apiUrl: string, params: Record<string, string>): string {
   const url = new URL(apiUrl);
@@ -56,8 +61,10 @@ export function readMediaWikiUrlMetadata(
 }
 
 export async function fetchMediaWikiUrlMetadata(
-  apiUrl: string
+  apiUrl: string,
+  accessToken?: MediaWikiAuth
 ): Promise<MediaWikiUrlMetadataResult> {
+  assertCredentialTransport(apiUrl, accessToken);
   try {
     const res = await serverFetch(
       getApiUrl(apiUrl, {
@@ -66,7 +73,10 @@ export async function fetchMediaWikiUrlMetadata(
         siprop: 'general',
         format: 'json',
       }),
-      { headers: mediaWikiHeaders({ Accept: 'application/json' }) }
+      {
+        ...(accessToken ? { redirect: 'manual' as const } : {}),
+        headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
+      }
     );
     const data = await readMediaWikiJson<{
       query?: { general?: { server?: unknown; articlepath?: unknown; scriptpath?: unknown } };

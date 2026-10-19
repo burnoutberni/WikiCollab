@@ -25,6 +25,11 @@ const mockDocuments = [
     mediawiki_script_path: null,
     restored_version_id: null,
     visibility: 'public' as DocumentVisibility,
+    owner_user_id: null,
+    is_owner: false,
+    has_mediawiki_api_key: false,
+    mediawiki_bot_username: null,
+    has_mediawiki_bot_password: false,
   },
   {
     id: 'doc2',
@@ -41,6 +46,11 @@ const mockDocuments = [
     mediawiki_script_path: null,
     restored_version_id: null,
     visibility: 'public' as DocumentVisibility,
+    owner_user_id: null,
+    is_owner: false,
+    has_mediawiki_api_key: false,
+    mediawiki_bot_username: null,
+    has_mediawiki_bot_password: false,
   },
   {
     id: 'doc3',
@@ -57,6 +67,11 @@ const mockDocuments = [
     mediawiki_script_path: null,
     restored_version_id: null,
     visibility: 'public' as DocumentVisibility,
+    owner_user_id: null,
+    is_owner: false,
+    has_mediawiki_api_key: false,
+    mediawiki_bot_username: null,
+    has_mediawiki_bot_password: false,
   },
 ];
 
@@ -74,8 +89,11 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('@/hooks/useApi', () => ({
+  useAuth: () => ({ user: { id: 'owner-1', wiki_username: 'Owner' }, loading: false }),
   useDocuments: vi.fn(),
 }));
+
+vi.mock('@/components/AuthControls', () => ({ AuthControls: () => <div>AuthControls</div> }));
 
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => mockIsMobile,

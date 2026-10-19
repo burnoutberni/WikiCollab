@@ -14,6 +14,14 @@ sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
 
 sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    wiki_username TEXT NOT NULL,
+    oauth_access_token TEXT,
+    oauth_refresh_token TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL DEFAULT 'Untitled',
@@ -28,7 +36,11 @@ sqlite.exec(`
     mediawiki_article_path TEXT,
     mediawiki_script_path TEXT,
     restored_version_id TEXT,
-    visibility TEXT NOT NULL DEFAULT 'public'
+    visibility TEXT NOT NULL DEFAULT 'public',
+    owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    mediawiki_api_key TEXT,
+    mediawiki_bot_username TEXT,
+    mediawiki_bot_password TEXT
   );
 
   CREATE TABLE IF NOT EXISTS document_revisions (
@@ -41,6 +53,25 @@ sqlite.exec(`
 `);
 
 migrateRevisionStorage(sqlite);
+
+// Migration: add ownership and encrypted document-scoped MediaWiki credentials.
+for (const [column, definition] of [
+  ['owner_user_id', 'TEXT REFERENCES users(id) ON DELETE SET NULL'],
+  ['mediawiki_api_key', 'TEXT'],
+  ['mediawiki_bot_username', 'TEXT'],
+  ['mediawiki_bot_password', 'TEXT'],
+] as const) {
+  try {
+    sqlite.exec(`ALTER TABLE documents ADD COLUMN ${column} ${definition}`);
+  } catch (err: unknown) {
+    if (!String((err as Error)?.message).includes('duplicate column')) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error({ migration: `documents.${column}`, err: error }, 'Migration failed');
+    }
+  }
+}
+
+sqlite.exec(`CREATE INDEX IF NOT EXISTS documents_owner_user_id_idx ON documents(owner_user_id)`);
 
 // Migration: add starred column to existing document_revisions tables
 try {

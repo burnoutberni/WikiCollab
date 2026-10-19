@@ -15,6 +15,14 @@ const { mockDbModule } = vi.hoisted(() => ({
 }));
 vi.mock('../../db/index.js', () => mockDbModule);
 
+const { mockServerFetch } = vi.hoisted(() => ({
+  mockServerFetch: vi.fn(),
+}));
+vi.mock('server-fetch', () => ({
+  serverFetch: mockServerFetch,
+  SsrfError: class SsrfError extends Error {},
+}));
+
 import * as schema from '../../db/schema.js';
 import {
   checkWsRateLimit,
@@ -357,6 +365,7 @@ describe('WebSocket connections', () => {
 
       const { type, payload } = getSentCustomPayload(ws.send, 0);
       expect(type).toBe('preview_update');
+      expect(payload.renderer).toBe('local');
       expect(JSON.parse(String(payload.requestIds))).toEqual(['r1', 'r2']);
     });
 
@@ -395,6 +404,80 @@ describe('WebSocket connections', () => {
       expect(type).toBe('preview_update');
       expect(requestIds).toHaveLength(32);
       expect(requestIds).toEqual(Array.from({ length: 32 }, (_value, index) => `r${index}`));
+    });
+
+    it('reports the MediaWiki renderer when the configured instance renders', async () => {
+      vi.useFakeTimers();
+      const docName = 'preview-renderer-remote-test';
+      mockServerFetch.mockResolvedValue({
+        json: () => Promise.resolve({ parse: { text: { '*': '<p>Remote renderer</p>' } } }),
+      });
+
+      mockDbModule.db
+        .insert(schema.documents)
+        .values({
+          id: docName,
+          title: 'Renderer Remote',
+          content: '== Hello ==',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+        })
+        .run();
+
+      const ws = await connectWs(`/${docName}`);
+      ws.send.mockClear();
+
+      ws.emit(
+        'message',
+        wrapCustomMessage(
+          encodeInnerPayload('preview_request', { page: 'Remote page', requestId: 'r1' })
+        )
+      );
+
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.waitFor(() => expect(ws.send).toHaveBeenCalledTimes(1));
+
+      const { type, payload } = getSentCustomPayload(ws.send, 0);
+      expect(type).toBe('preview_update');
+      expect(payload.renderer).toBe('mediawiki');
+      expect(payload.html).toContain('Remote renderer');
+    });
+
+    it('reports an error renderer instead of falling back when the instance fails', async () => {
+      vi.useFakeTimers();
+      const docName = 'preview-renderer-error-test';
+      mockServerFetch.mockRejectedValue(new Error('connection failed'));
+
+      mockDbModule.db
+        .insert(schema.documents)
+        .values({
+          id: docName,
+          title: 'Renderer Error',
+          content: '== Hello ==',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+        })
+        .run();
+
+      const ws = await connectWs(`/${docName}`);
+      ws.send.mockClear();
+
+      ws.emit(
+        'message',
+        wrapCustomMessage(
+          encodeInnerPayload('preview_request', { page: 'Broken page', requestId: 'r1' })
+        )
+      );
+
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.waitFor(() => expect(ws.send).toHaveBeenCalledTimes(1));
+
+      const { type, payload } = getSentCustomPayload(ws.send, 0);
+      expect(type).toBe('preview_update');
+      expect(payload.renderer).toBe('error');
+      expect(payload.html).toContain('could not render this preview');
     });
 
     it('handles malformed custom message without throwing', async () => {

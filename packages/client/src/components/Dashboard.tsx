@@ -8,10 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useDocuments } from '@/hooks/useApi';
+import { useAuth, useDocuments } from '@/hooks/useApi';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
 import NEW_DOC_BOILERPLATE from '../content/new-doc-boilerplate.wikitext?raw';
+import { AuthControls } from './AuthControls';
 import { NewDocumentButton } from './NewDocumentButton';
 import { ShareButton } from './ShareButton';
 
@@ -28,6 +29,7 @@ const SORT_OPTIONS: SortKey[] = ['newest', 'oldest', 'alpha', 'alpha-rev'];
 
 export function Dashboard() {
   const { documents, loading, pendingCount, loadPending, createDocument } = useDocuments();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
@@ -117,7 +119,10 @@ export function Dashboard() {
               </div>
               <h1 className="text-xl font-bold hidden md:block">WikiCollab</h1>
             </div>
-            <NewDocumentButton onCreate={handleCreate} compact={isMobile} />
+            <div className="flex items-center gap-2">
+              <AuthControls />
+              {user && <NewDocumentButton onCreate={handleCreate} compact={isMobile} />}
+            </div>
           </div>
         </header>
 
@@ -184,7 +189,11 @@ export function Dashboard() {
                   <CardDescription className="mb-4">
                     Create your first document to get started
                   </CardDescription>
-                  <NewDocumentButton onCreate={handleCreate} />
+                  {user ? (
+                    <NewDocumentButton onCreate={handleCreate} />
+                  ) : (
+                    <a href="/auth/login">Log in to create a document</a>
+                  )}
                 </CardContent>
               </Card>
             ) : filtered.length === 0 ? (

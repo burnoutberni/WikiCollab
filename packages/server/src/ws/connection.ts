@@ -13,6 +13,7 @@ import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
 import { generatePreview } from '../preview.js';
+import { generateDocumentPreview } from '../routes/docs.js';
 import { setVersionStarred } from '../services/versions.js';
 import { envInt } from '../utils/env.js';
 import { getClientIp } from '../utils/ip.js';
@@ -230,17 +231,16 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
             const wikitext = doc.getText('wikitext').toString();
             const storedDoc = getDocumentById(doc.name);
             const apiUrl = storedDoc?.mediawiki_instance_api_url || null;
-            const { html } = await generatePreview(
-              wikitext,
-              apiUrl,
-              page || null,
-              doc.name,
-              storedDoc?.mediawiki_canonical_server || null
-            );
+            const { html, renderer } = storedDoc
+              ? await generateDocumentPreview(storedDoc, wikitext, page || null, doc.name)
+              : await generatePreview(wikitext, apiUrl, page || null, doc.name);
             const responseBase: Record<string, string> = { page };
             if (pendingRequestIds.length)
               responseBase.requestIds = JSON.stringify(pendingRequestIds);
-            broadcastCustom(doc, encodeInnerPayload('preview_update', { ...responseBase, html }));
+            broadcastCustom(
+              doc,
+              encodeInnerPayload('preview_update', { ...responseBase, html, renderer })
+            );
           } catch (err) {
             logger.error(
               { docName: doc.name, err: err instanceof Error ? err.message : String(err) },

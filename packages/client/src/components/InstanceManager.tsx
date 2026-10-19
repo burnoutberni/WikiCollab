@@ -1,5 +1,6 @@
-import { ExternalLink, Pencil, Plus, Server, X } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Pencil, Plus, Server, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PreviewRenderer } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -35,15 +36,41 @@ const WIKI_PRESETS: { name: string; api_url: string }[] = [
 interface InstanceManagerProps {
   name: string | null;
   apiUrl: string | null;
+  /** Renderer that produced the latest preview; drives the failure state. */
+  renderer?: PreviewRenderer;
+  hasApiKey?: boolean;
+  botUsername?: string | null;
+  hasBotPassword?: boolean;
   saving?: boolean;
-  onChange: (name: string | null, apiUrl: string | null) => Promise<void> | void;
+  onChange: (
+    name: string | null,
+    apiUrl: string | null,
+    apiKey?: string | null,
+    botUsername?: string | null,
+    botPassword?: string | null
+  ) => Promise<void> | void;
 }
 
 /** Configures the current document's MediaWiki target; presets are suggestions only. */
-export function InstanceManager({ name, apiUrl, saving = false, onChange }: InstanceManagerProps) {
+export function InstanceManager({
+  name,
+  apiUrl,
+  renderer,
+  hasApiKey = false,
+  botUsername = null,
+  hasBotPassword = false,
+  saving = false,
+  onChange,
+}: InstanceManagerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftApiUrl, setDraftApiUrl] = useState('');
+  const [draftApiKey, setDraftApiKey] = useState('');
+  const [draftBotUsername, setDraftBotUsername] = useState('');
+  const [draftBotPassword, setDraftBotPassword] = useState('');
+  const [authMethod, setAuthMethod] = useState<'none' | 'bearer' | 'bot'>(
+    hasBotPassword ? 'bot' : hasApiKey ? 'bearer' : 'none'
+  );
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
   const [instanceError, setInstanceError] = useState<string | null>(null);
@@ -52,6 +79,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   const listRef = useRef<HTMLDivElement>(null);
 
   const configured = Boolean(name && apiUrl);
+  const renderError = configured && renderer === 'error';
   const wikiBaseUrl = apiUrl ? getWikiBaseUrl(apiUrl) : null;
   const nameListboxId = 'instance-name-presets';
   const activePresetId =
@@ -65,6 +93,10 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   const openDialog = () => {
     setDraftName(name || '');
     setDraftApiUrl(apiUrl || '');
+    setDraftApiKey('');
+    setDraftBotUsername(botUsername || '');
+    setDraftBotPassword('');
+    setAuthMethod(hasBotPassword ? 'bot' : hasApiKey ? 'bearer' : 'none');
     setNameIndex(-1);
     setNameOpen(false);
     setInstanceError(null);
@@ -133,7 +165,36 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
       return;
     }
     try {
-      await onChange(trimmedName, trimmedApiUrl);
+      const apiKey = draftApiKey.trim();
+      if (authMethod === 'bot') {
+        if (!draftBotUsername.trim() || (!draftBotPassword && !hasBotPassword)) {
+          setInstanceError('Enter the bot username and password.');
+          return;
+        }
+        await onChange(
+          trimmedName,
+          trimmedApiUrl,
+          null,
+          draftBotUsername.trim(),
+          draftBotPassword || undefined
+        );
+        setDialogOpen(false);
+        return;
+      }
+      if (authMethod === 'none') {
+        if (hasBotPassword || hasApiKey) {
+          await onChange(trimmedName, trimmedApiUrl, null, null, null);
+        } else {
+          await onChange(trimmedName, trimmedApiUrl);
+        }
+        setDialogOpen(false);
+        return;
+      }
+      if (apiKey) {
+        await onChange(trimmedName, trimmedApiUrl, apiKey, null, null);
+      } else {
+        await onChange(trimmedName, trimmedApiUrl, undefined, null, null);
+      }
       setDialogOpen(false);
     } catch (err) {
       setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
@@ -151,17 +212,29 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-2">
+      <div className={`flex items-center gap-2 mb-2 ${renderError ? 'text-destructive' : ''}`}>
         <Server className="h-4 w-4" />
         <h3 className="text-sm font-medium">MediaWiki Instance</h3>
+        {renderError && (
+          <span className="ml-auto text-xs font-medium" data-testid="instance-render-error">
+            Renderer failed
+          </span>
+        )}
       </div>
 
       {configured ? (
-        <div className="rounded-md border p-3">
+        <div
+          className={`rounded-md border p-3 ${renderError ? 'border-destructive bg-destructive/10' : ''}`}
+          data-testid="instance-config-card"
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{name}</span>
+                <span
+                  className={`text-sm font-medium truncate ${renderError ? 'text-destructive' : ''}`}
+                >
+                  {name}
+                </span>
                 {wikiBaseUrl && (
                   <a
                     href={wikiBaseUrl}
@@ -207,6 +280,18 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
               <TooltipContent>Clear instance</TooltipContent>
             </Tooltip>
           </div>
+          {renderError && (
+            <p
+              className="mt-2 flex items-start gap-1.5 text-xs text-destructive"
+              data-testid="instance-render-error-detail"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                This instance failed to render the preview. WikiCollab does not fall back to the
+                built-in renderer while an instance is configured.
+              </span>
+            </p>
+          )}
           {instanceError && <p className="mt-2 text-sm text-destructive">{instanceError}</p>}
         </div>
       ) : (
@@ -300,6 +385,71 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                 placeholder="https://wiki.example.com/w/api.php"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="instance-auth-method">Authentication</Label>
+              <select
+                id="instance-auth-method"
+                className="w-full rounded-md border bg-background p-2 text-sm"
+                value={authMethod}
+                onChange={(e) => setAuthMethod(e.target.value as 'none' | 'bearer' | 'bot')}
+              >
+                <option value="none">None (public wiki)</option>
+                <option value="bot">MediaWiki Bot Password</option>
+                <option value="bearer">Bearer token</option>
+              </select>
+            </div>
+            {authMethod === 'bot' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="instance-bot-username">Bot username</Label>
+                  <Input
+                    id="instance-bot-username"
+                    value={draftBotUsername}
+                    onChange={(e) => setDraftBotUsername(e.target.value)}
+                    placeholder="YourUsername@WikiCollab"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instance-bot-password">Bot password</Label>
+                  <Input
+                    id="instance-bot-password"
+                    type="password"
+                    value={draftBotPassword}
+                    onChange={(e) => setDraftBotPassword(e.target.value)}
+                    placeholder={
+                      hasBotPassword
+                        ? 'Stored — leave blank to keep'
+                        : 'Password from Special:BotPasswords'
+                    }
+                    autoComplete="new-password"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Create these credentials on your wiki at Special:BotPasswords. Passwords are
+                    encrypted on the server and never displayed again. All document collaborators
+                    can see private wiki content rendered with this bot identity. Use HTTPS and a
+                    least-privilege bot account.
+                  </p>
+                </div>
+              </>
+            )}
+            {authMethod === 'bearer' && (
+              <div className="space-y-2">
+                <Label htmlFor="instance-api-key">Bearer token</Label>
+                <Input
+                  id="instance-api-key"
+                  type="password"
+                  value={draftApiKey}
+                  onChange={(e) => setDraftApiKey(e.target.value)}
+                  placeholder={hasApiKey ? 'Stored — leave blank to keep' : 'Optional bearer token'}
+                  autoComplete="new-password"
+                />
+                <p className="text-xs text-muted-foreground">
+                  All document collaborators can see private wiki content rendered with this token.
+                  Use HTTPS and least-privilege access.
+                </p>
+              </div>
+            )}
             {instanceError && <p className="text-sm text-destructive">{instanceError}</p>}
           </div>
           <DialogFooter>

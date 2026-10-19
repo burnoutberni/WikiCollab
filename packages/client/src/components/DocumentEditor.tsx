@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Document, DocumentVisibility } from 'shared';
+import type { Document, DocumentVisibility, PreviewRenderer } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,12 +26,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { API_BASE, useDocument } from '@/hooks/useApi';
+import { API_BASE, apiFetch, useAuth, useDocument } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { usePersistField } from '@/hooks/usePersistField';
 import { useYjs } from '@/hooks/useYjs';
 
+import { AuthControls } from './AuthControls';
 import { BottomSheet } from './BottomSheet';
 import { CollaboratorList } from './CollaboratorList';
 import { ConnectionStatePopover } from './ConnectionStatePopover';
@@ -69,7 +70,7 @@ async function fetchRefreshedInstanceData(
   for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
     try {
-      const res = await fetch(`${API_BASE}/docs/${id}`);
+      const res = await apiFetch(`${API_BASE}/docs/${id}`);
       if (!res.ok) return null;
       const doc = (await res.json()) as Document;
       if (isReady(doc)) return doc;
@@ -88,6 +89,7 @@ export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { document: doc, loading, setDocument } = useDocument(id || null);
+  const { user: authUser } = useAuth();
   const { lockedByOther, takeOver } = useEditorLock(id || null);
   const {
     ytext,
@@ -151,11 +153,26 @@ export function DocumentEditor() {
   const [articlePath, setArticlePath] = useState<string | null>(null);
   const [scriptPath, setScriptPath] = useState<string | null>(null);
   const [instanceSaving, setInstanceSaving] = useState(false);
+  const [hasMediaWikiApiKey, setHasMediaWikiApiKey] = useState(false);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [hasBotPassword, setHasBotPassword] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const [previewRenderer, setPreviewRenderer] = useState<PreviewRenderer | null>(null);
+
+  /** Last reported preview renderer; optimistic until the first preview returns. */
+  const effectiveRenderer: PreviewRenderer =
+    previewRenderer ?? (instanceApiUrl ? 'mediawiki' : 'local');
 
   useEffect(() => {
     titleRef.current = title;
   }, [title]);
+
+  useEffect(() => {
+    const wikiName = authUser?.wiki_username;
+    if (wikiName && wikiName !== userName) {
+      setUserName(wikiName);
+    }
+  }, [authUser?.wiki_username, userName, setUserName]);
 
   useEffect(() => {
     if (doc) {
@@ -174,6 +191,10 @@ export function DocumentEditor() {
       setCanonicalServer(doc.mediawiki_canonical_server);
       setArticlePath(doc.mediawiki_article_path);
       setScriptPath(doc.mediawiki_script_path);
+      setHasMediaWikiApiKey(doc.has_mediawiki_api_key);
+      setBotUsername(doc.mediawiki_bot_username);
+      setHasBotPassword(doc.has_mediawiki_bot_password);
+      setPreviewRenderer(null);
       lastPersistedVisibilityRef.current = doc.visibility;
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
@@ -325,18 +346,27 @@ export function DocumentEditor() {
   const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
 
   const updateInstance = useCallback(
-    async (name: string | null, apiUrl: string | null) => {
+    async (
+      name: string | null,
+      apiUrl: string | null,
+      apiKey?: string | null,
+      username?: string | null,
+      password?: string | null
+    ) => {
       if (!id) return;
       const previous = lastPersistedInstanceRef.current;
       setInstanceName(name);
       setInstanceSaving(true);
       try {
-        const res = await fetch(`${API_BASE}/docs/${id}`, {
+        const res = await apiFetch(`${API_BASE}/docs/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             mediawiki_instance_name: name,
             mediawiki_instance_api_url: apiUrl,
+            ...(apiKey !== undefined ? { mediawiki_api_key: apiKey } : {}),
+            ...(username !== undefined ? { mediawiki_bot_username: username } : {}),
+            ...(password !== undefined ? { mediawiki_bot_password: password } : {}),
           }),
         });
         let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
@@ -371,6 +401,10 @@ export function DocumentEditor() {
         setCanonicalServer(updatedDoc.mediawiki_canonical_server);
         setArticlePath(updatedDoc.mediawiki_article_path);
         setScriptPath(updatedDoc.mediawiki_script_path);
+        setHasMediaWikiApiKey(updatedDoc.has_mediawiki_api_key);
+        setBotUsername(updatedDoc.mediawiki_bot_username);
+        setHasBotPassword(updatedDoc.has_mediawiki_bot_password);
+        setPreviewRenderer(null);
         setPreviewRefreshKey((key) => key + 1);
         lastPersistedInstanceRef.current = {
           name: updatedDoc.mediawiki_instance_name,
@@ -390,6 +424,9 @@ export function DocumentEditor() {
                 mediawiki_canonical_server: updatedDoc.mediawiki_canonical_server,
                 mediawiki_article_path: updatedDoc.mediawiki_article_path,
                 mediawiki_script_path: updatedDoc.mediawiki_script_path,
+                has_mediawiki_api_key: updatedDoc.has_mediawiki_api_key,
+                mediawiki_bot_username: updatedDoc.mediawiki_bot_username,
+                has_mediawiki_bot_password: updatedDoc.has_mediawiki_bot_password,
                 updated_at: updatedDoc.updated_at,
               }
             : updatedDoc
@@ -436,7 +473,7 @@ export function DocumentEditor() {
   const handleRestoreVersion = useCallback(
     async (versionId: string) => {
       try {
-        const res = await fetch(`/api/docs/${id}/versions/${versionId}/restore`, {
+        const res = await apiFetch(`/api/docs/${id}/versions/${versionId}/restore`, {
           method: 'POST',
         });
         const data = await res.json();
@@ -503,6 +540,8 @@ export function DocumentEditor() {
               connected={connected}
               lastConnected={lastConnected}
               collaboratorCount={collaboratorCount}
+              renderer={effectiveRenderer}
+              instanceName={instanceName}
               onReconnect={provider ? () => provider.connect() : undefined}
               peers={peers}
               userName={userName}
@@ -510,6 +549,7 @@ export function DocumentEditor() {
               content={content}
               localCursor={localCursor}
               onUserNameChange={setUserName}
+              userNameLocked={!!authUser}
               onUserColorChange={setUserColor}
               onJumpToCursor={jumpToCursor}
               onScrollToCursor={scrollToCursor}
@@ -624,61 +664,6 @@ export function DocumentEditor() {
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Desktop Sidebar */}
-          {!isMobile && desktopSidebarOpen && (
-            <aside className="w-64 border-r flex flex-col">
-              <div className="p-4 border-b">
-                <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
-              </div>
-
-              <div className="p-4 border-b">
-                <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
-                  <InstanceManager
-                    name={instanceName}
-                    apiUrl={instanceApiUrl}
-                    saving={instanceSaving}
-                    onChange={updateInstance}
-                  />
-                </Suspense>
-              </div>
-
-              <div className="p-4 mt-auto border-t">
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
-                  onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
-                  aria-expanded={collaboratorsExpanded}
-                >
-                  {collaboratorsExpanded ? (
-                    <ChevronDown className="h-3 w-3" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3" />
-                  )}
-                  <Users className="h-3.5 w-3.5" />
-                  <span>
-                    {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
-                  </span>
-                </button>
-                {collaboratorsExpanded && (
-                  <CollaboratorList
-                    peers={peers}
-                    userName={userName}
-                    userColor={userColor}
-                    content={content}
-                    localCursor={localCursor}
-                    onUserNameChange={setUserName}
-                    onUserColorChange={setUserColor}
-                    onJumpToCursor={jumpToCursor}
-                    onScrollToCursor={scrollToCursor}
-                    onLocalCursorClicked={handleLocalCursorClicked}
-                    onPeerCursorClicked={handlePeerCursorClicked}
-                    onFlashPeerCursor={flashPeerCursor}
-                  />
-                )}
-              </div>
-            </aside>
-          )}
-
           {/* Editor */}
           <main className="flex-1 overflow-hidden">
             {viewMode === 'source' && (
@@ -713,10 +698,83 @@ export function DocumentEditor() {
                 onCursorChange={handleCursorChange}
                 sendCustomMessage={sendCustomMessage}
                 onCustomMessage={onCustomMessage}
+                onRendererStatus={setPreviewRenderer}
                 initialMobileTab={isMobile ? 'preview' : 'source'}
               />
             )}
           </main>
+
+          {/* Desktop Sidebar */}
+          {!isMobile && desktopSidebarOpen && (
+            <aside className="w-64 border-l flex flex-col">
+              <div className="p-4 border-b">
+                <AuthControls isOwner={doc.is_owner} stacked />
+              </div>
+
+              {doc.is_owner ? (
+                <>
+                  <div className="p-4 border-b">
+                    <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+                  </div>
+
+                  <div className="p-4 border-b">
+                    <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
+                      <InstanceManager
+                        name={instanceName}
+                        apiUrl={instanceApiUrl}
+                        renderer={effectiveRenderer}
+                        hasApiKey={hasMediaWikiApiKey}
+                        botUsername={botUsername}
+                        hasBotPassword={hasBotPassword}
+                        saving={instanceSaving}
+                        onChange={updateInstance}
+                      />
+                    </Suspense>
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 border-b text-xs text-muted-foreground">
+                  Only the document owner can change visibility and MediaWiki settings.
+                </div>
+              )}
+
+              <div className="p-4 mt-auto border-t">
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs font-medium w-full text-left"
+                  onClick={() => setCollaboratorsExpanded(!collaboratorsExpanded)}
+                  aria-expanded={collaboratorsExpanded}
+                >
+                  {collaboratorsExpanded ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                  <Users className="h-3.5 w-3.5" />
+                  <span>
+                    {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''}
+                  </span>
+                </button>
+                {collaboratorsExpanded && (
+                  <CollaboratorList
+                    peers={peers}
+                    userName={userName}
+                    userColor={userColor}
+                    content={content}
+                    localCursor={localCursor}
+                    onUserNameChange={setUserName}
+                    userNameLocked={!!authUser}
+                    onUserColorChange={setUserColor}
+                    onJumpToCursor={jumpToCursor}
+                    onScrollToCursor={scrollToCursor}
+                    onLocalCursorClicked={handleLocalCursorClicked}
+                    onPeerCursorClicked={handlePeerCursorClicked}
+                    onFlashPeerCursor={flashPeerCursor}
+                  />
+                )}
+              </div>
+            </aside>
+          )}
         </div>
 
         {/* Mobile Bottom Action Bar */}
@@ -737,6 +795,8 @@ export function DocumentEditor() {
                 connected={connected}
                 lastConnected={lastConnected}
                 collaboratorCount={collaboratorCount}
+                renderer={effectiveRenderer}
+                instanceName={instanceName}
                 onReconnect={provider ? () => provider.connect() : undefined}
                 peers={peers}
                 userName={userName}
@@ -744,6 +804,7 @@ export function DocumentEditor() {
                 content={content}
                 localCursor={localCursor}
                 onUserNameChange={setUserName}
+                userNameLocked={!!authUser}
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}
@@ -782,18 +843,32 @@ export function DocumentEditor() {
         title="Settings"
       >
         <div className="space-y-4">
-          <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
-
+          <AuthControls isOwner={doc.is_owner} stacked />
           <Separator />
+          {doc.is_owner ? (
+            <>
+              <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
 
-          <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
-            <InstanceManager
-              name={instanceName}
-              apiUrl={instanceApiUrl}
-              saving={instanceSaving}
-              onChange={updateInstance}
-            />
-          </Suspense>
+              <Separator />
+
+              <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
+                <InstanceManager
+                  name={instanceName}
+                  apiUrl={instanceApiUrl}
+                  renderer={effectiveRenderer}
+                  hasApiKey={hasMediaWikiApiKey}
+                  botUsername={botUsername}
+                  hasBotPassword={hasBotPassword}
+                  saving={instanceSaving}
+                  onChange={updateInstance}
+                />
+              </Suspense>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Only the document owner can change visibility and MediaWiki settings.
+            </p>
+          )}
 
           <Separator />
 
@@ -822,6 +897,7 @@ export function DocumentEditor() {
                 content={content}
                 localCursor={localCursor}
                 onUserNameChange={setUserName}
+                userNameLocked={!!authUser}
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}

@@ -34,6 +34,30 @@ describe('mediawiki-http', () => {
     expect(MEDIAWIKI_USER_AGENT).not.toContain('local development');
   });
 
+  it('adds a bearer token only when provided', async () => {
+    const { mediaWikiHeaders } = await import('../mediawiki-http.js');
+
+    expect(mediaWikiHeaders({ Accept: 'application/json' })).not.toHaveProperty('Authorization');
+    expect(mediaWikiHeaders({ Accept: 'application/json' }, 'doc-token')).toMatchObject({
+      Accept: 'application/json',
+      Authorization: 'Bearer doc-token',
+    });
+  });
+
+  it('rejects HTTP for bearer and Bot Password sessions, while permitting anonymous HTTP', async () => {
+    const { assertCredentialTransport } = await import('../mediawiki-http.js');
+    expect(() => assertCredentialTransport('http://wiki.example/w/api.php', 'token')).toThrow(
+      /HTTPS/
+    );
+    expect(() =>
+      assertCredentialTransport('http://wiki.example/w/api.php', { cookie: 'session=secret' })
+    ).toThrow(/HTTPS/);
+    expect(() => assertCredentialTransport('http://wiki.example/w/api.php', null)).not.toThrow();
+    expect(() =>
+      assertCredentialTransport('https://wiki.example/w/api.php', 'token')
+    ).not.toThrow();
+  });
+
   it('does not classify arbitrary prose as rate limited', async () => {
     const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});

@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PreviewRenderer } from 'shared';
 import type { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 
@@ -37,6 +38,11 @@ interface SplitPaneEditorProps {
   previewRefreshKey?: number;
   previewBusy?: boolean;
   previewLoadingLabel?: string;
+  onRendererStatus?: (renderer: PreviewRenderer) => void;
+}
+
+function isPreviewRenderer(value: unknown): value is PreviewRenderer {
+  return value === 'mediawiki' || value === 'local' || value === 'error';
 }
 
 function rewriteRelativeUrls(html: string, baseUrl: string): string {
@@ -85,6 +91,7 @@ export function SplitPaneEditor({
   previewRefreshKey = 0,
   previewBusy: externalPreviewBusy = false,
   previewLoadingLabel,
+  onRendererStatus,
 }: SplitPaneEditorProps) {
   const isMobile = useIsMobile();
   const [previewHtml, setPreviewHtml] = useState('');
@@ -99,6 +106,19 @@ export function SplitPaneEditor({
 
   const apiUrlRef = useRef(apiUrl);
   const titleRef = useRef(title);
+  const onRendererStatusRef = useRef(onRendererStatus);
+
+  useEffect(() => {
+    onRendererStatusRef.current = onRendererStatus;
+  }, [onRendererStatus]);
+
+  const reportRenderer = useCallback((renderer: unknown, okFallback: PreviewRenderer) => {
+    onRendererStatusRef.current?.(isPreviewRenderer(renderer) ? renderer : okFallback);
+  }, []);
+
+  const reportRendererError = useCallback(() => {
+    onRendererStatusRef.current?.(apiUrlRef.current ? 'error' : 'local');
+  }, []);
 
   const previewCss = instanceCss ? `${defaultCss}\n${instanceCss}` : defaultCss;
   const previewBusy = loading || externalPreviewBusy;
@@ -153,7 +173,13 @@ export function SplitPaneEditor({
     if (!onCustomMessage) return;
     const unsubscribe = onCustomMessage(
       'preview_update',
-      (payload: { html: string; page: string; requestId?: string; requestIds?: string }) => {
+      (payload: {
+        html: string;
+        page: string;
+        requestId?: string;
+        requestIds?: string;
+        renderer?: string;
+      }) => {
         if (!previewResponseMatchesActiveRequest(payload)) return;
         activeWsRequestIdRef.current = null;
         const currentApiUrl = apiUrlRef.current || '';
@@ -166,11 +192,18 @@ export function SplitPaneEditor({
             html = rewriteRelativeUrls(html, getWikiBaseUrlOrFallback(currentApiUrl));
           }
           setPreviewHtml(sanitizePreviewHtml(html));
+          reportRenderer(payload.renderer, currentApiUrl ? 'mediawiki' : 'local');
         }
       }
     );
     return unsubscribe;
-  }, [clearWsTimeout, onCustomMessage, previewResponseMatchesActiveRequest, sanitizePreviewHtml]);
+  }, [
+    clearWsTimeout,
+    onCustomMessage,
+    previewResponseMatchesActiveRequest,
+    reportRenderer,
+    sanitizePreviewHtml,
+  ]);
 
   useEffect(() => {
     if (!onCustomMessage) return;
@@ -186,11 +219,12 @@ export function SplitPaneEditor({
           setPreviewHtml(
             sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
           );
+          reportRendererError();
         }
       }
     );
     return unsubscribe;
-  }, [clearWsTimeout, onCustomMessage, sanitizePreviewHtml]);
+  }, [clearWsTimeout, onCustomMessage, reportRendererError, sanitizePreviewHtml]);
 
   const fetchPreview = useCallback(async () => {
     const requestId = ++previewRequestIdRef.current;
@@ -208,6 +242,7 @@ export function SplitPaneEditor({
     try {
       const res = await fetch(`/api/docs/${documentId}/preview`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wikitext, page: title || null }),
         signal: controller.signal,
@@ -221,12 +256,14 @@ export function SplitPaneEditor({
         }
         if (requestId === previewRequestIdRef.current) {
           setPreviewHtml(sanitizePreviewHtml(html));
+          reportRenderer(data.renderer, apiUrl ? 'mediawiki' : 'local');
         }
       } else {
         if (requestId === previewRequestIdRef.current) {
           setPreviewHtml(
             sanitizePreviewHtml('<p class="text-red-500">Failed to generate preview</p>')
           );
+          reportRendererError();
         }
       }
     } catch (err) {
@@ -239,6 +276,7 @@ export function SplitPaneEditor({
               : '<p class="text-red-500">Preview requires a configured MediaWiki instance</p>'
           )
         );
+        reportRendererError();
       }
     } finally {
       window.clearTimeout(timeout);
@@ -246,7 +284,16 @@ export function SplitPaneEditor({
         setLoading(false);
       }
     }
-  }, [apiUrl, content, documentId, sanitizePreviewHtml, title, ytext]);
+  }, [
+    apiUrl,
+    content,
+    documentId,
+    reportRenderer,
+    reportRendererError,
+    sanitizePreviewHtml,
+    title,
+    ytext,
+  ]);
 
   const refreshPreview = useCallback(() => {
     if (sendCustomMessage && provider?.ws?.readyState === WebSocket.OPEN) {

@@ -74,6 +74,40 @@ describe('InstanceManager', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
+  it('shows an error state when the configured instance fails to render', () => {
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        name="English Wikipedia"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+        renderer="error"
+      />
+    );
+
+    expect(screen.getByTestId('instance-render-error')).toBeInTheDocument();
+    expect(screen.getByTestId('instance-config-card').className).toContain('border-destructive');
+    expect(screen.getByTestId('instance-render-error-detail')).toHaveTextContent(
+      'does not fall back to the built-in renderer'
+    );
+  });
+
+  it('shows no error state while the instance renders previews', () => {
+    renderWithProviders(
+      <InstanceManager
+        {...defaultProps}
+        name="English Wikipedia"
+        apiUrl="https://en.wikipedia.org/w/api.php"
+        renderer="mediawiki"
+      />
+    );
+
+    expect(screen.queryByTestId('instance-render-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('instance-render-error-detail')).not.toBeInTheDocument();
+    expect(screen.getByTestId('instance-config-card').className).not.toContain(
+      'border-destructive'
+    );
+  });
+
   it('opens configure dialog when clicking Configure Instance', async () => {
     const user = userEvent.setup();
     renderWithProviders(<InstanceManager {...defaultProps} />);

@@ -1,7 +1,12 @@
 import { serverFetch, SsrfError } from 'server-fetch';
 
 import { logger } from './logging.js';
-import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import {
+  assertCredentialTransport,
+  type MediaWikiAuth,
+  mediaWikiHeaders,
+  readMediaWikiJson,
+} from './mediawiki-http.js';
 import {
   emptyMediaWikiUrlMetadata,
   type MediaWikiUrlMetadataResult,
@@ -108,13 +113,18 @@ async function readCssResponse(
 }
 
 /** Fetches common and default-skin MediaWiki CSS for a document-scoped instance. */
-export async function fetchMediaWikiCss(apiUrl: string): Promise<string | null> {
-  return (await fetchMediaWikiCssAndUrlMetadata(apiUrl)).css;
+export async function fetchMediaWikiCss(
+  apiUrl: string,
+  accessToken?: MediaWikiAuth
+): Promise<string | null> {
+  return (await fetchMediaWikiCssAndUrlMetadata(apiUrl, accessToken)).css;
 }
 
 export async function fetchMediaWikiCssAndUrlMetadata(
-  apiUrl: string
+  apiUrl: string,
+  accessToken?: MediaWikiAuth
 ): Promise<{ css: string | null; urlMetadata: MediaWikiUrlMetadataResult }> {
+  assertCredentialTransport(apiUrl, accessToken);
   let urlMetadata = emptyMediaWikiUrlMetadata;
   try {
     const siteInfoUrl = getApiUrl(apiUrl, {
@@ -124,7 +134,8 @@ export async function fetchMediaWikiCssAndUrlMetadata(
       format: 'json',
     });
     const siteInfoRes = await serverFetch(siteInfoUrl, {
-      headers: mediaWikiHeaders({ Accept: 'application/json' }),
+      ...(accessToken ? { redirect: 'manual' as const } : {}),
+      headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
     });
     const siteInfoData = await readMediaWikiJson<{
       query?: {
@@ -149,7 +160,8 @@ export async function fetchMediaWikiCssAndUrlMetadata(
       loadUrl.searchParams.set('only', 'styles');
       loadUrl.searchParams.set('modules', RESOURCE_LOADER_MODULES.join('|'));
       const res = await serverFetch(loadUrl.toString(), {
-        headers: mediaWikiHeaders({ Accept: 'text/css,*/*;q=0.1' }),
+        ...(accessToken ? { redirect: 'manual' as const } : {}),
+        headers: mediaWikiHeaders({ Accept: 'text/css,*/*;q=0.1' }, accessToken),
       });
       const css = await readCssResponse(res, 'ResourceLoader');
       if (css?.trim()) cssParts.push(`/* ResourceLoader: ${skinCode} */\n${css}`);
@@ -171,7 +183,8 @@ export async function fetchMediaWikiCssAndUrlMetadata(
           format: 'json',
         });
         const res = await serverFetch(url, {
-          headers: mediaWikiHeaders({ Accept: 'application/json' }),
+          ...(accessToken ? { redirect: 'manual' as const } : {}),
+          headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
         });
         const data = await readMediaWikiJson<{
           query?: { pages?: Record<string, { revisions?: Array<{ '*': string }> }> };

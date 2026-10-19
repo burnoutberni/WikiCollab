@@ -1,9 +1,44 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Document, DocumentVisibility, Version } from 'shared';
+import type { Document, DocumentVisibility, User, Version } from 'shared';
 
 export type { Document, Version };
 
 export const API_BASE = '/api';
+
+export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  return fetch(input, { ...init, credentials: 'include' });
+}
+
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+      const data = (await res.json()) as { user: User | null };
+      setUser(data.user);
+    } catch (error) {
+      console.error('Failed to load auth state:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const logout = useCallback(async () => {
+    const response = await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    if (!response.ok) throw new Error('Logout failed');
+    setUser(null);
+    window.location.reload();
+  }, []);
+
+  return { user, loading, refresh, logout };
+}
 
 /**
  * Loads the document list and keeps a separate queue of newly discovered documents until accepted.
@@ -16,7 +51,7 @@ export function useDocuments() {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/docs`);
+      const res = await apiFetch(`${API_BASE}/docs`);
       const data = await res.json();
       setDocuments(data);
     } catch (error) {
@@ -35,7 +70,7 @@ export function useDocuments() {
 
     const poll = async () => {
       try {
-        const res = await fetch(`${API_BASE}/docs`);
+        const res = await apiFetch(`${API_BASE}/docs`);
         const latest: Document[] = await res.json();
         setDocuments((current) => {
           const currentIds = new Set(current.map((d) => d.id));
@@ -74,7 +109,7 @@ export function useDocuments() {
       content?: string;
       visibility?: DocumentVisibility;
     }) => {
-      const res = await fetch(`${API_BASE}/docs`, {
+      const res = await apiFetch(`${API_BASE}/docs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,12 +132,12 @@ export function useDocuments() {
   );
 
   const deleteDocument = useCallback(async (id: string) => {
-    await fetch(`${API_BASE}/docs/${id}`, { method: 'DELETE' });
+    await apiFetch(`${API_BASE}/docs/${id}`, { method: 'DELETE' });
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   }, []);
 
   const updateDocument = useCallback(async (id: string, updates: Partial<Document>) => {
-    const res = await fetch(`${API_BASE}/docs/${id}`, {
+    const res = await apiFetch(`${API_BASE}/docs/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -137,7 +172,7 @@ export function useDocument(id: string | null) {
 
     const fetchDoc = async () => {
       try {
-        const res = await fetch(`${API_BASE}/docs/${id}`);
+        const res = await apiFetch(`${API_BASE}/docs/${id}`);
         if (res.ok) {
           const data = await res.json();
           setDocument(data);
@@ -171,7 +206,7 @@ export function useVersions(
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/docs/${documentId}/versions`);
+      const res = await apiFetch(`${API_BASE}/docs/${documentId}/versions`);
       const data = await res.json();
       setVersions(data);
     } catch (error) {
@@ -220,7 +255,7 @@ export function useVersions(
         sendCustomMessage('star', { versionId, starred: true });
       } else {
         try {
-          const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+          const res = await apiFetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
             method: 'POST',
           });
           if (!res.ok) throw new Error('Failed to star version');
@@ -243,7 +278,7 @@ export function useVersions(
         sendCustomMessage('star', { versionId, starred: false });
       } else {
         try {
-          const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
+          const res = await apiFetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/star`, {
             method: 'DELETE',
           });
           if (!res.ok) throw new Error('Failed to unstar version');
@@ -263,7 +298,7 @@ export function useVersions(
       if (!documentId) return null;
 
       try {
-        const res = await fetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/preview`);
+        const res = await apiFetch(`${API_BASE}/docs/${documentId}/versions/${versionId}/preview`);
         if (res.ok) {
           const data = await res.json();
           return data.content || null;

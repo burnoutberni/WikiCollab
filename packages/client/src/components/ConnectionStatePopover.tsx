@@ -1,5 +1,6 @@
 import { Activity, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import type { PreviewRenderer } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -13,6 +14,10 @@ interface ConnectionStatePopoverProps {
   connected: boolean;
   lastConnected: number | null;
   collaboratorCount: number;
+  /** Renderer that produced the latest preview, if reported. */
+  renderer?: PreviewRenderer;
+  /** Name of the configured MediaWiki instance, shown next to the renderer. */
+  instanceName?: string | null;
   onReconnect?: () => void;
   peers: Presence[];
   userName: string;
@@ -26,6 +31,7 @@ interface ConnectionStatePopoverProps {
   onLocalCursorClicked?: () => void;
   onPeerCursorClicked?: () => void;
   onFlashPeerCursor?: (peerName: string) => void;
+  userNameLocked?: boolean;
 }
 
 function formatDuration(ms: number): string {
@@ -45,10 +51,18 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString();
 }
 
+function rendererText(renderer: PreviewRenderer, instanceName?: string | null): string {
+  if (renderer === 'local') return 'Built-in parser';
+  if (renderer === 'error') return 'MediaWiki error';
+  return instanceName ? instanceName : 'MediaWiki';
+}
+
 export function ConnectionStatePopover({
   connected,
   lastConnected,
   collaboratorCount,
+  renderer,
+  instanceName = null,
   onReconnect,
   peers,
   userName,
@@ -62,6 +76,7 @@ export function ConnectionStatePopover({
   onLocalCursorClicked,
   onPeerCursorClicked,
   onFlashPeerCursor,
+  userNameLocked = false,
 }: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
   const [retrying, setRetrying] = useState(false);
@@ -150,6 +165,18 @@ export function ConnectionStatePopover({
               </span>
             </div>
 
+            {renderer && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Renderer</span>
+                <span
+                  className={`text-right ${renderer === 'error' ? 'font-medium text-destructive' : 'text-foreground'}`}
+                  data-testid="renderer-status"
+                >
+                  {rendererText(renderer, instanceName)}
+                </span>
+              </div>
+            )}
+
             {!connected && onReconnect && (
               <div className="pt-1">
                 <Button
@@ -187,6 +214,7 @@ export function ConnectionStatePopover({
                 onPeerCursorClicked?.();
               }}
               onFlashPeerCursor={onFlashPeerCursor}
+              userNameLocked={userNameLocked}
             />
 
             {lastConnected && (

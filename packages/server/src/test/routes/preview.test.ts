@@ -49,7 +49,20 @@ describe('Preview route sanitization', () => {
     mockDbModule.db = testDb.db;
     mockDbModule.schema = schema;
     closeDb = testDb.close;
+    mockDbModule.db
+      .insert(schema.users)
+      .values({
+        id: 'test-owner',
+        wiki_username: 'TestOwner',
+        created_at: new Date().toISOString(),
+      })
+      .run();
     app = new Hono();
+    app.use('*', async (c, next) => {
+      const setContext = c.set as unknown as (key: string, value: unknown) => void;
+      setContext('userId', 'test-owner');
+      await next();
+    });
     app.route('/api/docs', docsRoutes);
     const created = await app.request('/api/docs', {
       method: 'POST',
@@ -76,6 +89,7 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
+      expect(data.renderer).toBe('local');
       expect(data.html).not.toContain('<script>');
       expect(data.html).not.toContain('alert');
       expect(data.html).toContain('<p>Hello</p>');
@@ -561,10 +575,38 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
+      expect(data.renderer).toBe('mediawiki');
       expect(data.html).toContain('<p>Content</p>');
       expect(data.html).not.toContain('<script>');
       expect(data.html).not.toContain('hack');
       expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
+    });
+
+    it('requests pre-save transform so subst templates expand like a real save', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: () => Promise.resolve({ parse: { text: { '*': '<p>Substituted</p>' } } }),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+          mediawiki_instance_css: '.cached{}',
+        })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: '{{subst:Welcome}}' }),
+      });
+      const data = await res.json();
+      expect(data.renderer).toBe('mediawiki');
+
+      const body = new URLSearchParams(String(mockServerFetch.mock.calls[0][1].body));
+      expect(body.get('action')).toBe('parse');
+      expect(body.get('pst')).toBe('true');
+      expect(body.get('text')).toBe('{{subst:Welcome}}');
     });
 
     it('absolutizes relative preview links and assets against canonical server', async () => {
@@ -809,7 +851,36 @@ describe('Preview route sanitization', () => {
       consoleWarn.mockRestore();
     });
 
-    it('falls back to local parser when the configured instance is broken', async () => {
+    it('follows redirects only for anonymous remote previews', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: async () => ({ parse: { text: { '*': '<p>Rendered</p>' } } }),
+      });
+      const apiUrl = 'https://wiki.example.com/w/api.php';
+      await generatePreview('anon-redirect', apiUrl, 'Page');
+      await generatePreview('bearer-redirect', apiUrl, 'Page', null, null, 'test-access-token');
+      expect(mockServerFetch).toHaveBeenCalledTimes(2);
+      expect(mockServerFetch.mock.calls[0][1].redirect).toBeUndefined();
+      expect(mockServerFetch.mock.calls[1][1].redirect).toBe('manual');
+    });
+
+    it('logs blocked SSRF preview attempts with their URL', async () => {
+      const { SsrfError } = await import('server-fetch');
+      const { logger } = await import('../../logging.js');
+      const errorLog = vi.spyOn(logger, 'error').mockImplementation(() => logger);
+      const blockedUrl = 'http://127.0.0.1/private';
+      mockServerFetch.mockRejectedValueOnce(
+        new (SsrfError as unknown as new (url: string) => Error)(blockedUrl)
+      );
+      const result = await generatePreview('blocked', 'https://wiki.example.com/w/api.php', 'Page');
+      expect(result.renderer).toBe('error');
+      expect(errorLog).toHaveBeenCalledWith(
+        { url: blockedUrl },
+        'SSRF blocked fetching MediaWiki preview'
+      );
+      errorLog.mockRestore();
+    });
+
+    it('does not fall back to the local parser when the configured instance is broken', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
       mockServerFetch.mockRejectedValue(new Error('connection failed'));
@@ -826,7 +897,10 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
-      expect(data.html).toContain('<p>Built-in fallback</p>');
+      expect(data.renderer).toBe('error');
+      expect(data.html).toContain('could not render this preview');
+      expect(data.html).not.toContain('Built-in fallback');
+      expect(mockParser.toHtml).not.toHaveBeenCalled();
       consoleWarn.mockRestore();
     });
 
@@ -846,11 +920,18 @@ describe('Preview route sanitization', () => {
       rejectFetch(new Error('connection failed'));
 
       await expect(first).resolves.toEqual(
-        expect.objectContaining({ html: '<p>Built-in fallback</p>' })
+        expect.objectContaining({
+          renderer: 'error',
+          html: expect.stringContaining('could not render this preview'),
+        })
       );
       await expect(second).resolves.toEqual(
-        expect.objectContaining({ html: '<p>Built-in fallback</p>' })
+        expect.objectContaining({
+          renderer: 'error',
+          html: expect.stringContaining('could not render this preview'),
+        })
       );
+      expect(mockParser.toHtml).not.toHaveBeenCalled();
       consoleWarn.mockRestore();
     });
 

@@ -147,6 +147,39 @@ describe('ConnectionStatePopover', () => {
     expect(screen.queryByTestId('connection-retry-btn')).not.toBeInTheDocument();
   });
 
+  it('shows the current renderer in the popover', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ConnectionStatePopover {...defaultProps} renderer="mediawiki" instanceName="My Wiki" />
+    );
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+
+    expect(screen.getByText('Renderer')).toBeInTheDocument();
+    expect(screen.getByTestId('renderer-status')).toHaveTextContent('My Wiki');
+  });
+
+  it('shows the built-in renderer when no instance is used', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ConnectionStatePopover {...defaultProps} renderer="local" />);
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+
+    expect(screen.getByTestId('renderer-status')).toHaveTextContent('Built-in parser');
+  });
+
+  it('marks the renderer as failed when the instance is unavailable', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ConnectionStatePopover {...defaultProps} renderer="error" instanceName="My Wiki" />
+    );
+
+    await user.click(screen.getByTestId('connection-state-trigger'));
+
+    expect(screen.getByTestId('renderer-status')).toHaveTextContent('MediaWiki error');
+    expect(screen.getByTestId('renderer-status')).toHaveClass('text-destructive');
+  });
+
   it('adds an accessible name to the trigger button', () => {
     renderWithProviders(<ConnectionStatePopover {...defaultProps} />);
 
