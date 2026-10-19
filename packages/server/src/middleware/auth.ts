@@ -1,45 +1,30 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from 'crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import type { Context, MiddlewareHandler } from 'hono';
-
 const COOKIE_NAME = 'wikicollab_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const OAUTH_SESSION_TTL_MS = 10 * 60 * 1000;
-
 export interface SessionData {
   userId?: string;
   oauthState?: string;
   codeVerifier?: string;
   expiresAt: number;
 }
-
 function sessionSecret(): Buffer {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error('SESSION_SECRET is required');
   return createHmac('sha256', 'wikicollab-session-key').update(secret).digest();
 }
-
 function sign(data: string): string {
   return createHmac('sha256', sessionSecret()).update(data).digest('base64url');
 }
-
 function sealSession(session: SessionData): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', sessionSecret(), iv);
-  const encrypted = Buffer.concat([
-    cipher.update(JSON.stringify(session), 'utf8'),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(session), 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   const payload = [iv, encrypted, tag].map((part) => part.toString('base64url')).join('.');
   return `${payload}.${sign(payload)}`;
 }
-
 function unsealSession(value: string): SessionData | null {
   try {
     const [ivEncoded, encryptedEncoded, tagEncoded, signature] = value.split('.');
@@ -48,7 +33,6 @@ function unsealSession(value: string): SessionData | null {
     const expected = Buffer.from(sign(payload));
     const actual = Buffer.from(signature);
     if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
-
     const decipher = createDecipheriv(
       'aes-256-gcm',
       sessionSecret(),
@@ -66,7 +50,6 @@ function unsealSession(value: string): SessionData | null {
     return null;
   }
 }
-
 function parseCookieHeader(header: string | undefined): Record<string, string> {
   if (!header) return {};
   return Object.fromEntries(
@@ -82,12 +65,10 @@ function parseCookieHeader(header: string | undefined): Record<string, string> {
       })
   );
 }
-
 export function readSession(c: Context): SessionData | null {
   const value = parseCookieHeader(c.req.header('Cookie'))[COOKIE_NAME];
   return value ? unsealSession(value) : null;
 }
-
 export function setSession(
   c: Context,
   data: Omit<SessionData, 'expiresAt'>,
@@ -101,25 +82,21 @@ export function setSession(
     `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=${maxAge}`
   );
 }
-
 export function clearSession(c: Context): void {
   c.header('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`);
 }
-
 export function currentUserId(c: Context): string | null {
   const getCtx = c.get as unknown as (key: string) => unknown;
   const contextualUserId = getCtx('userId');
   if (typeof contextualUserId === 'string' && contextualUserId) return contextualUserId;
   return readSession(c)?.userId ?? null;
 }
-
 export const authMiddleware: MiddlewareHandler = async (c, next) => {
   const session = readSession(c);
   const setCtx = c.set as unknown as (key: string, value: unknown) => void;
   setCtx('userId', session?.userId ?? null);
   await next();
 };
-
 export function requireUser(c: Context): string | Response {
   const userId = currentUserId(c);
   return userId ?? c.json({ error: 'Authentication required' }, 401);
