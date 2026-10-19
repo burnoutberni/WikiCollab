@@ -6,7 +6,7 @@ import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'share
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
-import { botSessionCookie } from '../mediawiki-bot-auth.js';
+import { botSessionCookie, invalidateBotSession } from '../mediawiki-bot-auth.js';
 import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
 import { type MediaWikiAuth, validateMediaWikiConfig } from '../mediawiki-http.js';
 import { currentUserId } from '../middleware/auth.js';
@@ -49,6 +49,29 @@ export async function documentMediaWikiAuth(
     return { cookie };
   }
   return documentApiKey(doc);
+}
+
+/** Produce a shared preview server-side; retry once if the wiki invalidated the bot session. */
+export async function generateDocumentPreview(
+  doc: NonNullable<ReturnType<typeof getDocumentById>>,
+  wikitext: string,
+  page: string | null,
+  documentId: string
+) {
+  const preview = () => generatePreview(
+    wikitext, doc.mediawiki_instance_api_url, page, documentId,
+    doc.mediawiki_canonical_server, awaitAuth
+  );
+  let awaitAuth = await documentMediaWikiAuth(doc);
+  let result = await preview();
+  if (doc.mediawiki_instance_api_url && doc.mediawiki_bot_username &&
+      doc.mediawiki_bot_password && (result.remoteStatusCode === 401 || result.remoteStatusCode === 403)) {
+    const bot = { username: doc.mediawiki_bot_username, password: decryptSecret(doc.mediawiki_bot_password) };
+    invalidateBotSession(doc.mediawiki_instance_api_url, bot);
+    awaitAuth = await documentMediaWikiAuth(doc);
+    result = await preview();
+  }
+  return result;
 }
 
 async function proposedMediaWikiAuth(
@@ -381,14 +404,7 @@ docs.post('/:id/preview', async (c) => {
     refreshDocumentMediaWikiCssInBackground(id, doc.mediawiki_instance_api_url);
   }
   try {
-    const { html, renderer, remoteStatusCode } = await generatePreview(
-      wikitext,
-      doc.mediawiki_instance_api_url,
-      page,
-      id,
-      doc.mediawiki_canonical_server,
-      await documentMediaWikiAuth(doc)
-    );
+    const { html, renderer, remoteStatusCode } = await generateDocumentPreview(doc, wikitext || '', page ?? null, id);
     return c.json({ html, css: doc.mediawiki_instance_css, renderer, remoteStatusCode });
   } catch (err) {
     logger.error(
