@@ -8,7 +8,7 @@ import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
 import { botSessionCookie, invalidateBotSession } from '../mediawiki-bot-auth.js';
 import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
-import { type MediaWikiAuth, validateMediaWikiConfig } from '../mediawiki-http.js';
+import { assertCredentialTransport, type MediaWikiAuth, validateMediaWikiConfig } from '../mediawiki-http.js';
 import { currentUserId } from '../middleware/auth.js';
 import { decryptSecret, encryptSecret } from '../middleware/encryption.js';
 import { parseAndValidate } from '../middleware/validate.js';
@@ -41,6 +41,9 @@ export async function documentMediaWikiAuth(
   doc: ReturnType<typeof getDocumentById>
 ): Promise<MediaWikiAuth> {
   if (!doc?.mediawiki_instance_api_url) return null;
+  if (doc.mediawiki_api_key || doc.mediawiki_bot_password) {
+    assertCredentialTransport(doc.mediawiki_instance_api_url, 'credentialed');
+  }
   if (doc.mediawiki_bot_username && doc.mediawiki_bot_password) {
     const cookie = await botSessionCookie(doc.mediawiki_instance_api_url, {
       username: doc.mediawiki_bot_username,
@@ -92,6 +95,7 @@ async function proposedMediaWikiAuth(
   password: string | null | undefined,
   bearer: string | null | undefined
 ): Promise<MediaWikiAuth> {
+  if ((username && password) || bearer) assertCredentialTransport(apiUrl, 'credentialed');
   if (username && password) {
     return { cookie: await botSessionCookie(apiUrl, { username, password }, true) };
   }
