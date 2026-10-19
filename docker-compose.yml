@@ -13,6 +13,12 @@ services:
       # Update CORS_ORIGINS to your actual frontend domain(s), comma-separated.
       # Without this, WebSocket connections will be silently rejected with 403.
       - CORS_ORIGINS=https://your-domain.com
+      # Wikimedia OAuth 2.0 + encrypted secrets (set real values at deploy time).
+      # - OAUTH_CONSUMER_KEY=
+      # - OAUTH_CONSUMER_SECRET=
+      # - OAUTH_CALLBACK_URL=https://your-domain.com/auth/callback
+      # - SESSION_SECRET=
+      # - ENCRYPTION_KEY=
     restart: unless-stopped
 
 volumes:
