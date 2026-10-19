@@ -28,7 +28,9 @@ const SCHEMA_SQL = `
     restored_version_id TEXT,
     visibility TEXT NOT NULL DEFAULT 'public',
     owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-    mediawiki_api_key TEXT
+    mediawiki_api_key TEXT,
+    mediawiki_bot_username TEXT,
+    mediawiki_bot_password TEXT
   );
   CREATE TABLE IF NOT EXISTS document_revisions (
     id TEXT PRIMARY KEY,
