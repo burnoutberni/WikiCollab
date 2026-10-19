@@ -1,7 +1,7 @@
 import { serverFetch, SsrfError } from 'server-fetch';
 
 import { logger } from './logging.js';
-import { type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import { assertCredentialTransport, type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
 import {
   emptyMediaWikiUrlMetadata,
   type MediaWikiUrlMetadataResult,
@@ -119,6 +119,7 @@ export async function fetchMediaWikiCssAndUrlMetadata(
   apiUrl: string,
   accessToken?: MediaWikiAuth
 ): Promise<{ css: string | null; urlMetadata: MediaWikiUrlMetadataResult }> {
+  assertCredentialTransport(apiUrl, accessToken);
   let urlMetadata = emptyMediaWikiUrlMetadata;
   try {
     const siteInfoUrl = getApiUrl(apiUrl, {
