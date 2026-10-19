@@ -37,7 +37,17 @@ describe('Input validation', () => {
     mockDbModule.schema = schema;
     closeDb = testDb.close;
 
+    mockDbModule.db.insert(schema.users).values({
+      id: 'test-owner',
+      wiki_username: 'TestOwner',
+      created_at: new Date().toISOString(),
+    }).run();
     app = new Hono();
+    app.use('*', async (c, next) => {
+      const setContext = c.set as unknown as (key: string, value: unknown) => void;
+      setContext('userId', 'test-owner');
+      await next();
+    });
     app.route('/api/docs', docsRoutes);
   });
 
