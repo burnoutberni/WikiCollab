@@ -426,7 +426,9 @@ export function InstanceManager({
                   />
                   <p className="text-xs text-muted-foreground">
                     Create these credentials on your wiki at Special:BotPasswords. Passwords are
-                    encrypted on the server and never displayed again.
+                    encrypted on the server and never displayed again. All document collaborators
+                    can see private wiki content rendered with this bot identity. Use HTTPS
+                    and a least-privilege bot account.
                   </p>
                 </div>
               </>
@@ -442,6 +444,7 @@ export function InstanceManager({
                   placeholder={hasApiKey ? 'Stored — leave blank to keep' : 'Optional bearer token'}
                   autoComplete="new-password"
                 />
+                <p className="text-xs text-muted-foreground">All document collaborators can see private wiki content rendered with this token. Use HTTPS and least-privilege access.</p>
               </div>
             )}
             {instanceError && <p className="text-sm text-destructive">{instanceError}</p>}
