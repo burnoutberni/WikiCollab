@@ -27,6 +27,8 @@ export const documents = sqliteTable('documents', {
   visibility: text('visibility').notNull().default('public'),
   owner_user_id: text('owner_user_id').references(() => users.id, { onDelete: 'set null' }),
   mediawiki_api_key: text('mediawiki_api_key'),
+  mediawiki_bot_username: text('mediawiki_bot_username'),
+  mediawiki_bot_password: text('mediawiki_bot_password'),
 });
 
 /** Immutable Yjs checkpoints/deltas, with legacy base64 snapshots retained for compatibility. */
