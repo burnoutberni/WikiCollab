@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, or } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'shared';
@@ -6,6 +6,8 @@ import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'share
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
+import { currentUserId } from '../middleware/auth.js';
+import { decryptSecret, encryptSecret } from '../middleware/encryption.js';
 import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
 import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
@@ -17,8 +19,23 @@ const docs = new Hono();
 type CssRefresh = { apiUrl: string; nextApiUrl: string | null; promise: Promise<void> };
 const inFlightCssRefreshes = new Map<string, CssRefresh>();
 
+function apiDocument(doc: ReturnType<typeof getDocumentById>, userId: string | null) {
+  if (!doc) return doc;
+  const { mediawiki_api_key: encryptedKey, ...safe } = doc;
+  return {
+    ...safe,
+    is_owner: Boolean(userId && doc.owner_user_id === userId),
+    has_mediawiki_api_key: Boolean(encryptedKey),
+  };
+}
+
+function documentApiKey(doc: ReturnType<typeof getDocumentById>): string | null {
+  return doc?.mediawiki_api_key ? decryptSecret(doc.mediawiki_api_key) : null;
+}
+
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
-  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(apiUrl);
+  const doc = getDocumentById(documentId);
+  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(apiUrl, documentApiKey(doc));
   const updates: Record<string, string | null> = {};
   if (urlMetadata.fetched) {
     updates.mediawiki_canonical_server = urlMetadata.server;
@@ -72,18 +89,22 @@ export async function drainDocumentMediaWikiCssRefreshesForTest(): Promise<void>
 }
 
 docs.get('/', (c) => {
-  const allDocs = db
-    .select()
-    .from(schema.documents)
-    .where(eq(schema.documents.visibility, 'public'))
-    .all();
-  return c.json(allDocs);
+  const userId = currentUserId(c);
+  const where = userId
+    ? or(eq(schema.documents.visibility, 'public'), eq(schema.documents.owner_user_id, userId))
+    : eq(schema.documents.visibility, 'public');
+  const allDocs = db.select().from(schema.documents).where(where).all();
+  return c.json(allDocs.map((doc) => apiDocument(doc, userId)));
 });
 
 docs.post('/', async (c) => {
   const result = await parseAndValidate(c, CreateDocumentSchema);
   if (!result.success) return result.response;
   const body = result.data;
+  const userId = currentUserId(c);
+  if (body.mediawiki_api_key && !userId) {
+    return c.json({ error: 'Authentication required to store a MediaWiki API key' }, 401);
+  }
 
   const slug = body.slug;
 
@@ -114,29 +135,49 @@ docs.post('/', async (c) => {
     mediawiki_script_path: null,
     restored_version_id: null,
     visibility: body.visibility || 'public',
+    owner_user_id: userId,
+    mediawiki_api_key: body.mediawiki_api_key ? encryptSecret(body.mediawiki_api_key) : null,
   };
 
   db.insert(schema.documents).values(doc).run();
   if (doc.mediawiki_instance_api_url) {
     refreshDocumentMediaWikiCssInBackground(doc.id, doc.mediawiki_instance_api_url);
   }
-  return c.json(doc, 201);
+  return c.json(apiDocument(doc, userId), 201);
 });
 
 docs.get('/:id', (c) => {
   const id = c.req.param('id');
-  const doc = getDocumentById(id);
+  const userId = currentUserId(c);
+  let doc = getDocumentById(id);
 
   if (!doc) {
     return c.json({ error: 'Document not found' }, 404);
   }
 
-  return c.json(doc);
+  if (userId && doc.owner_user_id === null) {
+    db.update(schema.documents)
+      .set({ owner_user_id: userId })
+      .where(and(eq(schema.documents.id, id), eq(schema.documents.owner_user_id, null)))
+      .run();
+    doc = getDocumentById(id);
+  }
+
+  return c.json(apiDocument(doc, userId));
 });
 
 docs.delete('/:id', (c) => {
   const id = c.req.param('id');
-  const result = db.delete(schema.documents).where(eq(schema.documents.id, id)).run();
+  const userId = currentUserId(c);
+  const doc = getDocumentById(id);
+  if (!doc) return c.json({ error: 'Document not found' }, 404);
+  if (!userId) return c.json({ error: 'Authentication required' }, 401);
+  if (doc.owner_user_id !== userId) return c.json({ error: 'Only the owner may delete this document' }, 403);
+
+  const result = db
+    .delete(schema.documents)
+    .where(and(eq(schema.documents.id, id), eq(schema.documents.owner_user_id, userId)))
+    .run();
 
   if (result.changes === 0) {
     return c.json({ error: 'Document not found' }, 404);
@@ -159,9 +200,27 @@ docs.patch('/:id', async (c) => {
     return c.json({ error: 'Document not found' }, 404);
   }
 
+  const userId = currentUserId(c);
+  const changesOwnerSettings =
+    body.visibility !== undefined ||
+    body.mediawiki_instance_name !== undefined ||
+    body.mediawiki_instance_api_url !== undefined ||
+    body.mediawiki_api_key !== undefined;
+  if (changesOwnerSettings) {
+    if (!userId) return c.json({ error: 'Authentication required' }, 401);
+    if (existingDoc.owner_user_id !== userId) {
+      return c.json({ error: 'Only the owner may change document settings' }, 403);
+    }
+  }
+
   if (body.title !== undefined) updates.title = body.title;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
   if (body.visibility !== undefined) updates.visibility = body.visibility;
+  if (body.mediawiki_api_key !== undefined) {
+    updates.mediawiki_api_key = body.mediawiki_api_key
+      ? encryptSecret(body.mediawiki_api_key)
+      : null;
+  }
 
   if (body.mediawiki_instance_api_url !== undefined) {
     if (body.mediawiki_instance_api_url === null) {
@@ -201,7 +260,7 @@ docs.patch('/:id', async (c) => {
   if (body.mediawiki_instance_api_url) {
     refreshDocumentMediaWikiCssInBackground(id, body.mediawiki_instance_api_url);
   }
-  return c.json(doc);
+  return c.json(apiDocument(doc, userId));
 });
 
 docs.post('/:id/preview', async (c) => {
@@ -222,7 +281,8 @@ docs.post('/:id/preview', async (c) => {
       doc.mediawiki_instance_api_url,
       page,
       id,
-      doc.mediawiki_canonical_server
+      doc.mediawiki_canonical_server,
+      documentApiKey(doc)
     );
     return c.json({ html, css: doc.mediawiki_instance_css });
   } catch (err) {
