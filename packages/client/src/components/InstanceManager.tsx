@@ -64,7 +64,9 @@ export function InstanceManager({
   const [draftApiKey, setDraftApiKey] = useState('');
   const [draftBotUsername, setDraftBotUsername] = useState('');
   const [draftBotPassword, setDraftBotPassword] = useState('');
-  const [authMethod, setAuthMethod] = useState<'none' | 'bearer' | 'bot'>(hasBotPassword ? 'bot' : hasApiKey ? 'bearer' : 'none');
+  const [authMethod, setAuthMethod] = useState<'none' | 'bearer' | 'bot'>(
+    hasBotPassword ? 'bot' : hasApiKey ? 'bearer' : 'none'
+  );
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
   const [instanceError, setInstanceError] = useState<string | null>(null);
@@ -164,7 +166,13 @@ export function InstanceManager({
           setInstanceError('Enter the bot username and password.');
           return;
         }
-        await onChange(trimmedName, trimmedApiUrl, null, draftBotUsername.trim(), draftBotPassword || undefined);
+        await onChange(
+          trimmedName,
+          trimmedApiUrl,
+          null,
+          draftBotUsername.trim(),
+          draftBotPassword || undefined
+        );
         setDialogOpen(false);
         return;
       }
@@ -350,8 +358,12 @@ export function InstanceManager({
             </div>
             <div className="space-y-2">
               <Label htmlFor="instance-auth-method">Authentication</Label>
-              <select id="instance-auth-method" className="w-full rounded-md border bg-background p-2 text-sm"
-                value={authMethod} onChange={(e) => setAuthMethod(e.target.value as 'none' | 'bearer' | 'bot')}>
+              <select
+                id="instance-auth-method"
+                className="w-full rounded-md border bg-background p-2 text-sm"
+                value={authMethod}
+                onChange={(e) => setAuthMethod(e.target.value as 'none' | 'bearer' | 'bot')}
+              >
                 <option value="none">None (public wiki)</option>
                 <option value="bot">MediaWiki Bot Password</option>
                 <option value="bearer">Bearer token</option>
@@ -361,19 +373,31 @@ export function InstanceManager({
               <>
                 <div className="space-y-2">
                   <Label htmlFor="instance-bot-username">Bot username</Label>
-                  <Input id="instance-bot-username" value={draftBotUsername}
+                  <Input
+                    id="instance-bot-username"
+                    value={draftBotUsername}
                     onChange={(e) => setDraftBotUsername(e.target.value)}
-                    placeholder="YourUsername@WikiCollab" autoComplete="off" />
+                    placeholder="YourUsername@WikiCollab"
+                    autoComplete="off"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="instance-bot-password">Bot password</Label>
-                  <Input id="instance-bot-password" type="password" value={draftBotPassword}
+                  <Input
+                    id="instance-bot-password"
+                    type="password"
+                    value={draftBotPassword}
                     onChange={(e) => setDraftBotPassword(e.target.value)}
-                    placeholder={hasBotPassword ? 'Stored — leave blank to keep' : 'Password from Special:BotPasswords'}
-                    autoComplete="new-password" />
+                    placeholder={
+                      hasBotPassword
+                        ? 'Stored — leave blank to keep'
+                        : 'Password from Special:BotPasswords'
+                    }
+                    autoComplete="new-password"
+                  />
                   <p className="text-xs text-muted-foreground">
-                    Create these credentials on your wiki at Special:BotPasswords.
-                    Passwords are encrypted on the server and never displayed again.
+                    Create these credentials on your wiki at Special:BotPasswords. Passwords are
+                    encrypted on the server and never displayed again.
                   </p>
                 </div>
               </>
@@ -381,10 +405,14 @@ export function InstanceManager({
             {authMethod === 'bearer' && (
               <div className="space-y-2">
                 <Label htmlFor="instance-api-key">Bearer token</Label>
-                <Input id="instance-api-key" type="password" value={draftApiKey}
+                <Input
+                  id="instance-api-key"
+                  type="password"
+                  value={draftApiKey}
                   onChange={(e) => setDraftApiKey(e.target.value)}
                   placeholder={hasApiKey ? 'Stored — leave blank to keep' : 'Optional bearer token'}
-                  autoComplete="new-password" />
+                  autoComplete="new-password"
+                />
               </div>
             )}
             {instanceError && <p className="text-sm text-destructive">{instanceError}</p>}
