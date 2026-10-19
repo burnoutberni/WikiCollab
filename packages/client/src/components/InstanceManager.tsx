@@ -325,7 +325,9 @@ export function InstanceManager({
                 type="password"
                 value={draftApiKey}
                 onChange={(e) => setDraftApiKey(e.target.value)}
-                placeholder={hasApiKey ? 'Stored — enter a new key to replace it' : 'Optional bearer token'}
+                placeholder={
+                  hasApiKey ? 'Stored — enter a new key to replace it' : 'Optional bearer token'
+                }
                 autoComplete="new-password"
               />
               <p className="text-xs text-muted-foreground">
