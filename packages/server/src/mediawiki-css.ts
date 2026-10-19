@@ -1,7 +1,7 @@
 import { serverFetch, SsrfError } from 'server-fetch';
 
 import { logger } from './logging.js';
-import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import { type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
 import {
   emptyMediaWikiUrlMetadata,
   type MediaWikiUrlMetadataResult,
@@ -110,14 +110,14 @@ async function readCssResponse(
 /** Fetches common and default-skin MediaWiki CSS for a document-scoped instance. */
 export async function fetchMediaWikiCss(
   apiUrl: string,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): Promise<string | null> {
   return (await fetchMediaWikiCssAndUrlMetadata(apiUrl, accessToken)).css;
 }
 
 export async function fetchMediaWikiCssAndUrlMetadata(
   apiUrl: string,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): Promise<{ css: string | null; urlMetadata: MediaWikiUrlMetadataResult }> {
   let urlMetadata = emptyMediaWikiUrlMetadata;
   try {
