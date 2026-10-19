@@ -4,7 +4,12 @@ import { serverFetch, SsrfError } from 'server-fetch';
 import { absolutizeMediaWikiUrl, type PreviewRenderer } from 'shared';
 
 import { logger } from './logging.js';
-import { assertCredentialTransport, type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';
+import {
+  assertCredentialTransport,
+  type MediaWikiAuth,
+  mediaWikiHeaders,
+  readMediaWikiJsonResult,
+} from './mediawiki-http.js';
 
 const REMOTE_PREVIEW_CACHE_TTL_MS = 30_000;
 const REMOTE_PREVIEW_THROTTLE_MS = 1_500;
