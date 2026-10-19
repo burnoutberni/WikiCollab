@@ -91,6 +91,15 @@ describe('Docs routes', () => {
     vi.unstubAllEnvs();
   });
 
+  it('rejects anonymous document creation, including documents without credentials', async () => {
+    const response = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-test-user': 'anonymous' },
+      body: JSON.stringify({ title: 'Anonymous' }),
+    });
+    expect(response.status).toBe(401);
+  });
+
   it('GET / returns empty array initially', async () => {
     const res = await app.request('/api/docs');
     expect(res.status).toBe(200);
@@ -418,7 +427,7 @@ describe('Docs routes', () => {
       headers: { 'Content-Type': 'application/json', 'x-test-user': 'other-1' },
       body: JSON.stringify({ title: 'Collaborative title' }),
     });
-    expect(titleOnly.status).toBe(200);
+    expect(titleOnly.status).toBe(403);
   });
 
   it('claims a legacy unowned document on authenticated access', async () => {
