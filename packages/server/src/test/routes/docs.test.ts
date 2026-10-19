@@ -152,6 +152,58 @@ describe('Docs routes', () => {
     });
   });
 
+  it('passes the decrypted document API key to MediaWiki fetches', async () => {
+    mockServerFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: () =>
+          Promise.resolve({
+            query: {
+              general: {
+                server: 'https://private.example',
+                articlepath: '/wiki/$1',
+                scriptpath: '/w',
+              },
+              skins: [{ code: 'vector', name: 'Vector', default: '' }],
+            },
+          }),
+        text: () => Promise.resolve(''),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'text/css' },
+        text: () => Promise.resolve('.mw-parser-output{}'),
+      })
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: () => Promise.resolve({ query: { pages: {} } }),
+        text: () => Promise.resolve(''),
+      });
+
+    const res = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Private wiki',
+        mediawiki_instance_name: 'Private',
+        mediawiki_instance_api_url: 'https://private.example/w/api.php',
+        mediawiki_api_key: 'document-bearer-token',
+      }),
+    });
+    expect(res.status).toBe(201);
+
+    await drainDocumentMediaWikiCssRefreshesForTest();
+    expect(mockServerFetch).toHaveBeenCalled();
+    for (const call of mockServerFetch.mock.calls) {
+      expect(call[1]?.headers?.Authorization).toBe('Bearer document-bearer-token');
+    }
+  });
+
   it('POST / rejects non-http MediaWiki API URLs', async () => {
     const res = await app.request('/api/docs', {
       method: 'POST',
