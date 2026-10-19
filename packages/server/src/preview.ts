@@ -63,9 +63,10 @@ function remotePreviewTargetKey(
 function remotePreviewLatestKey(
   apiUrl: string,
   page: string | null | undefined,
-  documentId: string | null | undefined
+  documentId: string | null | undefined,
+  accessToken?: MediaWikiAuth
 ): string | null {
-  return documentId ? `${apiUrl}\0${page || ''}\0${documentId}` : null;
+  return documentId ? `${remotePreviewTargetKey(apiUrl, page, accessToken)}\0${documentId}` : null;
 }
 
 function evictRemotePreviewCache(now: number): void {
@@ -308,7 +309,7 @@ async function fetchRemotePreview(
 
   const cacheKey = remotePreviewKey(apiUrl, page, wikitext, accessToken);
   const targetKey = remotePreviewTargetKey(apiUrl, page, accessToken);
-  const latestKey = remotePreviewLatestKey(apiUrl, page, documentId);
+  const latestKey = remotePreviewLatestKey(apiUrl, page, documentId, accessToken);
   const cached = remotePreviewCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     if (latestKey) remotePreviewLatestByTarget.set(latestKey, cached);
