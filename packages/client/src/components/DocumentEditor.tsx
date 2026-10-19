@@ -332,7 +332,13 @@ export function DocumentEditor() {
   const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
 
   const updateInstance = useCallback(
-    async (name: string | null, apiUrl: string | null, apiKey?: string | null, username?: string | null, password?: string | null) => {
+    async (
+      name: string | null,
+      apiUrl: string | null,
+      apiKey?: string | null,
+      username?: string | null,
+      password?: string | null
+    ) => {
       if (!id) return;
       const previous = lastPersistedInstanceRef.current;
       setInstanceName(name);
@@ -823,8 +829,8 @@ export function DocumentEditor() {
                   name={instanceName}
                   apiUrl={instanceApiUrl}
                   hasApiKey={hasMediaWikiApiKey}
-                        botUsername={botUsername}
-                        hasBotPassword={hasBotPassword}
+                  botUsername={botUsername}
+                  hasBotPassword={hasBotPassword}
                   saving={instanceSaving}
                   onChange={updateInstance}
                 />
