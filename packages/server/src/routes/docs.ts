@@ -2,7 +2,6 @@ import { and, desc, eq, isNull, or } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from 'shared';
-
 import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
@@ -13,12 +12,10 @@ import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 import { reconstructRevisionContent, revisionMetadata } from '../services/revision-storage.js';
 import { setVersionStarred } from '../services/versions.js';
-
 /** REST endpoints for document CRUD, preview, and versioning. */
 const docs = new Hono();
 type CssRefresh = { apiUrl: string; nextApiUrl: string | null; promise: Promise<void> };
 const inFlightCssRefreshes = new Map<string, CssRefresh>();
-
 function apiDocument(doc: ReturnType<typeof getDocumentById>, userId: string | null) {
   if (!doc) return doc;
   const { mediawiki_api_key: encryptedKey, ...safe } = doc;
@@ -28,17 +25,12 @@ function apiDocument(doc: ReturnType<typeof getDocumentById>, userId: string | n
     has_mediawiki_api_key: Boolean(encryptedKey),
   };
 }
-
 function documentApiKey(doc: ReturnType<typeof getDocumentById>): string | null {
   return doc?.mediawiki_api_key ? decryptSecret(doc.mediawiki_api_key) : null;
 }
-
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const doc = getDocumentById(documentId);
-  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(
-    apiUrl,
-    documentApiKey(doc)
-  );
+  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(apiUrl, documentApiKey(doc));
   const updates: Record<string, string | null> = {};
   if (urlMetadata.fetched) {
     updates.mediawiki_canonical_server = urlMetadata.server;
@@ -47,7 +39,6 @@ async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): 
   }
   if (css !== null) updates.mediawiki_instance_css = css;
   if (Object.keys(updates).length === 0) return;
-
   db.update(schema.documents)
     .set(updates)
     .where(
@@ -58,7 +49,6 @@ async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): 
     )
     .run();
 }
-
 function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: string): void {
   const current = inFlightCssRefreshes.get(documentId);
   if (current) {
@@ -69,7 +59,6 @@ function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: str
     current.nextApiUrl = apiUrl;
     return;
   }
-
   const promise = refreshDocumentMediaWikiCss(documentId, apiUrl)
     .catch((err) => {
       logger.error(
@@ -84,13 +73,11 @@ function refreshDocumentMediaWikiCssInBackground(documentId: string, apiUrl: str
     });
   inFlightCssRefreshes.set(documentId, { apiUrl, nextApiUrl: null, promise });
 }
-
 export async function drainDocumentMediaWikiCssRefreshesForTest(): Promise<void> {
   for (let i = 0; i < 10 && inFlightCssRefreshes.size > 0; i++) {
     await Promise.all(Array.from(inFlightCssRefreshes.values(), (refresh) => refresh.promise));
   }
 }
-
 docs.get('/', (c) => {
   const userId = currentUserId(c);
   const where = userId
@@ -99,7 +86,6 @@ docs.get('/', (c) => {
   const allDocs = db.select().from(schema.documents).where(where).all();
   return c.json(allDocs.map((doc) => apiDocument(doc, userId)));
 });
-
 docs.post('/', async (c) => {
   const result = await parseAndValidate(c, CreateDocumentSchema);
   if (!result.success) return result.response;
@@ -108,19 +94,15 @@ docs.post('/', async (c) => {
   if (body.mediawiki_api_key && !userId) {
     return c.json({ error: 'Authentication required to store a MediaWiki API key' }, 401);
   }
-
   const slug = body.slug;
-
   if (slug) {
     const existing = getDocumentById(slug);
     if (existing) {
       return c.json({ error: 'A document with this slug already exists' }, 409);
     }
   }
-
   const id = slug || nanoid(7);
   const now = new Date().toISOString();
-
   const doc = {
     id,
     title: body.title || 'Untitled',
@@ -141,23 +123,19 @@ docs.post('/', async (c) => {
     owner_user_id: userId,
     mediawiki_api_key: body.mediawiki_api_key ? encryptSecret(body.mediawiki_api_key) : null,
   };
-
   db.insert(schema.documents).values(doc).run();
   if (doc.mediawiki_instance_api_url) {
     refreshDocumentMediaWikiCssInBackground(doc.id, doc.mediawiki_instance_api_url);
   }
   return c.json(apiDocument(doc, userId), 201);
 });
-
 docs.get('/:id', (c) => {
   const id = c.req.param('id');
   const userId = currentUserId(c);
   let doc = getDocumentById(id);
-
   if (!doc) {
     return c.json({ error: 'Document not found' }, 404);
   }
-
   if (userId && doc.owner_user_id === null) {
     db.update(schema.documents)
       .set({ owner_user_id: userId })
@@ -165,10 +143,8 @@ docs.get('/:id', (c) => {
       .run();
     doc = getDocumentById(id);
   }
-
   return c.json(apiDocument(doc, userId));
 });
-
 docs.delete('/:id', (c) => {
   const id = c.req.param('id');
   const userId = currentUserId(c);
@@ -178,33 +154,26 @@ docs.delete('/:id', (c) => {
   if (doc.owner_user_id !== userId) {
     return c.json({ error: 'Only the owner may delete this document' }, 403);
   }
-
   const result = db
     .delete(schema.documents)
     .where(and(eq(schema.documents.id, id), eq(schema.documents.owner_user_id, userId)))
     .run();
-
   if (result.changes === 0) {
     return c.json({ error: 'Document not found' }, 404);
   }
-
   return c.json({ success: true });
 });
-
 docs.patch('/:id', async (c) => {
   const id = c.req.param('id');
   const result = await parseAndValidate(c, UpdateDocumentSchema);
   if (!result.success) return result.response;
   const body = result.data;
-
   const now = new Date().toISOString();
   const updates: Record<string, unknown> = { updated_at: now };
   const existingDoc = getDocumentById(id);
-
   if (!existingDoc) {
     return c.json({ error: 'Document not found' }, 404);
   }
-
   const userId = currentUserId(c);
   const changesOwnerSettings =
     body.visibility !== undefined ||
@@ -217,7 +186,6 @@ docs.patch('/:id', async (c) => {
       return c.json({ error: 'Only the owner may change document settings' }, 403);
     }
   }
-
   if (body.title !== undefined) updates.title = body.title;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
   if (body.visibility !== undefined) updates.visibility = body.visibility;
@@ -226,7 +194,6 @@ docs.patch('/:id', async (c) => {
       ? encryptSecret(body.mediawiki_api_key)
       : null;
   }
-
   if (body.mediawiki_instance_api_url !== undefined) {
     if (body.mediawiki_instance_api_url === null) {
       updates.mediawiki_instance_name = null;
@@ -251,17 +218,14 @@ docs.patch('/:id', async (c) => {
   } else if (body.mediawiki_instance_name !== undefined) {
     updates.mediawiki_instance_name = body.mediawiki_instance_name;
   }
-
   const updateResult = db
     .update(schema.documents)
     .set(updates)
     .where(eq(schema.documents.id, id))
     .run();
-
   if (updateResult.changes === 0) {
     return c.json({ error: 'Document not found' }, 404);
   }
-
   const doc = getDocumentById(id);
   const refreshApiUrl =
     body.mediawiki_instance_api_url ??
@@ -271,19 +235,16 @@ docs.patch('/:id', async (c) => {
   }
   return c.json(apiDocument(doc, userId));
 });
-
 docs.post('/:id/preview', async (c) => {
   const id = c.req.param('id');
   const result = await parseAndValidate(c, PreviewSchema);
   if (!result.success) return result.response;
   const { wikitext, page } = result.data;
-
   const doc = getDocumentById(id);
   if (!doc) return c.json({ error: 'Document not found' }, 404);
   if (doc.mediawiki_instance_api_url && !doc.mediawiki_instance_css) {
     refreshDocumentMediaWikiCssInBackground(id, doc.mediawiki_instance_api_url);
   }
-
   try {
     const { html } = await generatePreview(
       wikitext,
@@ -305,7 +266,6 @@ docs.post('/:id/preview', async (c) => {
     });
   }
 });
-
 docs.get('/:id/versions', (c) => {
   const id = c.req.param('id');
   const versions = db
@@ -314,20 +274,15 @@ docs.get('/:id/versions', (c) => {
     .where(eq(schema.documentRevisions.document_id, id))
     .orderBy(desc(schema.documentRevisions.created_at), desc(schema.documentRevisions.id))
     .all();
-
   return c.json(versions);
 });
-
 docs.post('/:id/versions/:v/restore', (c) => {
   const id = c.req.param('id');
   const vId = c.req.param('v');
-
   const version = getVersionById(vId);
-
   if (!version || version.document_id !== c.req.param('id')) {
     return c.json({ error: 'Version not found' }, 404);
   }
-
   try {
     const content = reconstructRevisionContent(version);
     db.update(schema.documents)
@@ -343,7 +298,6 @@ docs.post('/:id/versions/:v/restore', (c) => {
     return c.json({ error: 'Failed to restore version' }, 500);
   }
 });
-
 docs.post('/:id/versions/:v/star', (c) => {
   const id = c.req.param('id');
   const vId = c.req.param('v');
@@ -353,7 +307,6 @@ docs.post('/:id/versions/:v/star', (c) => {
   }
   return c.json({ success: true });
 });
-
 docs.delete('/:id/versions/:v/star', (c) => {
   const id = c.req.param('id');
   const vId = c.req.param('v');
@@ -363,16 +316,12 @@ docs.delete('/:id/versions/:v/star', (c) => {
   }
   return c.json({ success: true });
 });
-
 docs.get('/:id/versions/:v/preview', (c) => {
   const vId = c.req.param('v');
-
   const version = getVersionById(vId);
-
   if (!version || version.document_id !== c.req.param('id')) {
     return c.json({ error: 'Version not found' }, 404);
   }
-
   try {
     const content = reconstructRevisionContent(version);
     return c.json({ content });
@@ -384,5 +333,4 @@ docs.get('/:id/versions/:v/preview', (c) => {
     return c.json({ content: '' });
   }
 });
-
 export default docs;
