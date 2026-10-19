@@ -1,5 +1,12 @@
 export type DocumentVisibility = 'public' | 'unlisted';
 
+/** Authenticated Wikimedia user exposed to the client. */
+export interface User {
+  id: string;
+  wiki_username: string;
+}
+
+
 /** Stored document shape returned by the server API. */
 export interface Document {
   id: string;
@@ -16,6 +23,9 @@ export interface Document {
   mediawiki_script_path: string | null;
   restored_version_id: string | null;
   visibility: DocumentVisibility;
+  owner_user_id: string | null;
+  is_owner: boolean;
+  has_mediawiki_api_key: boolean;
 }
 
 /** Revision history metadata. Content is loaded separately through preview/restore. */
@@ -38,6 +48,7 @@ export interface CreateDocumentRequest {
   visibility?: DocumentVisibility;
   mediawiki_instance_name?: string | null;
   mediawiki_instance_api_url?: string | null;
+  mediawiki_api_key?: string | null;
 }
 
 /** Request body accepted when patching mutable document metadata. */
@@ -47,6 +58,7 @@ export interface UpdateDocumentRequest {
   mediawiki_instance_api_url?: string | null;
   expiry?: string | null;
   visibility?: DocumentVisibility;
+  mediawiki_api_key?: string | null;
 }
 
 /** Request body for creating or updating a MediaWiki instance entry. */
