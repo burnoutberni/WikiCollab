@@ -7,13 +7,16 @@ const MEDIAWIKI_CONTACT =
 export const MEDIAWIKI_USER_AGENT = `WikiCollab/${process.env.APP_VERSION || 'dev'} (MediaWiki preview; ${MEDIAWIKI_CONTACT})`;
 const MAX_RETRY_AFTER_MS = 5 * 60_000;
 
+export type MediaWikiAuth = string | { cookie: string } | null;
+
 export function mediaWikiHeaders(
   headers: Record<string, string> = {},
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): Record<string, string> {
   return {
     'User-Agent': MEDIAWIKI_USER_AGENT,
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(typeof accessToken === 'string' && accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(accessToken && typeof accessToken !== 'string' ? { Cookie: accessToken.cookie } : {}),
     ...headers,
   };
 }
@@ -114,7 +117,7 @@ export async function readMediaWikiJson<T>(
  */
 export async function validateMediaWikiConfig(
   apiUrl: string,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): Promise<{ ok: boolean; error?: string; status?: number }> {
   let res: MediaWikiJsonResponse;
   try {
