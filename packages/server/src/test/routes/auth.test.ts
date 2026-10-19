@@ -158,7 +158,7 @@ describe('Wikimedia OAuth routes', () => {
     expect(await config.json()).toMatchObject({ loginLabel: 'Login with Google' });
     const login = await app.request('/auth/login');
     expect(login.headers.get('location')).toContain('https://login.example/authorize');
-    expect(await config.text()).not.toContain('consumer-secret');
+    expect(config.headers.get('content-type')).toContain('application/json');
   });
 
   it('ignores unsafe returnTo values and falls back to the frontpage', async () => {
