@@ -660,9 +660,49 @@ export function DocumentEditor() {
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
+          {/* Editor */}
+          <main className="flex-1 overflow-hidden">
+            {viewMode === 'source' && (
+              <WikitextEditor
+                ref={editorRef}
+                content={content}
+                onChange={handleContentChange}
+                ytext={ytext}
+                provider={provider}
+                onRemoteChange={handleRemoteChange}
+                onCursorChange={handleCursorChange}
+                userName={userName}
+                userColor={userColor}
+              />
+            )}
+            {viewMode === 'split' && (
+              <SplitPaneEditor
+                content={content}
+                onChange={handleContentChange}
+                documentId={id!}
+                title={title}
+                apiUrl={instanceApiUrl}
+                instanceCss={instanceCss}
+                previewRefreshKey={previewRefreshKey}
+                previewBusy={instanceSaving}
+                previewLoadingLabel={instanceSaving ? 'Updating wiki settings...' : undefined}
+                ytext={ytext}
+                provider={provider}
+                userName={userName}
+                userColor={userColor}
+                editorRef={editorRef}
+                onCursorChange={handleCursorChange}
+                sendCustomMessage={sendCustomMessage}
+                onCustomMessage={onCustomMessage}
+                onRendererStatus={setPreviewRenderer}
+                initialMobileTab={isMobile ? 'preview' : 'source'}
+              />
+            )}
+          </main>
+
           {/* Desktop Sidebar */}
           {!isMobile && desktopSidebarOpen && (
-            <aside className="w-64 border-r flex flex-col">
+            <aside className="w-64 border-l flex flex-col">
               {doc.is_owner ? (
                 <>
                   <div className="p-4 border-b">
@@ -726,46 +766,6 @@ export function DocumentEditor() {
               </div>
             </aside>
           )}
-
-          {/* Editor */}
-          <main className="flex-1 overflow-hidden">
-            {viewMode === 'source' && (
-              <WikitextEditor
-                ref={editorRef}
-                content={content}
-                onChange={handleContentChange}
-                ytext={ytext}
-                provider={provider}
-                onRemoteChange={handleRemoteChange}
-                onCursorChange={handleCursorChange}
-                userName={userName}
-                userColor={userColor}
-              />
-            )}
-            {viewMode === 'split' && (
-              <SplitPaneEditor
-                content={content}
-                onChange={handleContentChange}
-                documentId={id!}
-                title={title}
-                apiUrl={instanceApiUrl}
-                instanceCss={instanceCss}
-                previewRefreshKey={previewRefreshKey}
-                previewBusy={instanceSaving}
-                previewLoadingLabel={instanceSaving ? 'Updating wiki settings...' : undefined}
-                ytext={ytext}
-                provider={provider}
-                userName={userName}
-                userColor={userColor}
-                editorRef={editorRef}
-                onCursorChange={handleCursorChange}
-                sendCustomMessage={sendCustomMessage}
-                onCustomMessage={onCustomMessage}
-                onRendererStatus={setPreviewRenderer}
-                initialMobileTab={isMobile ? 'preview' : 'source'}
-              />
-            )}
-          </main>
         </div>
 
         {/* Mobile Bottom Action Bar */}
