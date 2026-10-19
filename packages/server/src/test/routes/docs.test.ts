@@ -525,7 +525,8 @@ describe('Docs routes', () => {
 
   it('hides ownership metadata and bot usernames from non-owners', async () => {
     const created = await app.request('/api/docs', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Private metadata', mediawiki_bot_username: 'SecretBot' }),
     });
     const doc = await created.json();
@@ -540,20 +541,27 @@ describe('Docs routes', () => {
 
   it('rejects blank credentials while allowing explicit null removal', async () => {
     const created = await app.request('/api/docs', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Credentials' }),
     });
     const doc = await created.json();
     for (const field of ['mediawiki_api_key', 'mediawiki_bot_password', 'mediawiki_bot_username']) {
       const response = await app.request(`/api/docs/${doc.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: '' }),
       });
       expect(response.status).toBe(400);
     }
     const response = await app.request(`/api/docs/${doc.id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mediawiki_api_key: null, mediawiki_bot_username: null, mediawiki_bot_password: null }),
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediawiki_api_key: null,
+        mediawiki_bot_username: null,
+        mediawiki_bot_password: null,
+      }),
     });
     expect(response.status).toBe(200);
   });
