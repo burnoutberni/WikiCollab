@@ -26,12 +26,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { API_BASE, useDocument } from '@/hooks/useApi';
+import { apiFetch, API_BASE, useDocument } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { usePersistField } from '@/hooks/usePersistField';
 import { useYjs } from '@/hooks/useYjs';
 
+import { AuthControls } from './AuthControls';
 import { BottomSheet } from './BottomSheet';
 import { CollaboratorList } from './CollaboratorList';
 import { ConnectionStatePopover } from './ConnectionStatePopover';
@@ -69,7 +70,7 @@ async function fetchRefreshedInstanceData(
   for (let attempt = 0; attempt < INSTANCE_CSS_REFRESH_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(INSTANCE_CSS_REFRESH_DELAY_MS);
     try {
-      const res = await fetch(`${API_BASE}/docs/${id}`);
+      const res = await apiFetch(`${API_BASE}/docs/${id}`);
       if (!res.ok) return null;
       const doc = (await res.json()) as Document;
       if (isReady(doc)) return doc;
@@ -151,6 +152,7 @@ export function DocumentEditor() {
   const [articlePath, setArticlePath] = useState<string | null>(null);
   const [scriptPath, setScriptPath] = useState<string | null>(null);
   const [instanceSaving, setInstanceSaving] = useState(false);
+  const [hasMediaWikiApiKey, setHasMediaWikiApiKey] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -174,6 +176,7 @@ export function DocumentEditor() {
       setCanonicalServer(doc.mediawiki_canonical_server);
       setArticlePath(doc.mediawiki_article_path);
       setScriptPath(doc.mediawiki_script_path);
+      setHasMediaWikiApiKey(doc.has_mediawiki_api_key);
       lastPersistedVisibilityRef.current = doc.visibility;
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
@@ -325,18 +328,19 @@ export function DocumentEditor() {
   const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
 
   const updateInstance = useCallback(
-    async (name: string | null, apiUrl: string | null) => {
+    async (name: string | null, apiUrl: string | null, apiKey?: string | null) => {
       if (!id) return;
       const previous = lastPersistedInstanceRef.current;
       setInstanceName(name);
       setInstanceSaving(true);
       try {
-        const res = await fetch(`${API_BASE}/docs/${id}`, {
+        const res = await apiFetch(`${API_BASE}/docs/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             mediawiki_instance_name: name,
             mediawiki_instance_api_url: apiUrl,
+            ...(apiKey !== undefined ? { mediawiki_api_key: apiKey } : {}),
           }),
         });
         let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
@@ -371,6 +375,7 @@ export function DocumentEditor() {
         setCanonicalServer(updatedDoc.mediawiki_canonical_server);
         setArticlePath(updatedDoc.mediawiki_article_path);
         setScriptPath(updatedDoc.mediawiki_script_path);
+        setHasMediaWikiApiKey(updatedDoc.has_mediawiki_api_key);
         setPreviewRefreshKey((key) => key + 1);
         lastPersistedInstanceRef.current = {
           name: updatedDoc.mediawiki_instance_name,
@@ -390,6 +395,7 @@ export function DocumentEditor() {
                 mediawiki_canonical_server: updatedDoc.mediawiki_canonical_server,
                 mediawiki_article_path: updatedDoc.mediawiki_article_path,
                 mediawiki_script_path: updatedDoc.mediawiki_script_path,
+                has_mediawiki_api_key: updatedDoc.has_mediawiki_api_key,
                 updated_at: updatedDoc.updated_at,
               }
             : updatedDoc
@@ -436,7 +442,7 @@ export function DocumentEditor() {
   const handleRestoreVersion = useCallback(
     async (versionId: string) => {
       try {
-        const res = await fetch(`/api/docs/${id}/versions/${versionId}/restore`, {
+        const res = await apiFetch(`/api/docs/${id}/versions/${versionId}/restore`, {
           method: 'POST',
         });
         const data = await res.json();
@@ -547,6 +553,11 @@ export function DocumentEditor() {
 
             <div className="flex-1" />
 
+            {doc.is_owner && (
+              <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium">Owner</span>
+            )}
+            <AuthControls />
+
             {/* View Mode Toggles */}
             <div className="flex items-center border rounded-md">
               <Tooltip>
@@ -627,20 +638,29 @@ export function DocumentEditor() {
           {/* Desktop Sidebar */}
           {!isMobile && desktopSidebarOpen && (
             <aside className="w-64 border-r flex flex-col">
-              <div className="p-4 border-b">
-                <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
-              </div>
+              {doc.is_owner ? (
+                <>
+                  <div className="p-4 border-b">
+                    <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+                  </div>
 
-              <div className="p-4 border-b">
-                <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
-                  <InstanceManager
-                    name={instanceName}
-                    apiUrl={instanceApiUrl}
-                    saving={instanceSaving}
-                    onChange={updateInstance}
-                  />
-                </Suspense>
-              </div>
+                  <div className="p-4 border-b">
+                    <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
+                      <InstanceManager
+                        name={instanceName}
+                        apiUrl={instanceApiUrl}
+                        hasApiKey={hasMediaWikiApiKey}
+                        saving={instanceSaving}
+                        onChange={updateInstance}
+                      />
+                    </Suspense>
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 border-b text-xs text-muted-foreground">
+                  Only the document owner can change visibility and MediaWiki settings.
+                </div>
+              )}
 
               <div className="p-4 mt-auto border-t">
                 <button
@@ -782,18 +802,27 @@ export function DocumentEditor() {
         title="Settings"
       >
         <div className="space-y-4">
-          <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+          {doc.is_owner ? (
+            <>
+              <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
 
-          <Separator />
+              <Separator />
 
-          <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
-            <InstanceManager
-              name={instanceName}
-              apiUrl={instanceApiUrl}
-              saving={instanceSaving}
-              onChange={updateInstance}
-            />
-          </Suspense>
+              <Suspense fallback={<LoadingSpinner label="Loading instance settings..." />}>
+                <InstanceManager
+                  name={instanceName}
+                  apiUrl={instanceApiUrl}
+                  hasApiKey={hasMediaWikiApiKey}
+                  saving={instanceSaving}
+                  onChange={updateInstance}
+                />
+              </Suspense>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Only the document owner can change visibility and MediaWiki settings.
+            </p>
+          )}
 
           <Separator />
 
