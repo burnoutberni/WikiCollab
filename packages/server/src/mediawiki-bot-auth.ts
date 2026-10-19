@@ -1,6 +1,8 @@
 import { createHash } from 'crypto';
 import { serverFetch } from 'server-fetch';
 
+import { assertCredentialTransport } from './mediawiki-http.js';
+
 export interface BotCredentials {
   username: string;
   password: string;
@@ -35,6 +37,7 @@ function cookieHeader(jar: Map<string, string>): string {
 
 /** Log in with Special:BotPasswords using the same cookie jar for both steps. */
 export async function loginWithBotPassword(apiUrl: string, bot: BotCredentials): Promise<string> {
+  assertCredentialTransport(apiUrl, { cookie: 'bot-session' });
   const jar = new Map<string, string>();
   const tokenUrl = new URL(apiUrl);
   tokenUrl.searchParams.set('action', 'query');
