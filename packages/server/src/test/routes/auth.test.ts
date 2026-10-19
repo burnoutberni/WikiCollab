@@ -138,6 +138,29 @@ describe('Wikimedia OAuth routes', () => {
     expect(callback.headers.get('location')).toBe('/doc/abc123');
   });
 
+  it('rejects tab-injected protocol-relative returnTo redirect', async () => {
+    const app = new Hono();
+    app.route('/auth', authRoutes);
+    const login = await app.request('/auth/login?returnTo=%2F%09%2Fevil.example');
+    const callback = await app.request('/auth/callback?code=auth-code&state=oauth-state', {
+      headers: { Cookie: login.headers.get('set-cookie')!.split(';')[0] },
+    });
+    expect(callback.status).toBe(302);
+    expect(callback.headers.get('location')).toBe('/');
+  });
+
+  it('uses a configured OAuth provider and public copy without exposing secrets', async () => {
+    vi.stubEnv('OAUTH_AUTHORIZATION_URL', 'https://login.example/authorize');
+    vi.stubEnv('OAUTH_LOGIN_LABEL', 'Login with Google');
+    const app = new Hono();
+    app.route('/auth', authRoutes);
+    const config = await app.request('/auth/config');
+    expect(await config.json()).toMatchObject({ loginLabel: 'Login with Google' });
+    const login = await app.request('/auth/login');
+    expect(login.headers.get('location')).toContain('https://login.example/authorize');
+    expect(await config.text()).not.toContain('consumer-secret');
+  });
+
   it('ignores unsafe returnTo values and falls back to the frontpage', async () => {
     const app = new Hono();
     app.route('/auth', authRoutes);
