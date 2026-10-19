@@ -2,7 +2,7 @@ import { serverFetch } from 'server-fetch';
 import type { MediaWikiUrlMetadata } from 'shared';
 
 import { logger } from './logging.js';
-import { mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import { type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
 
 function getApiUrl(apiUrl: string, params: Record<string, string>): string {
   const url = new URL(apiUrl);
@@ -57,7 +57,7 @@ export function readMediaWikiUrlMetadata(
 
 export async function fetchMediaWikiUrlMetadata(
   apiUrl: string,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): Promise<MediaWikiUrlMetadataResult> {
   try {
     const res = await serverFetch(
