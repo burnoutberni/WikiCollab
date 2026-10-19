@@ -13,6 +13,8 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // OAuth redirects/callbacks and API requests must reach the server.
+        navigateFallbackDenylist: [/^\/(?:auth|api|ws)(?:\/|\?|$)/],
       },
       devOptions: {
         enabled: false,
