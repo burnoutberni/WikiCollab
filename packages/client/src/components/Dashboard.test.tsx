@@ -89,6 +89,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('@/hooks/useApi', () => ({
+  useAuth: () => ({ user: { id: 'owner-1', wiki_username: 'Owner' }, loading: false }),
   useDocuments: vi.fn(),
 }));
 
