@@ -77,6 +77,8 @@ vi.mock('@/hooks/useApi', () => ({
   useDocuments: vi.fn(),
 }));
 
+vi.mock('@/components/AuthControls', () => ({ AuthControls: () => <div>AuthControls</div> }));
+
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => mockIsMobile,
 }));
