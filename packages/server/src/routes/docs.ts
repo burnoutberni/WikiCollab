@@ -347,6 +347,7 @@ docs.post('/:id/preview', async (c) => {
     let css = doc.mediawiki_instance_css;
     if (
       doc.mediawiki_instance_api_url &&
+      !doc.mediawiki_bot_password &&
       (remoteStatusCode === 401 || remoteStatusCode === 403 || remoteStatusCode === 0)
     ) {
       clearMediaWikiInstance(id);
