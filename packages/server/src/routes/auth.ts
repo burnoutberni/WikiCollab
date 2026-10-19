@@ -57,17 +57,23 @@ auth.get('/callback', async (c): Promise<Response> => {
   if (!session?.oauthState || !session.codeVerifier) {
     return c.json({ error: 'OAuth session expired or missing' }, 400);
   }
-  const client: oauth.Client = { client_id: clientId };
-  const params = oauth.validateAuthResponse(as, client, new URL(c.req.url), session.oauthState);
-  const tokenResponse = await oauth.authorizationCodeGrantRequest(
-    as,
-    client,
-    oauth.ClientSecretPost(clientSecret),
-    params,
-    redirectUri,
-    session.codeVerifier
-  );
-  const tokens = await oauth.processAuthorizationCodeResponse(as, client, tokenResponse);
+  let tokens: oauth.TokenEndpointResponse;
+  try {
+    const client: oauth.Client = { client_id: clientId };
+    const params = oauth.validateAuthResponse(as, client, new URL(c.req.url), session.oauthState);
+    const tokenResponse = await oauth.authorizationCodeGrantRequest(
+      as,
+      client,
+      oauth.ClientSecretPost(clientSecret),
+      params,
+      redirectUri,
+      session.codeVerifier
+    );
+    tokens = await oauth.processAuthorizationCodeResponse(as, client, tokenResponse);
+  } catch {
+    clearSession(c);
+    return c.json({ error: 'OAuth authorization failed or was cancelled' }, 400);
+  }
   const profileResponse = await fetch(profileEndpoint, {
     headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json' },
   });
