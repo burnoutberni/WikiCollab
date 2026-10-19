@@ -6,7 +6,6 @@ export interface User {
   wiki_username: string;
 }
 
-
 /** Stored document shape returned by the server API. */
 export interface Document {
   id: string;
