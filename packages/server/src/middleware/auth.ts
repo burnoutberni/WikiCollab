@@ -50,24 +50,15 @@ function unsealSession(value: string): SessionData | null {
     return null;
   }
 }
-function parseCookieHeader(header: string | undefined): Record<string, string> {
-  if (!header) return {};
-  return Object.fromEntries(
-    header
-      .split(';')
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const index = part.indexOf('=');
-        return index === -1
-          ? [part, '']
-          : [part.slice(0, index), decodeURIComponent(part.slice(index + 1))];
-      })
-  );
-}
 export function readSession(c: Context): SessionData | null {
-  const value = parseCookieHeader(c.req.header('Cookie'))[COOKIE_NAME];
-  return value ? unsealSession(value) : null;
+  const header = c.req.header('Cookie');
+  const part = header?.split(';').map((item) => item.trim()).find((item) => item.startsWith(`${COOKIE_NAME}=`));
+  if (!part) return null;
+  try {
+    return unsealSession(decodeURIComponent(part.slice(COOKIE_NAME.length + 1)));
+  } catch {
+    return null;
+  }
 }
 export function setSession(
   c: Context,
@@ -84,7 +75,8 @@ export function setSession(
   );
 }
 export function clearSession(c: Context): void {
-  c.header('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`);
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  c.header('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=0`);
 }
 export function currentUserId(c: Context): string | null {
   const getCtx = c.get as unknown as (key: string) => unknown;
