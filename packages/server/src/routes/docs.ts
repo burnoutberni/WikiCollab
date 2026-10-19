@@ -100,6 +100,7 @@ async function proposedMediaWikiAuth(
 
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const doc = getDocumentById(documentId);
+  if (!doc || doc.mediawiki_instance_api_url !== apiUrl) return;
   const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(
     apiUrl,
     await documentMediaWikiAuth(doc)
