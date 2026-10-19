@@ -28,6 +28,7 @@ export function usePersistField<T>(
     const timeout = window.setTimeout(() => {
       void fetch(`/api/docs/${id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [fieldName]: value }),
         signal: controller.signal,
