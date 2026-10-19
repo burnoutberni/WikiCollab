@@ -7,7 +7,7 @@
     "dev": "NODE_OPTIONS=--no-experimental-webstorage tsx watch src/index.ts",
     "build": "tsc",
     "start": "node --no-experimental-webstorage dist/index.js",
-    "lint": "eslint . && prettier --write src/middleware/auth.ts src/routes/auth.ts src/routes/docs.ts && printf '\\n===AUTH_MIDDLEWARE===\\n' && cat src/middleware/auth.ts && printf '\\n===AUTH_ROUTE===\\n' && cat src/routes/auth.ts && printf '\\n===DOCS_ROUTE===\\n' && cat src/routes/docs.ts && exit 1",
+    "lint": "eslint . && prettier --check .",
     "lint:fix": "eslint . --fix && prettier --write .",
     "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run",
     "test:watch": "NODE_OPTIONS=--no-experimental-webstorage vitest",
