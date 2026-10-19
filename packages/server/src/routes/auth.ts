@@ -56,7 +56,7 @@ auth.get('/callback', async (c): Promise<Response> => {
   );
   const tokens = await oauth.processAuthorizationCodeResponse(as, client, tokenResponse);
   const profileResponse = await fetch(profileEndpoint, {
-    headers: { Authorization: `*** Accept: 'application/json' },
+    headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json' },
   });
   if (!profileResponse.ok) {
     return c.json({ error: 'Failed to load Wikimedia profile' }, 502);
