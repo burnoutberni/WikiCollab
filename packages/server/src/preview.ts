@@ -29,7 +29,7 @@ let remotePreviewPendingJoinObserver: (() => void) | null = null;
 type RemotePreviewResult =
   | { status: 'ok'; html: string }
   | { status: 'rate_limited'; html?: string; statusCode?: number }
-  | { status: 'broken'; html?: string; statusCode?: number };
+  | { status: 'broken'; html?: string; statusCode?: number; errorCode?: string };
 
 function remotePreviewKey(
   apiUrl: string,
@@ -288,6 +288,7 @@ export interface PreviewResult {
   /** Which renderer produced `html`; `error` means a configured instance failed. */
   renderer: PreviewRenderer;
   remoteStatusCode?: number;
+  remoteErrorCode?: string;
 }
 
 const RATE_LIMITED_PREVIEW_HTML =
@@ -385,7 +386,7 @@ async function fetchRemotePreview(
       }
 
       const html = result.data?.parse?.text?.['*'];
-      if (!html) return { status: 'broken', statusCode: res.status };
+      if (!html) return { status: 'broken', statusCode: res.status, errorCode: result.data?.error?.code };
 
       const expiresAt = Date.now() + REMOTE_PREVIEW_CACHE_TTL_MS;
       remotePreviewCache.set(cacheKey, { html, expiresAt });
@@ -482,6 +483,9 @@ export async function generatePreview(
       renderer: 'error',
       ...(remotePreview.status === 'broken' && remotePreview.statusCode !== undefined
         ? { remoteStatusCode: remotePreview.statusCode }
+        : {}),
+      ...(remotePreview.status === 'broken' && remotePreview.errorCode
+        ? { remoteErrorCode: remotePreview.errorCode }
         : {}),
     };
   } catch (err) {
