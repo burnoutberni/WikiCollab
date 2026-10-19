@@ -33,7 +33,8 @@ function apiDocument(doc: ReturnType<typeof getDocumentById>, userId: string | n
   return {
     ...safe,
     owner_user_id: userId && doc.owner_user_id === userId ? doc.owner_user_id : null,
-    mediawiki_bot_username: userId && doc.owner_user_id === userId ? doc.mediawiki_bot_username : null,
+    mediawiki_bot_username:
+      userId && doc.owner_user_id === userId ? doc.mediawiki_bot_username : null,
     is_owner: Boolean(userId && doc.owner_user_id === userId),
     has_mediawiki_api_key: Boolean(encryptedKey),
     has_mediawiki_bot_password: Boolean(encryptedPassword),
@@ -82,7 +83,9 @@ export async function generateDocumentPreview(
     doc.mediawiki_instance_api_url &&
     doc.mediawiki_bot_username &&
     doc.mediawiki_bot_password &&
-    (result.remoteStatusCode === 401 || result.remoteStatusCode === 403 || result.remoteErrorCode === 'assertuserfailed')
+    (result.remoteStatusCode === 401 ||
+      result.remoteStatusCode === 403 ||
+      result.remoteErrorCode === 'assertuserfailed')
   ) {
     const bot = {
       username: doc.mediawiki_bot_username,
@@ -116,10 +119,14 @@ async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): 
     await documentMediaWikiAuth(doc)
   );
   const current = getDocumentById(documentId);
-  if (!current || current.mediawiki_instance_api_url !== apiUrl ||
-      current.mediawiki_api_key !== doc.mediawiki_api_key ||
-      current.mediawiki_bot_password !== doc.mediawiki_bot_password ||
-      current.mediawiki_bot_username !== doc.mediawiki_bot_username) return;
+  if (
+    !current ||
+    current.mediawiki_instance_api_url !== apiUrl ||
+    current.mediawiki_api_key !== doc.mediawiki_api_key ||
+    current.mediawiki_bot_password !== doc.mediawiki_bot_password ||
+    current.mediawiki_bot_username !== doc.mediawiki_bot_username
+  )
+    return;
   const updates: Record<string, string | null> = {};
   if (urlMetadata.fetched) {
     updates.mediawiki_canonical_server = urlMetadata.server;
@@ -320,7 +327,11 @@ docs.patch('/:id', async (c) => {
     if (body.mediawiki_bot_password === undefined) updates.mediawiki_bot_password = null;
     if (body.mediawiki_bot_username === undefined) updates.mediawiki_bot_username = null;
   }
-  if (body.mediawiki_api_key === '' || body.mediawiki_bot_username === '' || body.mediawiki_bot_password === '') {
+  if (
+    body.mediawiki_api_key === '' ||
+    body.mediawiki_bot_username === '' ||
+    body.mediawiki_bot_password === ''
+  ) {
     return c.json({ error: 'Credentials cannot be empty; use null to remove them' }, 400);
   }
   if (targetApiUrl && changesMediaWikiConnection) {
