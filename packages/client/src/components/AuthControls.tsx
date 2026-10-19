@@ -15,10 +15,18 @@ export function AuthControls({
 }) {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
-  const [copy, setCopy] = useState({ loginLabel: 'Log in', loginTooltip: 'Sign in', logoutTooltip: 'Log out' });
+  const [copy, setCopy] = useState({
+    loginLabel: 'Log in',
+    loginTooltip: 'Sign in',
+    logoutTooltip: 'Log out',
+  });
   useEffect(() => {
-    fetch('/auth/config').then((response) => response.ok ? response.json() : null)
-      .then((data) => { if (data) setCopy(data); }).catch(() => {});
+    fetch('/auth/config')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data) setCopy(data);
+      })
+      .catch(() => {});
   }, []);
 
   if (loading) {
