@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useApi';
 
-export function AuthControls({ isOwner = false, stacked = false }: { isOwner?: boolean; stacked?: boolean }) {
+export function AuthControls({
+  isOwner = false,
+  stacked = false,
+}: {
+  isOwner?: boolean;
+  stacked?: boolean;
+}) {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
 
