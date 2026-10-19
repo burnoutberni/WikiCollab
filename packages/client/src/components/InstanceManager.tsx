@@ -36,11 +36,15 @@ interface InstanceManagerProps {
   name: string | null;
   apiUrl: string | null;
   hasApiKey?: boolean;
+  botUsername?: string | null;
+  hasBotPassword?: boolean;
   saving?: boolean;
   onChange: (
     name: string | null,
     apiUrl: string | null,
-    apiKey?: string | null
+    apiKey?: string | null,
+    botUsername?: string | null,
+    botPassword?: string | null
   ) => Promise<void> | void;
 }
 
@@ -49,6 +53,8 @@ export function InstanceManager({
   name,
   apiUrl,
   hasApiKey = false,
+  botUsername = null,
+  hasBotPassword = false,
   saving = false,
   onChange,
 }: InstanceManagerProps) {
@@ -56,6 +62,9 @@ export function InstanceManager({
   const [draftName, setDraftName] = useState('');
   const [draftApiUrl, setDraftApiUrl] = useState('');
   const [draftApiKey, setDraftApiKey] = useState('');
+  const [draftBotUsername, setDraftBotUsername] = useState('');
+  const [draftBotPassword, setDraftBotPassword] = useState('');
+  const [authMethod, setAuthMethod] = useState<'none' | 'bearer' | 'bot'>(hasBotPassword ? 'bot' : hasApiKey ? 'bearer' : 'none');
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
   const [instanceError, setInstanceError] = useState<string | null>(null);
@@ -78,6 +87,9 @@ export function InstanceManager({
     setDraftName(name || '');
     setDraftApiUrl(apiUrl || '');
     setDraftApiKey('');
+    setDraftBotUsername(botUsername || '');
+    setDraftBotPassword('');
+    setAuthMethod(hasBotPassword ? 'bot' : hasApiKey ? 'bearer' : 'none');
     setNameIndex(-1);
     setNameOpen(false);
     setInstanceError(null);
@@ -147,6 +159,20 @@ export function InstanceManager({
     }
     try {
       const apiKey = draftApiKey.trim();
+      if (authMethod === 'bot') {
+        if (!draftBotUsername.trim() || (!draftBotPassword && !hasBotPassword)) {
+          setInstanceError('Enter the bot username and password.');
+          return;
+        }
+        await onChange(trimmedName, trimmedApiUrl, null, draftBotUsername.trim(), draftBotPassword || undefined);
+        setDialogOpen(false);
+        return;
+      }
+      if (authMethod === 'none') {
+        await onChange(trimmedName, trimmedApiUrl, null, null, null);
+        setDialogOpen(false);
+        return;
+      }
       if (apiKey) {
         await onChange(trimmedName, trimmedApiUrl, apiKey);
       } else {
@@ -319,41 +345,44 @@ export function InstanceManager({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="instance-api-key">API Key</Label>
-              <Input
-                id="instance-api-key"
-                type="password"
-                value={draftApiKey}
-                onChange={(e) => setDraftApiKey(e.target.value)}
-                placeholder={
-                  hasApiKey ? 'Stored — enter a new key to replace it' : 'Optional bearer token'
-                }
-                autoComplete="new-password"
-              />
-              <p className="text-xs text-muted-foreground">
-                Stored encrypted for this document and never shown again.
-              </p>
-              {hasApiKey && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={saving}
-                  onClick={async () => {
-                    try {
-                      await onChange(draftName.trim(), draftApiUrl.trim(), null);
-                      setDraftApiKey('');
-                    } catch (err) {
-                      setInstanceError(
-                        err instanceof Error ? err.message : 'Failed to remove MediaWiki API key'
-                      );
-                    }
-                  }}
-                >
-                  Remove stored API key
-                </Button>
-              )}
+              <Label htmlFor="instance-auth-method">Authentication</Label>
+              <select id="instance-auth-method" className="w-full rounded-md border bg-background p-2 text-sm"
+                value={authMethod} onChange={(e) => setAuthMethod(e.target.value as 'none' | 'bearer' | 'bot')}>
+                <option value="none">None (public wiki)</option>
+                <option value="bot">MediaWiki Bot Password</option>
+                <option value="bearer">Bearer token</option>
+              </select>
             </div>
+            {authMethod === 'bot' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="instance-bot-username">Bot username</Label>
+                  <Input id="instance-bot-username" value={draftBotUsername}
+                    onChange={(e) => setDraftBotUsername(e.target.value)}
+                    placeholder="YourUsername@WikiCollab" autoComplete="off" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instance-bot-password">Bot password</Label>
+                  <Input id="instance-bot-password" type="password" value={draftBotPassword}
+                    onChange={(e) => setDraftBotPassword(e.target.value)}
+                    placeholder={hasBotPassword ? 'Stored — leave blank to keep' : 'Password from Special:BotPasswords'}
+                    autoComplete="new-password" />
+                  <p className="text-xs text-muted-foreground">
+                    Create these credentials on your wiki at Special:BotPasswords.
+                    Passwords are encrypted on the server and never displayed again.
+                  </p>
+                </div>
+              </>
+            )}
+            {authMethod === 'bearer' && (
+              <div className="space-y-2">
+                <Label htmlFor="instance-api-key">Bearer token</Label>
+                <Input id="instance-api-key" type="password" value={draftApiKey}
+                  onChange={(e) => setDraftApiKey(e.target.value)}
+                  placeholder={hasApiKey ? 'Stored — leave blank to keep' : 'Optional bearer token'}
+                  autoComplete="new-password" />
+              </div>
+            )}
             {instanceError && <p className="text-sm text-destructive">{instanceError}</p>}
           </div>
           <DialogFooter>
