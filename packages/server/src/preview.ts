@@ -22,7 +22,9 @@ const remotePreviewTargetQueueDepth = new Map<string, number>();
 let remotePreviewPendingJoinObserver: (() => void) | null = null;
 
 type RemotePreviewResult =
-  { status: 'ok'; html: string } | { status: 'rate_limited'; html?: string } | { status: 'broken' };
+  | { status: 'ok'; html: string }
+  | { status: 'rate_limited'; html?: string; statusCode?: number }
+  | { status: 'broken'; html?: string; statusCode?: number };
 
 function remotePreviewKey(
   apiUrl: string,
@@ -269,6 +271,7 @@ function sanitize(html: string, allowStyleTags = false, canonicalServer?: string
 /** Preview payload returned to HTTP and WebSocket callers. */
 export interface PreviewResult {
   html: string;
+  remoteStatusCode?: number;
 }
 
 async function fetchRemotePreview(
@@ -353,11 +356,11 @@ async function fetchRemotePreview(
           result.retryAfterMs ?? REMOTE_PREVIEW_RATE_LIMIT_COOLDOWN_MS
         );
         remotePreviewRateLimitUntil.set(targetKey, Date.now() + cooldownMs);
-        return { status: 'rate_limited' };
+        return { status: 'rate_limited', statusCode: res.status };
       }
 
       const html = result.data?.parse?.text?.['*'];
-      if (!html) return { status: 'broken' };
+      if (!html) return { status: 'broken', statusCode: res.status };
 
       const expiresAt = Date.now() + REMOTE_PREVIEW_CACHE_TTL_MS;
       remotePreviewCache.set(cacheKey, { html, expiresAt });
@@ -365,7 +368,9 @@ async function fetchRemotePreview(
       return { status: 'ok', html };
     })
     .catch((err): RemotePreviewResult => {
-      if (err instanceof SsrfError) throw err;
+      if (err instanceof SsrfError) {
+        return { status: 'broken', statusCode: 0 };
+      }
       logger.warn(
         { err: err instanceof Error ? err.message : String(err) },
         'MediaWiki preview request failed; treating instance as broken'
@@ -425,6 +430,8 @@ export async function generatePreview(
 ): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
 
+  let remoteStatusCode: number | undefined;
+
   if (api_url) {
     try {
       const remotePreview = await fetchRemotePreview(
@@ -444,18 +451,20 @@ export async function generatePreview(
           ),
         };
       }
-    } catch (err) {
-      if (err instanceof SsrfError) {
-        logger.error({ url: err.url }, 'SSRF blocked in preview');
-      } else {
-        logger.warn(
-          { err: err instanceof Error ? err.message : String(err) },
-          'MediaWiki preview request failed; falling back because instance appears broken'
-        );
+      if (remotePreview.status === 'broken') {
+        remoteStatusCode = remotePreview.statusCode;
       }
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'MediaWiki preview request failed; falling back because instance appears broken'
+      );
     }
   }
 
   const html = Parser.toHtml(wikitext || '', false, undefined, page || undefined);
-  return { html: sanitize(stripStyleBlocks(html), false, canonicalServer) };
+  return {
+    html: sanitize(stripStyleBlocks(html), false, canonicalServer),
+    ...(remoteStatusCode !== undefined ? { remoteStatusCode } : {}),
+  };
 }

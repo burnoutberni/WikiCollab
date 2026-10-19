@@ -7,6 +7,7 @@ import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
 import { fetchMediaWikiCssAndUrlMetadata } from '../mediawiki-css.js';
+import { validateMediaWikiConfig } from '../mediawiki-http.js';
 import { currentUserId } from '../middleware/auth.js';
 import { decryptSecret, encryptSecret } from '../middleware/encryption.js';
 import { parseAndValidate } from '../middleware/validate.js';
@@ -28,6 +29,21 @@ function apiDocument(doc: ReturnType<typeof getDocumentById>, userId: string | n
 }
 function documentApiKey(doc: ReturnType<typeof getDocumentById>): string | null {
   return doc?.mediawiki_api_key ? decryptSecret(doc.mediawiki_api_key) : null;
+}
+
+function clearMediaWikiInstance(docId: string): void {
+  db.update(schema.documents)
+    .set({
+      mediawiki_instance_name: null,
+      mediawiki_instance_api_url: null,
+      mediawiki_instance_css: null,
+      mediawiki_api_key: null,
+      mediawiki_canonical_server: null,
+      mediawiki_article_path: null,
+      mediawiki_script_path: null,
+    })
+    .where(eq(schema.documents.id, docId))
+    .run();
 }
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const doc = getDocumentById(documentId);
@@ -94,6 +110,16 @@ docs.post('/', async (c) => {
   const userId = currentUserId(c);
   if (body.mediawiki_api_key && !userId) {
     return c.json({ error: 'Authentication required to store a MediaWiki API key' }, 401);
+  }
+  if (body.mediawiki_instance_api_url) {
+    const validation = await validateMediaWikiConfig(
+      body.mediawiki_instance_api_url,
+      body.mediawiki_api_key ?? null
+    );
+    if (!validation.ok) {
+      const status = validation.status === 429 ? 429 : 400;
+      return c.json({ error: validation.error ?? 'Invalid MediaWiki instance config.' }, status);
+    }
   }
   const slug = body.slug;
   if (slug) {
@@ -187,6 +213,15 @@ docs.patch('/:id', async (c) => {
       return c.json({ error: 'Only the owner may change document settings' }, 403);
     }
   }
+  if (body.mediawiki_instance_api_url !== undefined && body.mediawiki_instance_api_url !== null) {
+    const apiKey =
+      body.mediawiki_api_key !== undefined ? body.mediawiki_api_key : documentApiKey(existingDoc);
+    const validation = await validateMediaWikiConfig(body.mediawiki_instance_api_url, apiKey);
+    if (!validation.ok) {
+      const status = validation.status === 429 ? 429 : 400;
+      return c.json({ error: validation.error ?? 'Invalid MediaWiki instance config.' }, status);
+    }
+  }
   if (body.title !== undefined) updates.title = body.title;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
   if (body.visibility !== undefined) updates.visibility = body.visibility;
@@ -247,7 +282,7 @@ docs.post('/:id/preview', async (c) => {
     refreshDocumentMediaWikiCssInBackground(id, doc.mediawiki_instance_api_url);
   }
   try {
-    const { html } = await generatePreview(
+    const { html, remoteStatusCode } = await generatePreview(
       wikitext,
       doc.mediawiki_instance_api_url,
       page,
@@ -255,7 +290,15 @@ docs.post('/:id/preview', async (c) => {
       doc.mediawiki_canonical_server,
       documentApiKey(doc)
     );
-    return c.json({ html, css: doc.mediawiki_instance_css });
+    let css = doc.mediawiki_instance_css;
+    if (
+      doc.mediawiki_instance_api_url &&
+      (remoteStatusCode === 401 || remoteStatusCode === 403 || remoteStatusCode === 0)
+    ) {
+      clearMediaWikiInstance(id);
+      css = null;
+    }
+    return c.json({ html, css });
   } catch (err) {
     logger.error(
       { docId: id, err: err instanceof Error ? err.message : String(err) },

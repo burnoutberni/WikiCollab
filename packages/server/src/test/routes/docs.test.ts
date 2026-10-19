@@ -15,12 +15,9 @@ const { mockDbModule } = vi.hoisted(() => ({
 vi.mock('../../db/index.js', () => mockDbModule);
 
 // Mock server-fetch to avoid real HTTP in push tests
-const { mockServerFetch } = vi.hoisted(() => ({
+const { mockServerFetch, mockSsrfError } = vi.hoisted(() => ({
   mockServerFetch: vi.fn(),
-}));
-vi.mock('server-fetch', () => ({
-  serverFetch: mockServerFetch,
-  SsrfError: class SsrfError extends Error {
+  mockSsrfError: class SsrfError extends Error {
     url: string;
     constructor(url: string) {
       super(`SSRF blocked: ${url}`);
@@ -28,6 +25,29 @@ vi.mock('server-fetch', () => ({
     }
   },
 }));
+vi.mock('server-fetch', () => ({
+  serverFetch: mockServerFetch,
+  SsrfError: mockSsrfError,
+}));
+
+function mockMediaWikiSiteinfo(
+  general: { server?: string; articlepath?: string; scriptpath?: string } | null,
+  skins: Array<{ code: string; name?: string; default?: boolean | string }> = []
+): void {
+  mockServerFetch.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    headers: { get: () => 'application/json' },
+    text: () => Promise.resolve(''),
+    json: () =>
+      Promise.resolve({
+        query: {
+          general,
+          skins: skins.map((s) => ({ ...s, name: s.name ?? s.code })),
+        },
+      }),
+  });
+}
 
 // Import production router after mocks
 import docsRoutes, { drainDocumentMediaWikiCssRefreshesForTest } from '../../routes/docs.js';
@@ -97,20 +117,23 @@ describe('Docs routes', () => {
   });
 
   it('POST / persists initial MediaWiki settings and refreshes CSS asynchronously', async () => {
+    mockMediaWikiSiteinfo(
+      {
+        server: 'https://en.wikipedia.org',
+        articlepath: '/wiki/$1',
+        scriptpath: '/w',
+      },
+      [{ code: 'vector-2022', name: 'Vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      {
+        server: 'https://en.wikipedia.org',
+        articlepath: '/wiki/$1',
+        scriptpath: '/w',
+      },
+      [{ code: 'vector-2022', name: 'Vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            query: {
-              general: {
-                server: 'https://en.wikipedia.org',
-                articlepath: '/wiki/$1',
-                scriptpath: '/w',
-              },
-              skins: [{ code: 'vector-2022', name: 'Vector', default: '' }],
-            },
-          }),
-      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css' },
@@ -411,20 +434,23 @@ describe('Docs routes', () => {
   });
 
   it('PATCH /:id saves document MediaWiki instance fields and refreshes ResourceLoader CSS asynchronously', async () => {
+    mockMediaWikiSiteinfo(
+      {
+        server: 'https://en.wikipedia.org',
+        articlepath: '/wiki/$1',
+        scriptpath: '/w',
+      },
+      [{ code: 'vector-2022', name: 'Vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      {
+        server: 'https://en.wikipedia.org',
+        articlepath: '/wiki/$1',
+        scriptpath: '/w',
+      },
+      [{ code: 'vector-2022', name: 'Vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            query: {
-              general: {
-                server: 'https://en.wikipedia.org',
-                articlepath: '/wiki/$1',
-                scriptpath: '/w',
-              },
-              skins: [{ code: 'vector-2022', name: 'Vector', default: '' }],
-            },
-          }),
-      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css; charset=utf-8' },
@@ -467,7 +493,7 @@ describe('Docs routes', () => {
     expect(data.mediawiki_instance_name).toBe('English Wikipedia');
     expect(data.mediawiki_instance_api_url).toBe('https://en.wikipedia.org/w/api.php');
     expect(data.mediawiki_instance_css).toBeNull();
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(5));
     await vi.waitFor(() => {
       const stored = mockDbModule.db
         .select()
@@ -486,18 +512,23 @@ describe('Docs routes', () => {
       expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
       expect(stored?.mediawiki_script_path).toBe('/w');
     });
-    expect(mockServerFetch.mock.calls[1][0]).toContain('https://en.wikipedia.org/w/load.php?');
-    expect(mockServerFetch.mock.calls[1][0]).toContain('skin=vector-2022');
-    expect(mockServerFetch.mock.calls[1][0]).toContain('only=styles');
+    expect(mockServerFetch.mock.calls[2][0]).toContain('https://en.wikipedia.org/w/load.php?');
+    expect(mockServerFetch.mock.calls[2][0]).toContain('skin=vector-2022');
+    expect(mockServerFetch.mock.calls[2][0]).toContain('only=styles');
     expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
-    expect(mockServerFetch.mock.calls[1][1].headers['User-Agent']).toContain('WikiCollab/');
+    expect(mockServerFetch.mock.calls[2][1].headers['User-Agent']).toContain('WikiCollab/');
   });
 
   it('builds MediaWiki CSS API URLs without corrupting existing query strings', async () => {
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve({ query: { skins: [{ code: 'vector', default: '' }] } }),
-      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css' },
@@ -517,8 +548,8 @@ describe('Docs routes', () => {
     });
 
     expect(res.status).toBe(201);
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
-    for (const index of [0, 2, 3]) {
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(5));
+    for (const index of [0, 1, 3, 4]) {
       const url = new URL(mockServerFetch.mock.calls[index][0]);
       expect(url.searchParams.get('origin')).toBe('*');
       expect(url.searchParams.get('assert')).toBe('user');
@@ -528,10 +559,15 @@ describe('Docs routes', () => {
 
   it('caps combined MediaWiki CSS before storing it', async () => {
     const largeCss = '.x{' + 'a'.repeat(490_000) + '}';
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve({ query: { skins: [{ code: 'vector', default: '' }] } }),
-      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css' },
@@ -569,10 +605,15 @@ describe('Docs routes', () => {
   });
 
   it('strips external CSS url() references before storing MediaWiki CSS', async () => {
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve({ query: { skins: [{ code: 'vector', default: '' }] } }),
-      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css' },
@@ -613,10 +654,15 @@ describe('Docs routes', () => {
   });
 
   it('strips quoted external CSS url() references containing closing parentheses', async () => {
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      { server: 'https://wiki.example', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve({ query: { skins: [{ code: 'vector', default: '' }] } }),
-      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css' },
@@ -650,13 +696,19 @@ describe('Docs routes', () => {
 
   it('rejects oversized ResourceLoader CSS before reading the body', async () => {
     const text = vi.fn(async () => '.too-large{}');
+    mockMediaWikiSiteinfo(
+      {
+        server: 'https://en.wikipedia.org',
+        articlepath: '/wiki/$1',
+        scriptpath: '/w',
+      },
+      [{ code: 'vector-2022', name: 'Vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      { server: 'https://en.wikipedia.org', articlepath: '/wiki/$1', scriptpath: '/w' },
+      [{ code: 'vector-2022', name: 'Vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            query: { skins: [{ code: 'vector-2022', name: 'Vector', default: '' }] },
-          }),
-      })
       .mockResolvedValueOnce({
         ok: true,
         headers: {
@@ -678,11 +730,12 @@ describe('Docs routes', () => {
     });
 
     expect(res.status).toBe(201);
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(5));
     expect(text).not.toHaveBeenCalled();
   });
 
   it('PATCH /:id preserves existing CSS and metadata when same-URL refresh fails', async () => {
+    mockMediaWikiSiteinfo({ server: 'https://example.com' }, []);
     mockServerFetch.mockRejectedValueOnce(new Error('siteinfo failed'));
 
     const createRes = await app.request('/api/docs', {
@@ -724,15 +777,50 @@ describe('Docs routes', () => {
     expect(stored?.mediawiki_canonical_server).toBe('https://example.com');
     expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
     expect(stored?.mediawiki_script_path).toBe('/w');
-    expect(mockServerFetch).toHaveBeenCalledTimes(1);
+    expect(mockServerFetch).toHaveBeenCalledTimes(2);
   });
 
   it('PATCH /:id preserves metadata when siteinfo omits general data', async () => {
+    let siteinfoCallCount = 0;
     mockServerFetch.mockImplementation((url: string) => {
       if (url.includes('meta=siteinfo')) {
-        return Promise.resolve({ json: () => Promise.resolve({ query: { skins: [] } }) });
+        siteinfoCallCount++;
+        if (siteinfoCallCount === 1) {
+          // MediaWiki config validation siteinfo call: general present
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            text: () => Promise.resolve(''),
+            json: () =>
+              Promise.resolve({
+                query: {
+                  general: {
+                    server: 'https://example.com',
+                    articlepath: '/wiki/$1',
+                    scriptpath: '/w',
+                  },
+                  skins: [],
+                },
+              }),
+          });
+        }
+        // CSS refresh siteinfo call: general omitted
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          text: () => Promise.resolve(''),
+          json: () => Promise.resolve({ query: { skins: [] } }),
+        });
       }
-      return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        text: () => Promise.resolve(''),
+        json: () => Promise.resolve({ query: { pages: {} } }),
+      });
     });
 
     const createRes = await app.request('/api/docs', {
@@ -773,8 +861,25 @@ describe('Docs routes', () => {
 
   it('PATCH /:id does not let a stale same-URL refresh overwrite a newer API URL', async () => {
     let resolveOldSiteInfo: () => void = () => {};
+    let oldExampleCallCount = 0;
+    let newExampleCallCount = 0;
     mockServerFetch.mockImplementation((url: string) => {
       if (url.includes('https://old.example.com') && url.includes('meta=siteinfo')) {
+        oldExampleCallCount++;
+        if (oldExampleCallCount === 1) {
+          // MediaWiki config validation siteinfo call: resolve immediately
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            text: () => Promise.resolve(''),
+            json: () =>
+              Promise.resolve({
+                query: { general: { server: 'https://old.example.com' }, skins: [] },
+              }),
+          });
+        }
+        // CSS refresh siteinfo call: deferred
         return new Promise((resolve) => {
           resolveOldSiteInfo = () =>
             resolve({
@@ -786,6 +891,28 @@ describe('Docs routes', () => {
         });
       }
       if (url.includes('https://new.example.com') && url.includes('meta=siteinfo')) {
+        newExampleCallCount++;
+        if (newExampleCallCount === 1) {
+          // MediaWiki config validation siteinfo call: resolve immediately
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            text: () => Promise.resolve(''),
+            json: () =>
+              Promise.resolve({
+                query: {
+                  general: {
+                    server: 'https://new.example.com',
+                    articlepath: '/wiki/$1',
+                    scriptpath: '/w',
+                  },
+                  skins: [],
+                },
+              }),
+          });
+        }
+        // CSS refresh siteinfo call: fail so no metadata is written for the new URL
         return Promise.reject(new Error('siteinfo failed'));
       }
       return Promise.resolve({ json: () => Promise.resolve({ query: { pages: {} } }) });
@@ -835,20 +962,15 @@ describe('Docs routes', () => {
   });
 
   it('persists URL metadata when siteinfo succeeds but CSS fetches fail', async () => {
+    mockMediaWikiSiteinfo(
+      { server: 'https://metadata.example', articlepath: '/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
+    mockMediaWikiSiteinfo(
+      { server: 'https://metadata.example', articlepath: '/$1', scriptpath: '/w' },
+      [{ code: 'vector', default: '' }]
+    );
     mockServerFetch
-      .mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            query: {
-              general: {
-                server: 'https://metadata.example',
-                articlepath: '/$1',
-                scriptpath: '/w',
-              },
-              skins: [{ code: 'vector', default: '' }],
-            },
-          }),
-      })
       .mockRejectedValueOnce(new Error('resource loader failed'))
       .mockRejectedValueOnce(new Error('common css failed'))
       .mockRejectedValueOnce(new Error('skin css failed'));
@@ -886,6 +1008,8 @@ describe('Docs routes', () => {
   });
 
   it('PATCH /:id preserves the MediaWiki instance name when omitted', async () => {
+    mockMediaWikiSiteinfo({ server: 'https://new.example.com' }, []);
+
     const createRes = await app.request('/api/docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -918,8 +1042,11 @@ describe('Docs routes', () => {
     let resolveSiteInfo: (value: {
       json: () => Promise<{ query: { skins: never[] } }>;
     }) => void = () => {};
+    // MediaWiki config validation siteinfo call
+    mockMediaWikiSiteinfo({ server: 'https://new.example.com' });
     mockServerFetch
       .mockReturnValueOnce(
+        // CSS refresh siteinfo call (deferred)
         new Promise((resolve) => {
           resolveSiteInfo = resolve;
         })
@@ -969,22 +1096,34 @@ describe('Docs routes', () => {
       .where(eq(schema.documents.id, created.id))
       .get();
     expect(stored?.mediawiki_instance_css).toBeNull();
-    expect(mockServerFetch).toHaveBeenCalledTimes(1);
+    expect(mockServerFetch).toHaveBeenCalledTimes(2);
 
     resolveSiteInfo({ json: () => Promise.resolve({ query: { skins: [] } }) });
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(5));
   });
 
   it('skips duplicate CSS refreshes while one is already in flight for the document', async () => {
     let resolveSiteInfo: (value: {
       json: () => Promise<{ query: { skins: never[] } }>;
     }) => void = () => {};
+    // MediaWiki config validation siteinfo call (first PATCH)
+    mockMediaWikiSiteinfo({ server: 'https://example.com' });
     mockServerFetch
       .mockReturnValueOnce(
+        // CSS refresh siteinfo call (deferred)
         new Promise((resolve) => {
           resolveSiteInfo = resolve;
         })
       )
+      .mockResolvedValueOnce({
+        // MediaWiki config validation siteinfo call (second PATCH)
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: () =>
+          Promise.resolve({
+            query: { general: { server: 'https://example.com' }, skins: [] },
+          }),
+      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css' },
@@ -1022,22 +1161,34 @@ describe('Docs routes', () => {
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
-    expect(mockServerFetch).toHaveBeenCalledTimes(1);
+    expect(mockServerFetch).toHaveBeenCalledTimes(3);
 
     resolveSiteInfo({ json: () => Promise.resolve({ query: { skins: [] } }) });
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(6));
   });
 
   it('runs a follow-up CSS refresh when the API URL changes during an in-flight refresh', async () => {
     let resolveFirstSiteInfo: (value: {
       json: () => Promise<{ query: { skins: never[] } }>;
     }) => void = () => {};
+    // MediaWiki config validation siteinfo call (first PATCH, old.example)
+    mockMediaWikiSiteinfo({ server: 'https://old.example.com' });
     mockServerFetch
       .mockReturnValueOnce(
+        // CSS refresh #1 siteinfo call (old.example, deferred)
         new Promise((resolve) => {
           resolveFirstSiteInfo = resolve;
         })
       )
+      .mockResolvedValueOnce({
+        // MediaWiki config validation siteinfo call (second PATCH, new.example)
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: () =>
+          Promise.resolve({
+            query: { general: { server: 'https://new.example.com' }, skins: [] },
+          }),
+      })
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'text/css' },
@@ -1046,6 +1197,7 @@ describe('Docs routes', () => {
       .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
       .mockResolvedValueOnce({ json: () => Promise.resolve({ query: { pages: {} } }) })
       .mockResolvedValueOnce({
+        // CSS refresh #2 siteinfo call (new.example, follow-up)
         json: () => Promise.resolve({ query: { skins: [{ code: 'vector', default: '' }] } }),
       })
       .mockResolvedValueOnce({
@@ -1085,10 +1237,10 @@ describe('Docs routes', () => {
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
-    expect(mockServerFetch).toHaveBeenCalledTimes(1);
+    expect(mockServerFetch).toHaveBeenCalledTimes(3);
 
     resolveFirstSiteInfo({ json: () => Promise.resolve({ query: { skins: [] } }) });
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(8));
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(10));
     await vi.waitFor(() => {
       const stored = mockDbModule.db
         .select()
@@ -1342,14 +1494,47 @@ describe('Docs routes', () => {
 
   it('clears a queued CSS refresh when the API URL returns to the in-flight URL', async () => {
     let resolveSiteInfo: (value: unknown) => void = () => {};
+    let siteinfoCallCount = 0;
     mockServerFetch.mockImplementation((url: string) => {
       if (url.includes('action=query') && url.includes('meta=siteinfo')) {
-        return new Promise((resolve) => {
-          resolveSiteInfo = () =>
-            resolve({
-              json: () =>
-                Promise.resolve({ query: { skins: [{ code: 'vector', default: true }] } }),
-            });
+        siteinfoCallCount++;
+        if (siteinfoCallCount === 1) {
+          // MediaWiki config validation siteinfo call (current.example): resolve immediately
+          return Promise.resolve({
+            ok: true,
+            headers: { get: () => 'application/json' },
+            json: () =>
+              Promise.resolve({
+                query: {
+                  general: { server: 'https://current.example' },
+                  skins: [{ code: 'vector', default: true }],
+                },
+              }),
+          });
+        }
+        if (siteinfoCallCount === 2) {
+          // CSS refresh siteinfo call (current.example): deferred
+          return new Promise((resolve) => {
+            resolveSiteInfo = () =>
+              resolve({
+                ok: true,
+                headers: { get: () => 'application/json' },
+                json: () =>
+                  Promise.resolve({ query: { skins: [{ code: 'vector', default: true }] } }),
+              });
+          });
+        }
+        // Validation siteinfo calls (stale.example, then current.example again): resolve immediately
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: () =>
+            Promise.resolve({
+              query: {
+                general: { server: 'https://current.example' },
+                skins: [{ code: 'vector', default: true }],
+              },
+            }),
         });
       }
       if (url.includes('/load.php')) {
@@ -1376,7 +1561,7 @@ describe('Docs routes', () => {
         mediawiki_instance_api_url: 'https://current.example/w/api.php',
       }),
     });
-    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockServerFetch).toHaveBeenCalledTimes(2));
 
     await app.request(`/api/docs/${created.id}`, {
       method: 'PATCH',
@@ -1405,9 +1590,11 @@ describe('Docs routes', () => {
         .get();
       expect(stored?.mediawiki_instance_css).toContain('.current{color:green}');
     });
-    expect(mockServerFetch.mock.calls.map(([url]) => url)).not.toEqual(
-      expect.arrayContaining([expect.stringContaining('stale.example')])
-    );
+    const refreshUrls = mockServerFetch.mock.calls.map(([url]) => url);
+    // The queued stale.example CSS refresh must be discarded: no CSS fetch from stale.example
+    expect(
+      refreshUrls.some((url) => url.includes('stale.example') && url.includes('/w/load.php'))
+    ).toBe(false);
   });
 
   it('POST /:id/versions/:v/star stars a version', async () => {
