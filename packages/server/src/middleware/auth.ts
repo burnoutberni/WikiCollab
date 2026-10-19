@@ -77,9 +77,10 @@ export function setSession(
   const expiresAt = Date.now() + (oauthOnly ? OAUTH_SESSION_TTL_MS : SESSION_TTL_MS);
   const value = sealSession({ ...data, expiresAt });
   const maxAge = Math.floor((expiresAt - Date.now()) / 1000);
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   c.header(
     'Set-Cookie',
-    `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=${maxAge}`
+    `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=${maxAge}`
   );
 }
 export function clearSession(c: Context): void {

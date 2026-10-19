@@ -38,6 +38,7 @@ describe('Wikimedia OAuth routes', () => {
     vi.stubEnv('OAUTH_CONSUMER_KEY', 'consumer-key');
     vi.stubEnv('OAUTH_CONSUMER_SECRET', 'consumer-secret');
     vi.stubEnv('OAUTH_CALLBACK_URL', 'https://example.test/auth/callback');
+    vi.stubEnv('NODE_ENV', 'production');
 
     const testDb = createTestDb();
     mockDbModule.db = testDb.db;

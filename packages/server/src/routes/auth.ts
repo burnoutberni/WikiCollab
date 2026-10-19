@@ -10,12 +10,24 @@ const issuer = 'https://meta.wikimedia.org';
 const authorizationEndpoint = 'https://meta.wikimedia.org/w/rest.php/oauth2/authorize';
 const tokenEndpoint = 'https://meta.wikimedia.org/w/rest.php/oauth2/access_token';
 const profileEndpoint = 'https://meta.wikimedia.org/w/rest.php/oauth2/resource/profile';
-function config() {
+function config(): { clientId: string; clientSecret: string; redirectUri: string } {
   const clientId = process.env.OAUTH_CONSUMER_KEY;
   const clientSecret = process.env.OAUTH_CONSUMER_SECRET;
   const redirectUri = process.env.OAUTH_CALLBACK_URL;
-  if (!clientId || !clientSecret || !redirectUri) {
-    throw new Error('Wikimedia OAuth environment is not fully configured');
+  if (!clientId) {
+    throw new Error(
+      'Missing required environment variable: OAUTH_CONSUMER_KEY. Set it in .env or export it before starting the server.'
+    );
+  }
+  if (!clientSecret) {
+    throw new Error(
+      'Missing required environment variable: OAUTH_CONSUMER_SECRET. Set it in .env or export it before starting the server.'
+    );
+  }
+  if (!redirectUri) {
+    throw new Error(
+      'Missing required environment variable: OAUTH_CALLBACK_URL. Set it in .env or export it before starting the server.'
+    );
   }
   return { clientId, clientSecret, redirectUri };
 }

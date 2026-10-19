@@ -1,3 +1,9 @@
+import path from 'node:path';
+
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(import.meta.dirname, '../../../.env') });
+
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
@@ -14,6 +20,22 @@ import { setupWebSocket } from './ws/index.js';
 import { getAllowedOrigins } from './ws/origin.js';
 
 const app = new Hono();
+
+const requiredEnv = [
+  'OAUTH_CONSUMER_KEY',
+  'OAUTH_CONSUMER_SECRET',
+  'OAUTH_CALLBACK_URL',
+  'SESSION_SECRET',
+  'ENCRYPTION_KEY',
+];
+const missing = requiredEnv.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  logger.fatal(
+    { missing },
+    'Missing required environment variables. Set them in .env or export them before starting the server.'
+  );
+  process.exit(1);
+}
 
 app.onError((err, c) => {
   const getCtx = c.get as unknown as (key: string) => unknown;
