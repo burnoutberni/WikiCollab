@@ -1147,7 +1147,9 @@ describe('Docs routes', () => {
     });
     const unlisted = await unlistedRes.json();
 
-    const res = await app.request('/api/docs');
+    const res = await app.request('/api/docs', {
+      headers: { 'x-test-user': 'anonymous' },
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
 
