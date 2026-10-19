@@ -36,6 +36,9 @@ describe('Shared types', () => {
       mediawiki_script_path: null,
       restored_version_id: null,
       visibility: 'public',
+      owner_user_id: null,
+      is_owner: false,
+      has_mediawiki_api_key: false,
     };
     expect(doc.id).toBe('test');
     expect(doc.title).toBe('Test');
