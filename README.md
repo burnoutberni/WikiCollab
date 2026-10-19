@@ -8,7 +8,7 @@ A collaborative wikitext editor with real-time preview and MediaWiki integration
 - **Live preview** rendered through the MediaWiki `action=parse` API (handles templates, Lua modules, parser functions), with local wikiparser-node fallback when no instance is configured
 - **Version history** with restore and star support
 - **MediaWiki instance config** stored per document, editable only by its owner
-- **Wikimedia login** and encrypted document-scoped MediaWiki Bot Password or bearer-token authentication
+- **Configurable OAuth 2.0 login** and encrypted document-scoped MediaWiki Bot Password or bearer-token authentication
 - **Push to Wiki** (not yet implemented)
 
 ## Authenticated preview security model
@@ -32,9 +32,15 @@ owner can configure them. Anonymous MediaWiki instances can still use HTTP.
 ## Getting Started
 
 ```bash
+cp .env.example .env
+# Edit .env: uncomment and set the five required OAuth/session/encryption values.
 pnpm install
 pnpm dev
 ```
+
+You **must** set `OAUTH_CONSUMER_KEY`, `OAUTH_CONSUMER_SECRET`, `OAUTH_CALLBACK_URL`, `SESSION_SECRET`, and `ENCRYPTION_KEY` to real nonempty values. Generate the encryption key with `openssl rand -base64 32` (it must decode to exactly 32 bytes). The server refuses to start without them.
+
+The default OAuth provider is Wikimedia. For another OAuth 2.0 provider, configure `OAUTH_ISSUER`, `OAUTH_AUTHORIZATION_URL`, `OAUTH_TOKEN_URL`, `OAUTH_PROFILE_URL`, and optionally `OAUTH_SCOPE`, `OAUTH_SUBJECT_FIELD`, `OAUTH_USERNAME_FIELD`. The profile response must contain the configured subject and username properties; the provider must support authorization-code PKCE and client-secret authentication. Customise UI wording using `OAUTH_LOGIN_LABEL`, `OAUTH_LOGIN_TOOLTIP` and `OAUTH_LOGOUT_TOOLTIP`. Existing login accounts are keyed by the OAuth subject; changing providers on an existing database requires planning an account migration.
 
 Open `http://localhost:5173` in your browser.
 
