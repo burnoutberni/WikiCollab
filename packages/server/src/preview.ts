@@ -352,7 +352,8 @@ async function fetchRemotePreview(
 
       const res = await serverFetch(apiUrl, {
         method: 'POST',
-        headers: mediaWikiHeaders(
+        redirect: 'manual',
+      headers: mediaWikiHeaders(
           {
             Accept: 'application/json',
             'Content-Type': 'application/x-www-form-urlencoded',
