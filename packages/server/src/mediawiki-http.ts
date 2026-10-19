@@ -9,6 +9,14 @@ const MAX_RETRY_AFTER_MS = 5 * 60_000;
 
 export type MediaWikiAuth = string | { cookie: string } | null;
 
+/** Never attach credentials to a non-TLS MediaWiki endpoint. */
+export function assertCredentialTransport(apiUrl: string, auth?: MediaWikiAuth): void {
+  if (auth && new URL(apiUrl).protocol !== 'https:') {
+    throw new Error('Authenticated MediaWiki requests require HTTPS');
+  }
+}
+
+
 export function mediaWikiHeaders(
   headers: Record<string, string> = {},
   accessToken?: MediaWikiAuth
