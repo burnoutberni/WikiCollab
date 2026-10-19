@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import * as oauth from 'oauth4webapi';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as schema from '../../db/schema.js';
@@ -59,6 +60,31 @@ describe('Wikimedia OAuth routes', () => {
     closeDb = undefined;
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+
+  it('ignores malformed unrelated cookies when reading a valid session', async () => {
+    const app = new Hono();
+    app.route('/auth', authRoutes);
+    const login = await app.request('/auth/login');
+    const sessionCookie = login.headers.get('set-cookie')!.split(';')[0];
+    const callback = await app.request('/auth/callback?code=auth-code&state=oauth-state', {
+      headers: { Cookie: `broken=%E0%A4%A; ${sessionCookie}` },
+    });
+    expect(callback.status).toBe(302);
+  });
+
+  it('handles rejected or cancelled OAuth responses without a server error', async () => {
+    const app = new Hono();
+    app.route('/auth', authRoutes);
+    const login = await app.request('/auth/login');
+    vi.mocked(oauth.validateAuthResponse).mockImplementationOnce(() => {
+      throw new Error('invalid state or consent denied');
+    });
+    const callback = await app.request('/auth/callback?error=access_denied', {
+      headers: { Cookie: login.headers.get('set-cookie')!.split(';')[0] },
+    });
+    expect(callback.status).toBe(400);
+    expect(callback.headers.get('set-cookie')).toContain('Max-Age=0');
   });
 
   it('completes the PKCE callback, stores encrypted tokens, and creates a login session', async () => {
