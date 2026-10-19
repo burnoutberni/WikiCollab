@@ -1,6 +1,9 @@
 packages:
   - "packages/*"
 
+# Keep workspace links out of the buildpack-managed external virtual store.
+hoistWorkspacePackages: false
+
 minimumReleaseAge: 0
 
 overrides:
