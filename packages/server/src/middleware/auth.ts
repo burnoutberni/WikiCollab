@@ -100,16 +100,20 @@ export function clearSession(c: Context): void {
 }
 
 export function currentUserId(c: Context): string | null {
+  const getCtx = c.get as unknown as (key: string) => unknown;
+  const contextualUserId = getCtx('userId');
+  if (typeof contextualUserId === 'string' && contextualUserId) return contextualUserId;
   return readSession(c)?.userId ?? null;
 }
 
 export const authMiddleware: MiddlewareHandler = async (c, next) => {
   const session = readSession(c);
-  c.set('userId', session?.userId ?? null);
+  const setCtx = c.set as unknown as (key: string, value: unknown) => void;
+  setCtx('userId', session?.userId ?? null);
   await next();
 };
 
 export function requireUser(c: Context): string | Response {
-  const userId = (c.get('userId') as string | null | undefined) ?? currentUserId(c);
+  const userId = currentUserId(c);
   return userId ?? c.json({ error: 'Authentication required' }, 401);
 }
