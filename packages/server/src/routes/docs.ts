@@ -281,11 +281,13 @@ docs.patch('/:id', async (c) => {
     body.mediawiki_api_key !== undefined ||
     body.mediawiki_bot_username !== undefined ||
     body.mediawiki_bot_password !== undefined;
-  if (changesOwnerSettings) {
+  if (existingDoc.owner_user_id) {
     if (!userId) return c.json({ error: 'Authentication required' }, 401);
     if (existingDoc.owner_user_id !== userId) {
       return c.json({ error: 'Only the owner may change document settings' }, 403);
     }
+  } else if (changesOwnerSettings) {
+    return c.json({ error: 'Sign in and claim this legacy document to change settings' }, 403);
   }
   const targetApiUrl =
     body.mediawiki_instance_api_url === undefined
