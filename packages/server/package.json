@@ -24,6 +24,7 @@
     "hono": "^4.13.12",
     "lib0": "^0.2.119",
     "nanoid": "^6.0.1",
+    "oauth4webapi": "^3.8.8",
     "pino": "^10.4.0",
     "sanitize-html": "^2.18.0",
     "server-fetch": "^1.0.10",
