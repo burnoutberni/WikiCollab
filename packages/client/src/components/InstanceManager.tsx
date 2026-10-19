@@ -35,15 +35,27 @@ const WIKI_PRESETS: { name: string; api_url: string }[] = [
 interface InstanceManagerProps {
   name: string | null;
   apiUrl: string | null;
+  hasApiKey?: boolean;
   saving?: boolean;
-  onChange: (name: string | null, apiUrl: string | null) => Promise<void> | void;
+  onChange: (
+    name: string | null,
+    apiUrl: string | null,
+    apiKey?: string | null
+  ) => Promise<void> | void;
 }
 
 /** Configures the current document's MediaWiki target; presets are suggestions only. */
-export function InstanceManager({ name, apiUrl, saving = false, onChange }: InstanceManagerProps) {
+export function InstanceManager({
+  name,
+  apiUrl,
+  hasApiKey = false,
+  saving = false,
+  onChange,
+}: InstanceManagerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftApiUrl, setDraftApiUrl] = useState('');
+  const [draftApiKey, setDraftApiKey] = useState('');
   const [nameOpen, setNameOpen] = useState(false);
   const [nameIndex, setNameIndex] = useState(-1);
   const [instanceError, setInstanceError] = useState<string | null>(null);
@@ -65,6 +77,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   const openDialog = () => {
     setDraftName(name || '');
     setDraftApiUrl(apiUrl || '');
+    setDraftApiKey('');
     setNameIndex(-1);
     setNameOpen(false);
     setInstanceError(null);
@@ -133,7 +146,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
       return;
     }
     try {
-      await onChange(trimmedName, trimmedApiUrl);
+      await onChange(trimmedName, trimmedApiUrl, draftApiKey.trim() || undefined);
       setDialogOpen(false);
     } catch (err) {
       setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
@@ -143,7 +156,7 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
   const handleClear = async () => {
     setInstanceError(null);
     try {
-      await onChange(null, null);
+      await onChange(null, null, null);
     } catch (err) {
       setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
     }
@@ -299,6 +312,40 @@ export function InstanceManager({ name, apiUrl, saving = false, onChange }: Inst
                 onChange={(e) => setDraftApiUrl(e.target.value)}
                 placeholder="https://wiki.example.com/w/api.php"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instance-api-key">API Key</Label>
+              <Input
+                id="instance-api-key"
+                type="password"
+                value={draftApiKey}
+                onChange={(e) => setDraftApiKey(e.target.value)}
+                placeholder={hasApiKey ? 'Stored — enter a new key to replace it' : 'Optional bearer token'}
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-muted-foreground">
+                Stored encrypted for this document and never shown again.
+              </p>
+              {hasApiKey && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={saving}
+                  onClick={async () => {
+                    try {
+                      await onChange(draftName.trim(), draftApiUrl.trim(), null);
+                      setDraftApiKey('');
+                    } catch (err) {
+                      setInstanceError(
+                        err instanceof Error ? err.message : 'Failed to remove MediaWiki API key'
+                      );
+                    }
+                  }}
+                >
+                  Remove stored API key
+                </Button>
+              )}
             </div>
             {instanceError && <p className="text-sm text-destructive">{instanceError}</p>}
           </div>
