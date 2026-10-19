@@ -42,6 +42,7 @@ export async function loginWithBotPassword(apiUrl: string, bot: BotCredentials):
   tokenUrl.searchParams.set('type', 'login');
   tokenUrl.searchParams.set('format', 'json');
   const tokenResponse = await serverFetch(tokenUrl.toString(), {
+    redirect: 'manual',
     headers: { Accept: 'application/json' },
   });
   if (!tokenResponse.ok) throw new Error('Could not fetch MediaWiki login token');
@@ -53,6 +54,7 @@ export async function loginWithBotPassword(apiUrl: string, bot: BotCredentials):
   if (!token) throw new Error('MediaWiki did not provide a login token');
 
   const loginResponse = await serverFetch(apiUrl, {
+    redirect: 'manual',
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
