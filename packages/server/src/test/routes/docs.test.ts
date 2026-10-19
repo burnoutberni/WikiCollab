@@ -129,18 +129,36 @@ describe('Docs routes', () => {
         : isLogin
           ? { login: { result: 'Success' } }
           : params.get('meta') === 'siteinfo'
-            ? { query: { general: { server: 'https://private.example', articlepath: '/wiki/$1', scriptpath: '/w' }, skins: [] } }
+            ? {
+                query: {
+                  general: {
+                    server: 'https://private.example',
+                    articlepath: '/wiki/$1',
+                    scriptpath: '/w',
+                  },
+                  skins: [],
+                },
+              }
             : { query: { pages: {} } };
       return {
         ok: true,
         status: 200,
         headers: {
-          get: (name: string) => name === 'set-cookie'
-            ? isLoginToken ? 'session=initial; Path=/' : isLogin ? 'session=authorized; Path=/' : null
-            : name === 'content-type' ? isCss ? 'text/css' : 'application/json' : null,
+          get: (name: string) =>
+            name === 'set-cookie'
+              ? isLoginToken
+                ? 'session=initial; Path=/'
+                : isLogin
+                  ? 'session=authorized; Path=/'
+                  : null
+              : name === 'content-type'
+                ? isCss
+                  ? 'text/css'
+                  : 'application/json'
+                : null,
         },
         json: async () => payload,
-        text: async () => isCss ? '.mw-parser-output{}' : JSON.stringify(payload),
+        text: async () => (isCss ? '.mw-parser-output{}' : JSON.stringify(payload)),
       };
     });
     const response = await app.request('/api/docs', {
@@ -168,9 +186,23 @@ describe('Docs routes', () => {
     expect(stored.mediawiki_bot_password).not.toContain('bot-secret-password');
     await drainDocumentMediaWikiCssRefreshesForTest();
     const requests = mockServerFetch.mock.calls;
-    expect(requests.some(([url, options]) => String(url).endsWith('api.php') && options?.method === 'POST')).toBe(true);
-    expect(requests.some(([url, options]) => String(url).includes('siteinfo') && options?.headers?.Cookie === 'session=authorized')).toBe(true);
-    expect(requests.some(([url, options]) => String(url).includes('load.php') && options?.headers?.Cookie === 'session=authorized')).toBe(true);
+    expect(
+      requests.some(
+        ([url, options]) => String(url).endsWith('api.php') && options?.method === 'POST'
+      )
+    ).toBe(true);
+    expect(
+      requests.some(
+        ([url, options]) =>
+          String(url).includes('siteinfo') && options?.headers?.Cookie === 'session=authorized'
+      )
+    ).toBe(true);
+    expect(
+      requests.some(
+        ([url, options]) =>
+          String(url).includes('load.php') && options?.headers?.Cookie === 'session=authorized'
+      )
+    ).toBe(true);
   });
 
   it('POST / persists initial MediaWiki settings and refreshes CSS asynchronously', async () => {
