@@ -13,9 +13,15 @@ const DEFAULT_PROFILE_ENDPOINT = 'https://meta.wikimedia.org/w/rest.php/oauth2/r
 
 /** Permit only local paths, never controls, backslashes, or another origin. */
 export function safeReturnPath(value: string | undefined): string {
-  if (!value || !value.startsWith('/') || [...value].some(
-    (char) => char === String.fromCharCode(92) || char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127
-  )) return '/';
+  if (
+    !value ||
+    !value.startsWith('/') ||
+    [...value].some(
+      (char) =>
+        char === String.fromCharCode(92) || char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127
+    )
+  )
+    return '/';
   try {
     const base = new URL('https://wikicollab.invalid/');
     const parsed = new URL(value, base);
@@ -27,14 +33,19 @@ export function safeReturnPath(value: string | undefined): string {
 }
 function providerConfig() {
   const issuer = process.env.OAUTH_ISSUER || DEFAULT_ISSUER;
-  const authorizationEndpoint = process.env.OAUTH_AUTHORIZATION_URL || DEFAULT_AUTHORIZATION_ENDPOINT;
+  const authorizationEndpoint =
+    process.env.OAUTH_AUTHORIZATION_URL || DEFAULT_AUTHORIZATION_ENDPOINT;
   const tokenEndpoint = process.env.OAUTH_TOKEN_URL || DEFAULT_TOKEN_ENDPOINT;
   const profileEndpoint = process.env.OAUTH_PROFILE_URL || DEFAULT_PROFILE_ENDPOINT;
   for (const url of [issuer, authorizationEndpoint, tokenEndpoint, profileEndpoint]) {
     if (new URL(url).protocol !== 'https:') throw new Error('OAuth endpoints require HTTPS');
   }
   return {
-    as: { issuer, authorization_endpoint: authorizationEndpoint, token_endpoint: tokenEndpoint } as oauth.AuthorizationServer,
+    as: {
+      issuer,
+      authorization_endpoint: authorizationEndpoint,
+      token_endpoint: tokenEndpoint,
+    } as oauth.AuthorizationServer,
     authorizationEndpoint,
     profileEndpoint,
     scope: process.env.OAUTH_SCOPE || '',
@@ -63,11 +74,13 @@ function config(): { clientId: string; clientSecret: string; redirectUri: string
   }
   return { clientId, clientSecret, redirectUri };
 }
-auth.get('/config', (c) => c.json({
-  loginLabel: process.env.OAUTH_LOGIN_LABEL || 'Log in with Wikimedia',
-  loginTooltip: process.env.OAUTH_LOGIN_TOOLTIP || 'Sign in with your Wikimedia account',
-  logoutTooltip: process.env.OAUTH_LOGOUT_TOOLTIP || 'Log out of your account',
-}));
+auth.get('/config', (c) =>
+  c.json({
+    loginLabel: process.env.OAUTH_LOGIN_LABEL || 'Log in with Wikimedia',
+    loginTooltip: process.env.OAUTH_LOGIN_TOOLTIP || 'Sign in with your Wikimedia account',
+    logoutTooltip: process.env.OAUTH_LOGOUT_TOOLTIP || 'Log out of your account',
+  })
+);
 auth.get('/login', async (c) => {
   const { clientId, redirectUri } = config();
   const provider = providerConfig();
@@ -96,7 +109,12 @@ auth.get('/callback', async (c): Promise<Response> => {
   let tokens: oauth.TokenEndpointResponse;
   try {
     const client: oauth.Client = { client_id: clientId };
-    const params = oauth.validateAuthResponse(provider.as, client, new URL(c.req.url), session.oauthState);
+    const params = oauth.validateAuthResponse(
+      provider.as,
+      client,
+      new URL(c.req.url),
+      session.oauthState
+    );
     const tokenResponse = await oauth.authorizationCodeGrantRequest(
       provider.as,
       client,
@@ -124,7 +142,11 @@ auth.get('/callback', async (c): Promise<Response> => {
   }
   const subject = profile[provider.subjectField];
   const username = profile[provider.usernameField];
-  if ((typeof subject !== 'string' && typeof subject !== 'number') || typeof username !== 'string' || !username) {
+  if (
+    (typeof subject !== 'string' && typeof subject !== 'number') ||
+    typeof username !== 'string' ||
+    !username
+  ) {
     clearSession(c);
     return c.json({ error: 'OAuth provider profile response was incomplete' }, 502);
   }
