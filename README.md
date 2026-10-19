@@ -7,8 +7,27 @@ A collaborative wikitext editor with real-time preview and MediaWiki integration
 - **Real-time collaboration** via Yjs WebSocket — multiple users edit simultaneously
 - **Live preview** rendered through the MediaWiki `action=parse` API (handles templates, Lua modules, parser functions), with local wikiparser-node fallback when no instance is configured
 - **Version history** with restore and star support
-- **MediaWiki instance config** stored per-browser in localStorage
-- **Push to Wiki** (not yet implemented — authentication pending)
+- **MediaWiki instance config** stored per document, editable only by its owner
+- **Wikimedia login** and encrypted document-scoped MediaWiki Bot Password or bearer-token authentication
+- **Push to Wiki** (not yet implemented)
+
+## Authenticated preview security model
+
+WikiCollab intentionally shares rendered previews with **all document collaborators**, including
+people who do not have an account on the configured wiki. To produce these previews, WikiCollab
+uses the document owner's configured Bot Password or bearer token **only on the server**.
+Collaborators do not receive the raw password, bearer token, session cookie, or auth headers.
+However, **the rendered HTML can contain private wiki content** (including transcluded pages
+accessible to the credential). Treat a link to a document with authenticated previews as
+permission to see that content. Do not attach an all-access account: create a dedicated,
+least-privilege bot identity and configure only documents whose collaborators you trust.
+Unlisted links are not access controls. WikiCollab sanitises preview HTML and CSS but cannot
+undo content exposure through deliberately requested wiki transclusions.
+
+Credential-backed connections require HTTPS, reject HTTP downgrades and do not follow
+cross-origin redirects. Preview caches separate authenticated contexts. Never paste bot
+credentials into wikitext or document titles; the server stores them encrypted and only the
+owner can configure them. Anonymous MediaWiki instances can still use HTTP.
 
 ## Getting Started
 
