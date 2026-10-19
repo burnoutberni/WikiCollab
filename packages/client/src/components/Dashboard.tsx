@@ -12,6 +12,7 @@ import { useDocuments } from '@/hooks/useApi';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
 import NEW_DOC_BOILERPLATE from '../content/new-doc-boilerplate.wikitext?raw';
+import { AuthControls } from './AuthControls';
 import { NewDocumentButton } from './NewDocumentButton';
 import { ShareButton } from './ShareButton';
 
@@ -117,7 +118,10 @@ export function Dashboard() {
               </div>
               <h1 className="text-xl font-bold hidden md:block">WikiCollab</h1>
             </div>
-            <NewDocumentButton onCreate={handleCreate} compact={isMobile} />
+            <div className="flex items-center gap-2">
+              <AuthControls />
+              <NewDocumentButton onCreate={handleCreate} compact={isMobile} />
+            </div>
           </div>
         </header>
 
