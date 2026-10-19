@@ -360,7 +360,7 @@ async function fetchRemotePreview(
 
       const res = await serverFetch(apiUrl, {
         method: 'POST',
-        redirect: 'manual',
+        ...(accessToken ? { redirect: 'manual' as const } : {}),
         headers: mediaWikiHeaders(
           {
             Accept: 'application/json',
@@ -396,6 +396,7 @@ async function fetchRemotePreview(
     })
     .catch((err): RemotePreviewResult => {
       if (err instanceof SsrfError) {
+        logger.error({ url: err.url }, 'SSRF blocked fetching MediaWiki preview');
         return { status: 'broken', statusCode: 0 };
       }
       logger.warn(
