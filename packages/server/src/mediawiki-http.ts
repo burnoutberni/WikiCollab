@@ -129,6 +129,7 @@ export async function validateMediaWikiConfig(
   apiUrl: string,
   accessToken?: MediaWikiAuth
 ): Promise<{ ok: boolean; error?: string; status?: number }> {
+  assertCredentialTransport(apiUrl, accessToken);
   let res: MediaWikiJsonResponse;
   try {
     const url = new URL(apiUrl);
