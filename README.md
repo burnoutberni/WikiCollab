@@ -40,7 +40,7 @@ pnpm dev
 
 You **must** set `OAUTH_CONSUMER_KEY`, `OAUTH_CONSUMER_SECRET`, `OAUTH_CALLBACK_URL`, `SESSION_SECRET`, and `ENCRYPTION_KEY` to real nonempty values. Generate the encryption key with `openssl rand -base64 32` (it must decode to exactly 32 bytes). The server refuses to start without them.
 
-The default OAuth provider is Wikimedia. For another OAuth 2.0 provider, configure `OAUTH_ISSUER`, `OAUTH_AUTHORIZATION_URL`, `OAUTH_TOKEN_URL`, `OAUTH_PROFILE_URL`, and optionally `OAUTH_SCOPE`, `OAUTH_SUBJECT_FIELD`, `OAUTH_USERNAME_FIELD`. The profile response must contain the configured subject and username properties; the provider must support authorization-code PKCE and client-secret authentication. Customise UI wording using `OAUTH_LOGIN_LABEL`, `OAUTH_LOGIN_TOOLTIP` and `OAUTH_LOGOUT_TOOLTIP`. Existing login accounts are keyed by the OAuth subject; changing providers on an existing database requires planning an account migration.
+Logout reloads the current page, preserving the document URL. The default OAuth provider is Wikimedia. For another OAuth 2.0 provider, configure `OAUTH_ISSUER`, `OAUTH_AUTHORIZATION_URL`, `OAUTH_TOKEN_URL`, `OAUTH_PROFILE_URL`, and optionally `OAUTH_SCOPE`, `OAUTH_SUBJECT_FIELD`, `OAUTH_USERNAME_FIELD`. The profile response must contain the configured subject and username properties; the provider must support authorization-code PKCE and client-secret authentication. Set `OAUTH_PROVIDER_NAME` (default `Wikimedia`) to generate login/logout button and tooltip text automatically. Existing login accounts are keyed by the OAuth subject; changing providers on an existing database requires planning an account migration.
 
 Open `http://localhost:5173` in your browser.
 
