@@ -82,14 +82,20 @@ auth.get('/callback', async (c): Promise<Response> => {
     clearSession(c);
     return c.json({ error: 'OAuth authorization failed or was cancelled' }, 400);
   }
-  const profileResponse = await fetch(profileEndpoint, {
-    headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json' },
-  });
-  if (!profileResponse.ok) {
+  let profile: { sub?: string | number; username?: string };
+  try {
+    const profileResponse = await fetch(profileEndpoint, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json' },
+    });
+    if (!profileResponse.ok) throw new Error('Profile request failed');
+    profile = (await profileResponse.json()) as typeof profile;
+  } catch {
+    clearSession(c);
     return c.json({ error: 'Failed to load Wikimedia profile' }, 502);
   }
-  const profile = (await profileResponse.json()) as { sub?: string | number; username?: string };
   if (profile.sub === undefined || !profile.username) {
+    clearSession(c);
     return c.json({ error: 'Wikimedia profile response was incomplete' }, 502);
   }
   const id = String(profile.sub);
