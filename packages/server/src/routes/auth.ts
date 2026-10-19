@@ -3,8 +3,8 @@ import { Hono } from 'hono';
 import * as oauth from 'oauth4webapi';
 
 import { db, schema } from '../db/index.js';
-import { encryptSecret } from '../middleware/encryption.js';
 import { clearSession, readSession, setSession } from '../middleware/auth.js';
+import { encryptSecret } from '../middleware/encryption.js';
 
 const auth = new Hono();
 
