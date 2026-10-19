@@ -578,11 +578,6 @@ export function DocumentEditor() {
 
             <div className="flex-1" />
 
-            {doc.is_owner && (
-              <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium">Owner</span>
-            )}
-            <AuthControls />
-
             {/* View Mode Toggles */}
             <div className="flex items-center border rounded-md">
               <Tooltip>
@@ -703,6 +698,10 @@ export function DocumentEditor() {
           {/* Desktop Sidebar */}
           {!isMobile && desktopSidebarOpen && (
             <aside className="w-64 border-l flex flex-col">
+              <div className="p-4 border-b">
+                <AuthControls isOwner={doc.is_owner} stacked />
+              </div>
+
               {doc.is_owner ? (
                 <>
                   <div className="p-4 border-b">
