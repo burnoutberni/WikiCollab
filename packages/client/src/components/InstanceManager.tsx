@@ -169,14 +169,18 @@ export function InstanceManager({
         return;
       }
       if (authMethod === 'none') {
-        await onChange(trimmedName, trimmedApiUrl, null, null, null);
+        if (hasBotPassword || hasApiKey) {
+          await onChange(trimmedName, trimmedApiUrl, null, null, null);
+        } else {
+          await onChange(trimmedName, trimmedApiUrl);
+        }
         setDialogOpen(false);
         return;
       }
       if (apiKey) {
-        await onChange(trimmedName, trimmedApiUrl, apiKey);
+        await onChange(trimmedName, trimmedApiUrl, apiKey, null, null);
       } else {
-        await onChange(trimmedName, trimmedApiUrl);
+        await onChange(trimmedName, trimmedApiUrl, undefined, null, null);
       }
       setDialogOpen(false);
     } catch (err) {
