@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
 export const DocumentVisibilitySchema = z.enum(['public', 'unlisted']);
 const MediaWikiApiUrlSchema = z.url({ protocol: /^https?$/ });
+const MediaWikiApiKeySchema = z.string().max(4096);
 
 /** Validation for document creation requests, including optional custom slugs. */
 export const CreateDocumentSchema = z.object({
@@ -17,6 +18,7 @@ export const CreateDocumentSchema = z.object({
   expiry: z.string().datetime().nullable().optional(),
   mediawiki_instance_name: z.string().max(200).nullable().optional(),
   mediawiki_instance_api_url: MediaWikiApiUrlSchema.nullable().optional(),
+  mediawiki_api_key: MediaWikiApiKeySchema.nullable().optional(),
   visibility: DocumentVisibilitySchema.optional(),
 });
 
@@ -25,6 +27,7 @@ export const UpdateDocumentSchema = z.object({
   title: z.string().max(500).optional(),
   mediawiki_instance_name: z.string().max(200).nullable().optional(),
   mediawiki_instance_api_url: MediaWikiApiUrlSchema.nullable().optional(),
+  mediawiki_api_key: MediaWikiApiKeySchema.nullable().optional(),
   expiry: z.string().datetime().nullable().optional(),
   visibility: DocumentVisibilitySchema.optional(),
 });
