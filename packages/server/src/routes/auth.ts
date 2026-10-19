@@ -1,18 +1,14 @@
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import * as oauth from 'oauth4webapi';
-
 import { db, schema } from '../db/index.js';
 import { clearSession, readSession, setSession } from '../middleware/auth.js';
 import { encryptSecret } from '../middleware/encryption.js';
-
 const auth = new Hono();
-
 const issuer = 'https://meta.wikimedia.org';
 const authorizationEndpoint = 'https://meta.wikimedia.org/w/rest.php/oauth2/authorize';
 const tokenEndpoint = 'https://meta.wikimedia.org/w/rest.php/oauth2/access_token';
 const profileEndpoint = 'https://meta.wikimedia.org/w/rest.php/oauth2/resource/profile';
-
 function config() {
   const clientId = process.env.OAUTH_CONSUMER_KEY;
   const clientSecret = process.env.OAUTH_CONSUMER_SECRET;
@@ -22,21 +18,17 @@ function config() {
   }
   return { clientId, clientSecret, redirectUri };
 }
-
 const as: oauth.AuthorizationServer = {
   issuer,
   authorization_endpoint: authorizationEndpoint,
   token_endpoint: tokenEndpoint,
 };
-
 auth.get('/login', async (c) => {
   const { clientId, redirectUri } = config();
   const codeVerifier = oauth.generateRandomCodeVerifier();
   const codeChallenge = await oauth.calculatePKCECodeChallenge(codeVerifier);
   const state = oauth.generateRandomState();
-
   setSession(c, { oauthState: state, codeVerifier }, true);
-
   const url = new URL(authorizationEndpoint);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
@@ -46,21 +38,14 @@ auth.get('/login', async (c) => {
   url.searchParams.set('code_challenge_method', 'S256');
   return c.redirect(url.toString());
 });
-
 auth.get('/callback', async (c): Promise<Response> => {
   const { clientId, clientSecret, redirectUri } = config();
   const session = readSession(c);
   if (!session?.oauthState || !session.codeVerifier) {
     return c.json({ error: 'OAuth session expired or missing' }, 400);
   }
-
   const client: oauth.Client = { client_id: clientId };
-  const params = oauth.validateAuthResponse(
-    as,
-    client,
-    new URL(c.req.url),
-    session.oauthState
-  );
+  const params = oauth.validateAuthResponse(as, client, new URL(c.req.url), session.oauthState);
   const tokenResponse = await oauth.authorizationCodeGrantRequest(
     as,
     client,
@@ -70,9 +55,8 @@ auth.get('/callback', async (c): Promise<Response> => {
     session.codeVerifier
   );
   const tokens = await oauth.processAuthorizationCodeResponse(as, client, tokenResponse);
-
   const profileResponse = await fetch(profileEndpoint, {
-    headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json' },
+    headers: { Authorization: `*** Accept: 'application/json' },
   });
   if (!profileResponse.ok) {
     return c.json({ error: 'Failed to load Wikimedia profile' }, 502);
@@ -81,7 +65,6 @@ auth.get('/callback', async (c): Promise<Response> => {
   if (profile.sub === undefined || !profile.username) {
     return c.json({ error: 'Wikimedia profile response was incomplete' }, 502);
   }
-
   const id = String(profile.sub);
   const now = new Date().toISOString();
   const existing = db.select().from(schema.users).where(eq(schema.users.id, id)).get();
@@ -90,22 +73,20 @@ auth.get('/callback', async (c): Promise<Response> => {
     oauth_access_token: encryptSecret(tokens.access_token),
     oauth_refresh_token: tokens.refresh_token ? encryptSecret(tokens.refresh_token) : null,
   };
-
   if (existing) {
     db.update(schema.users).set(values).where(eq(schema.users.id, id)).run();
   } else {
-    db.insert(schema.users).values({ id, ...values, created_at: now }).run();
+    db.insert(schema.users)
+      .values({ id, ...values, created_at: now })
+      .run();
   }
-
   setSession(c, { userId: id });
   return c.redirect('/');
 });
-
 auth.post('/logout', (c) => {
   clearSession(c);
   return c.json({ success: true });
 });
-
 auth.get('/me', (c) => {
   const session = readSession(c);
   if (!session?.userId) return c.json({ user: null });
@@ -116,5 +97,4 @@ auth.get('/me', (c) => {
     .get();
   return c.json({ user: user ?? null });
 });
-
 export default auth;
