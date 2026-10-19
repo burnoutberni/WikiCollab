@@ -116,6 +116,63 @@ describe('Docs routes', () => {
     expect(data.mediawiki_instance_css).toBeNull();
   });
 
+  it('stores Bot Passwords encrypted and uses login cookies for MediaWiki requests', async () => {
+    mockServerFetch.mockImplementation(async (url: string, options?: { body?: string }) => {
+      const requestUrl = new URL(url);
+      const params = options?.body ? new URLSearchParams(options.body) : requestUrl.searchParams;
+      const action = params.get('action');
+      const isLoginToken = action === 'query' && params.get('meta') === 'tokens';
+      const isLogin = action === 'login';
+      const isCss = requestUrl.pathname.endsWith('/load.php');
+      const payload = isLoginToken
+        ? { query: { tokens: { logintoken: 'test-login-token' } } }
+        : isLogin
+          ? { login: { result: 'Success' } }
+          : params.get('meta') === 'siteinfo'
+            ? { query: { general: { server: 'https://private.example', articlepath: '/wiki/$1', scriptpath: '/w' }, skins: [] } }
+            : { query: { pages: {} } };
+      return {
+        ok: true,
+        status: 200,
+        headers: {
+          get: (name: string) => name === 'set-cookie'
+            ? isLoginToken ? 'session=initial; Path=/' : isLogin ? 'session=authorized; Path=/' : null
+            : name === 'content-type' ? isCss ? 'text/css' : 'application/json' : null,
+        },
+        json: async () => payload,
+        text: async () => isCss ? '.mw-parser-output{}' : JSON.stringify(payload),
+      };
+    });
+    const response = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Private wiki',
+        mediawiki_instance_name: 'Private wiki',
+        mediawiki_instance_api_url: 'https://private.example/w/api.php',
+        mediawiki_bot_username: 'Editor@WikiCollab',
+        mediawiki_bot_password: 'bot-secret-password',
+      }),
+    });
+    expect(response.status).toBe(201);
+    const doc = await response.json();
+    expect(doc.mediawiki_bot_password).toBeUndefined();
+    expect(doc.has_mediawiki_bot_password).toBe(true);
+    expect(doc.mediawiki_bot_username).toBe('Editor@WikiCollab');
+    const stored = mockDbModule.db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, doc.id))
+      .get();
+    expect(stored.mediawiki_bot_password).not.toBe('bot-secret-password');
+    expect(stored.mediawiki_bot_password).not.toContain('bot-secret-password');
+    await drainDocumentMediaWikiCssRefreshesForTest();
+    const requests = mockServerFetch.mock.calls;
+    expect(requests.some(([url, options]) => String(url).endsWith('api.php') && options?.method === 'POST')).toBe(true);
+    expect(requests.some(([url, options]) => String(url).includes('siteinfo') && options?.headers?.Cookie === 'session=authorized')).toBe(true);
+    expect(requests.some(([url, options]) => String(url).includes('load.php') && options?.headers?.Cookie === 'session=authorized')).toBe(true);
+  });
+
   it('POST / persists initial MediaWiki settings and refreshes CSS asynchronously', async () => {
     mockMediaWikiSiteinfo(
       {
