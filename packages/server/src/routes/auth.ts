@@ -43,7 +43,10 @@ auth.get('/login', async (c) => {
   const state = oauth.generateRandomState();
   const returnTo = c.req.query('returnTo');
   const safeReturnTo =
-    returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') && !returnTo.startsWith('/\\')
+    returnTo &&
+    returnTo.startsWith('/') &&
+    !returnTo.startsWith('//') &&
+    !returnTo.startsWith('/\\')
       ? returnTo
       : undefined;
   setSession(c, { oauthState: state, codeVerifier, returnTo: safeReturnTo }, true);
