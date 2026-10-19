@@ -137,7 +137,7 @@ export async function validateMediaWikiConfig(
     url.searchParams.set('siprop', 'general');
     url.searchParams.set('format', 'json');
     res = await serverFetch(url.toString(), {
-      redirect: 'manual',
+      ...(accessToken ? { redirect: 'manual' as const } : {}),
       headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
     });
   } catch (err) {
