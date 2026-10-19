@@ -21,7 +21,11 @@ type CssRefresh = { apiUrl: string; nextApiUrl: string | null; promise: Promise<
 const inFlightCssRefreshes = new Map<string, CssRefresh>();
 function apiDocument(doc: ReturnType<typeof getDocumentById>, userId: string | null) {
   if (!doc) return doc;
-  const { mediawiki_api_key: encryptedKey, mediawiki_bot_password: encryptedPassword, ...safe } = doc;
+  const {
+    mediawiki_api_key: encryptedKey,
+    mediawiki_bot_password: encryptedPassword,
+    ...safe
+  } = doc;
   return {
     ...safe,
     is_owner: Boolean(userId && doc.owner_user_id === userId),
@@ -33,7 +37,9 @@ function documentApiKey(doc: ReturnType<typeof getDocumentById>): string | null 
   return doc?.mediawiki_api_key ? decryptSecret(doc.mediawiki_api_key) : null;
 }
 
-async function documentMediaWikiAuth(doc: ReturnType<typeof getDocumentById>): Promise<MediaWikiAuth> {
+async function documentMediaWikiAuth(
+  doc: ReturnType<typeof getDocumentById>
+): Promise<MediaWikiAuth> {
   if (!doc?.mediawiki_instance_api_url) return null;
   if (doc.mediawiki_bot_username && doc.mediawiki_bot_password) {
     const cookie = await botSessionCookie(doc.mediawiki_instance_api_url, {
@@ -75,7 +81,10 @@ function clearMediaWikiInstance(docId: string): void {
 }
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const doc = getDocumentById(documentId);
-  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(apiUrl, await documentMediaWikiAuth(doc));
+  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(
+    apiUrl,
+    await documentMediaWikiAuth(doc)
+  );
   const updates: Record<string, string | null> = {};
   if (urlMetadata.fetched) {
     updates.mediawiki_canonical_server = urlMetadata.server;
@@ -142,12 +151,16 @@ docs.post('/', async (c) => {
   if (body.mediawiki_instance_api_url) {
     let auth: MediaWikiAuth;
     try {
-      auth = await proposedMediaWikiAuth(body.mediawiki_instance_api_url, body.mediawiki_bot_username, body.mediawiki_bot_password, body.mediawiki_api_key);
-    } catch { return c.json({ error: 'Invalid MediaWiki Bot Password credentials or login failed.' }, 400); }
-    const validation = await validateMediaWikiConfig(
-      body.mediawiki_instance_api_url,
-      auth
-    );
+      auth = await proposedMediaWikiAuth(
+        body.mediawiki_instance_api_url,
+        body.mediawiki_bot_username,
+        body.mediawiki_bot_password,
+        body.mediawiki_api_key
+      );
+    } catch {
+      return c.json({ error: 'Invalid MediaWiki Bot Password credentials or login failed.' }, 400);
+    }
+    const validation = await validateMediaWikiConfig(body.mediawiki_instance_api_url, auth);
     if (!validation.ok) {
       const status = validation.status === 429 ? 429 : 400;
       return c.json({ error: validation.error ?? 'Invalid MediaWiki instance config.' }, status);
@@ -182,7 +195,9 @@ docs.post('/', async (c) => {
     owner_user_id: userId,
     mediawiki_api_key: body.mediawiki_api_key ? encryptSecret(body.mediawiki_api_key) : null,
     mediawiki_bot_username: body.mediawiki_bot_username ?? null,
-    mediawiki_bot_password: body.mediawiki_bot_password ? encryptSecret(body.mediawiki_bot_password) : null,
+    mediawiki_bot_password: body.mediawiki_bot_password
+      ? encryptSecret(body.mediawiki_bot_password)
+      : null,
   };
   db.insert(schema.documents).values(doc).run();
   if (doc.mediawiki_instance_api_url) {
@@ -249,17 +264,23 @@ docs.patch('/:id', async (c) => {
       return c.json({ error: 'Only the owner may change document settings' }, 403);
     }
   }
-  const targetApiUrl = body.mediawiki_instance_api_url === undefined
-    ? existingDoc.mediawiki_instance_api_url
-    : body.mediawiki_instance_api_url;
+  const targetApiUrl =
+    body.mediawiki_instance_api_url === undefined
+      ? existingDoc.mediawiki_instance_api_url
+      : body.mediawiki_instance_api_url;
   if (targetApiUrl && changesOwnerSettings) {
-    const username = body.mediawiki_bot_username !== undefined
-      ? body.mediawiki_bot_username : existingDoc.mediawiki_bot_username;
-    const password = body.mediawiki_bot_password !== undefined
-      ? body.mediawiki_bot_password
-      : existingDoc.mediawiki_bot_password ? decryptSecret(existingDoc.mediawiki_bot_password) : null;
-    const bearer = body.mediawiki_api_key !== undefined
-      ? body.mediawiki_api_key : documentApiKey(existingDoc);
+    const username =
+      body.mediawiki_bot_username !== undefined
+        ? body.mediawiki_bot_username
+        : existingDoc.mediawiki_bot_username;
+    const password =
+      body.mediawiki_bot_password !== undefined
+        ? body.mediawiki_bot_password
+        : existingDoc.mediawiki_bot_password
+          ? decryptSecret(existingDoc.mediawiki_bot_password)
+          : null;
+    const bearer =
+      body.mediawiki_api_key !== undefined ? body.mediawiki_api_key : documentApiKey(existingDoc);
     let auth: MediaWikiAuth;
     try {
       auth = await proposedMediaWikiAuth(targetApiUrl, username, password, bearer);
@@ -268,14 +289,21 @@ docs.patch('/:id', async (c) => {
     }
     const validation = await validateMediaWikiConfig(targetApiUrl, auth);
     if (!validation.ok) {
-      return c.json({ error: validation.error ?? 'Invalid MediaWiki instance config.' }, validation.status === 429 ? 429 : 400);
+      return c.json(
+        { error: validation.error ?? 'Invalid MediaWiki instance config.' },
+        validation.status === 429 ? 429 : 400
+      );
     }
   }
   if (body.title !== undefined) updates.title = body.title;
   if (body.expiry !== undefined) updates.expiry = body.expiry;
   if (body.visibility !== undefined) updates.visibility = body.visibility;
-  if (body.mediawiki_bot_username !== undefined) updates.mediawiki_bot_username = body.mediawiki_bot_username;
-  if (body.mediawiki_bot_password !== undefined) updates.mediawiki_bot_password = body.mediawiki_bot_password ? encryptSecret(body.mediawiki_bot_password) : null;
+  if (body.mediawiki_bot_username !== undefined)
+    updates.mediawiki_bot_username = body.mediawiki_bot_username;
+  if (body.mediawiki_bot_password !== undefined)
+    updates.mediawiki_bot_password = body.mediawiki_bot_password
+      ? encryptSecret(body.mediawiki_bot_password)
+      : null;
   if (body.mediawiki_api_key !== undefined) {
     updates.mediawiki_api_key = body.mediawiki_api_key
       ? encryptSecret(body.mediawiki_api_key)
@@ -318,7 +346,11 @@ docs.patch('/:id', async (c) => {
   const doc = getDocumentById(id);
   const refreshApiUrl =
     body.mediawiki_instance_api_url ??
-    (body.mediawiki_api_key !== undefined || body.mediawiki_bot_username !== undefined || body.mediawiki_bot_password !== undefined ? doc?.mediawiki_instance_api_url : null);
+    (body.mediawiki_api_key !== undefined ||
+    body.mediawiki_bot_username !== undefined ||
+    body.mediawiki_bot_password !== undefined
+      ? doc?.mediawiki_instance_api_url
+      : null);
   if (refreshApiUrl) {
     refreshDocumentMediaWikiCssInBackground(id, refreshApiUrl);
   }
