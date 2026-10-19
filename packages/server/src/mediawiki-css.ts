@@ -155,7 +155,7 @@ export async function fetchMediaWikiCssAndUrlMetadata(
       loadUrl.searchParams.set('modules', RESOURCE_LOADER_MODULES.join('|'));
       const res = await serverFetch(loadUrl.toString(), {
         redirect: 'manual',
-      headers: mediaWikiHeaders({ Accept: 'text/css,*/*;q=0.1' }, accessToken),
+        headers: mediaWikiHeaders({ Accept: 'text/css,*/*;q=0.1' }, accessToken),
       });
       const css = await readCssResponse(res, 'ResourceLoader');
       if (css?.trim()) cssParts.push(`/* ResourceLoader: ${skinCode} */\n${css}`);
@@ -178,7 +178,7 @@ export async function fetchMediaWikiCssAndUrlMetadata(
         });
         const res = await serverFetch(url, {
           redirect: 'manual',
-      headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
+          headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
         });
         const data = await readMediaWikiJson<{
           query?: { pages?: Record<string, { revisions?: Array<{ '*': string }> }> };
