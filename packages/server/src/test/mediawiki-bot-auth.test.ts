@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { mockServerFetch } = vi.hoisted(() => ({ mockServerFetch: vi.fn() }));
 vi.mock('server-fetch', () => ({ serverFetch: mockServerFetch }));
 
-import { botSessionCookie, loginWithBotPassword } from '../mediawiki-bot-auth.js';
+import { botSessionCookie, invalidateBotSession, loginWithBotPassword } from '../mediawiki-bot-auth.js';
 import { mediaWikiHeaders } from '../mediawiki-http.js';
 
 const apiUrl = 'https://private.example/w/api.php';
@@ -45,6 +45,33 @@ describe('MediaWiki Bot Password authentication', () => {
     expect(new URLSearchParams(options.body).get('lgtoken')).toBe('LOGIN_TOKEN');
     expect(mediaWikiHeaders({}, { cookie })).toMatchObject({ Cookie: cookie });
     expect(mediaWikiHeaders({}, { cookie })).not.toHaveProperty('Authorization');
+  });
+
+  it('invalidates a cached bot session and logs in again on demand', async () => {
+    let count = 0;
+    mockServerFetch.mockImplementation(async (_url: string, options?: { method?: string }) => {
+      if (options?.method === 'POST') {
+        count++;
+        return {
+          ok: true,
+          headers: { get: (name: string) => name === 'set-cookie' ? `session=login-${count}` : null },
+          json: async () => ({ login: { result: 'Success' } }),
+        };
+      }
+      return {
+        ok: true,
+        headers: { get: () => 'session=initial' },
+        json: async () => ({ query: { tokens: { logintoken: 'token' } } }),
+      };
+    });
+    const bot = { username: 'Refresh@WikiCollab', password: 'refresh-password' };
+    const first = await botSessionCookie(apiUrl, bot, true);
+    expect(await botSessionCookie(apiUrl, bot)).toBe(first);
+    expect(count).toBe(1);
+    invalidateBotSession(apiUrl, bot);
+    const second = await botSessionCookie(apiUrl, bot);
+    expect(second).not.toBe(first);
+    expect(count).toBe(2);
   });
 
   it('rejects failed credentials without returning a session', async () => {
