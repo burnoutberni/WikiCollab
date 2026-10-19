@@ -32,6 +32,8 @@ function apiDocument(doc: ReturnType<typeof getDocumentById>, userId: string | n
   } = doc;
   return {
     ...safe,
+    owner_user_id: userId && doc.owner_user_id === userId ? doc.owner_user_id : null,
+    mediawiki_bot_username: userId && doc.owner_user_id === userId ? doc.mediawiki_bot_username : null,
     is_owner: Boolean(userId && doc.owner_user_id === userId),
     has_mediawiki_api_key: Boolean(encryptedKey),
     has_mediawiki_bot_password: Boolean(encryptedPassword),
@@ -113,13 +115,18 @@ async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): 
     apiUrl,
     await documentMediaWikiAuth(doc)
   );
+  const current = getDocumentById(documentId);
+  if (!current || current.mediawiki_instance_api_url !== apiUrl ||
+      current.mediawiki_api_key !== doc.mediawiki_api_key ||
+      current.mediawiki_bot_password !== doc.mediawiki_bot_password ||
+      current.mediawiki_bot_username !== doc.mediawiki_bot_username) return;
   const updates: Record<string, string | null> = {};
   if (urlMetadata.fetched) {
     updates.mediawiki_canonical_server = urlMetadata.server;
     updates.mediawiki_article_path = urlMetadata.articlePath;
     updates.mediawiki_script_path = urlMetadata.scriptPath;
   }
-  if (css !== null) updates.mediawiki_instance_css = css;
+  updates.mediawiki_instance_css = css;
   if (Object.keys(updates).length === 0) return;
   db.update(schema.documents)
     .set(updates)
@@ -313,6 +320,9 @@ docs.patch('/:id', async (c) => {
     if (body.mediawiki_bot_password === undefined) updates.mediawiki_bot_password = null;
     if (body.mediawiki_bot_username === undefined) updates.mediawiki_bot_username = null;
   }
+  if (body.mediawiki_api_key === '' || body.mediawiki_bot_username === '' || body.mediawiki_bot_password === '') {
+    return c.json({ error: 'Credentials cannot be empty; use null to remove them' }, 400);
+  }
   if (targetApiUrl && changesMediaWikiConnection) {
     const username =
       body.mediawiki_bot_username !== undefined
@@ -355,6 +365,7 @@ docs.patch('/:id', async (c) => {
     updates.mediawiki_bot_password = body.mediawiki_bot_password
       ? encryptSecret(body.mediawiki_bot_password)
       : null;
+  if (changesMediaWikiConnection) updates.mediawiki_instance_css = null;
   if (body.mediawiki_api_key !== undefined) {
     updates.mediawiki_api_key = body.mediawiki_api_key
       ? encryptSecret(body.mediawiki_api_key)
