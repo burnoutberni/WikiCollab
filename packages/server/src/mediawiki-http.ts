@@ -16,7 +16,6 @@ export function assertCredentialTransport(apiUrl: string, auth?: MediaWikiAuth):
   }
 }
 
-
 export function mediaWikiHeaders(
   headers: Record<string, string> = {},
   accessToken?: MediaWikiAuth
