@@ -10,10 +10,15 @@ const pending = new Map<string, Promise<string>>();
 const TTL = 20 * 60_000;
 
 function sessionKey(apiUrl: string, bot: BotCredentials): string {
-  return createHash('sha256').update(JSON.stringify([apiUrl, bot.username, bot.password])).digest('hex');
+  return createHash('sha256')
+    .update(JSON.stringify([apiUrl, bot.username, bot.password]))
+    .digest('hex');
 }
 
-function mergeCookies(jar: Map<string, string>, response: { headers: { get(name: string): string | null; getSetCookie?: () => string[] } }): void {
+function mergeCookies(
+  jar: Map<string, string>,
+  response: { headers: { get(name: string): string | null; getSetCookie?: () => string[] } }
+): void {
   const headers = response.headers.getSetCookie?.() ?? [response.headers.get('set-cookie') ?? ''];
   for (const header of headers) {
     // Split combined Set-Cookie values while preserving Expires dates.
@@ -41,7 +46,9 @@ export async function loginWithBotPassword(apiUrl: string, bot: BotCredentials):
   });
   if (!tokenResponse.ok) throw new Error('Could not fetch MediaWiki login token');
   mergeCookies(jar, tokenResponse);
-  const tokenData = (await tokenResponse.json()) as { query?: { tokens?: { logintoken?: string } } };
+  const tokenData = (await tokenResponse.json()) as {
+    query?: { tokens?: { logintoken?: string } };
+  };
   const token = tokenData.query?.tokens?.logintoken;
   if (!token) throw new Error('MediaWiki did not provide a login token');
 
@@ -63,7 +70,8 @@ export async function loginWithBotPassword(apiUrl: string, bot: BotCredentials):
   if (!loginResponse.ok) throw new Error('MediaWiki bot login failed');
   mergeCookies(jar, loginResponse);
   const data = (await loginResponse.json()) as { login?: { result?: string } };
-  if (data.login?.result !== 'Success') throw new Error('MediaWiki rejected the Bot Password credentials');
+  if (data.login?.result !== 'Success')
+    throw new Error('MediaWiki rejected the Bot Password credentials');
   const cookie = cookieHeader(jar);
   if (!cookie) throw new Error('MediaWiki login did not return session cookies');
   return cookie;
@@ -80,11 +88,13 @@ export async function botSessionCookie(
   if (cached && cached.expires > Date.now()) return cached.cookie;
   const inflight = pending.get(key);
   if (inflight) return inflight;
-  const promise = loginWithBotPassword(apiUrl, bot).then((cookie) => {
-    sessions.set(key, { cookie, expires: Date.now() + TTL });
-    if (sessions.size > 100) sessions.delete(sessions.keys().next().value!);
-    return cookie;
-  }).finally(() => pending.delete(key));
+  const promise = loginWithBotPassword(apiUrl, bot)
+    .then((cookie) => {
+      sessions.set(key, { cookie, expires: Date.now() + TTL });
+      if (sessions.size > 100) sessions.delete(sessions.keys().next().value!);
+      return cookie;
+    })
+    .finally(() => pending.delete(key));
   pending.set(key, promise);
   return promise;
 }
