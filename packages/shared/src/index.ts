@@ -25,6 +25,8 @@ export interface Document {
   owner_user_id: string | null;
   is_owner: boolean;
   has_mediawiki_api_key: boolean;
+  mediawiki_bot_username: string | null;
+  has_mediawiki_bot_password: boolean;
 }
 
 /** Revision history metadata. Content is loaded separately through preview/restore. */
@@ -48,6 +50,8 @@ export interface CreateDocumentRequest {
   mediawiki_instance_name?: string | null;
   mediawiki_instance_api_url?: string | null;
   mediawiki_api_key?: string | null;
+  mediawiki_bot_username?: string | null;
+  mediawiki_bot_password?: string | null;
 }
 
 /** Request body accepted when patching mutable document metadata. */
