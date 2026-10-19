@@ -189,7 +189,11 @@ export function Dashboard() {
                   <CardDescription className="mb-4">
                     Create your first document to get started
                   </CardDescription>
-                  {user ? <NewDocumentButton onCreate={handleCreate} /> : <a href="/auth/login">Log in to create a document</a>}
+                  {user ? (
+                    <NewDocumentButton onCreate={handleCreate} />
+                  ) : (
+                    <a href="/auth/login">Log in to create a document</a>
+                  )}
                 </CardContent>
               </Card>
             ) : filtered.length === 0 ? (
