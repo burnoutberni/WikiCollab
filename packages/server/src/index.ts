@@ -61,6 +61,7 @@ app.use(
     origin: getAllowedOrigins(),
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowHeaders: ['Content-Type'],
+    credentials: true,
   })
 );
 
