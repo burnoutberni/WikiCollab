@@ -31,8 +31,10 @@ export function useAuth() {
   }, [refresh]);
 
   const logout = useCallback(async () => {
-    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    const response = await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    if (!response.ok) throw new Error('Logout failed');
     setUser(null);
+    window.location.assign('/');
   }, []);
 
   return { user, loading, refresh, logout };
