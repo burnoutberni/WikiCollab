@@ -32,7 +32,11 @@ function remotePreviewKey(
   wikitext: string,
   accessToken?: MediaWikiAuth
 ): string {
-  const authScope = accessToken ? createHash('sha256').update(typeof accessToken === 'string' ? accessToken : accessToken.cookie).digest('base64url') : '';
+  const authScope = accessToken
+    ? createHash('sha256')
+        .update(typeof accessToken === 'string' ? accessToken : accessToken.cookie)
+        .digest('base64url')
+    : '';
   return createHash('sha256')
     .update(`${apiUrl}\0${page || ''}\0${wikitext}\0${authScope}`)
     .digest('base64url');
@@ -43,7 +47,11 @@ function remotePreviewTargetKey(
   page: string | null | undefined,
   accessToken?: MediaWikiAuth
 ): string {
-  const authScope = accessToken ? createHash('sha256').update(typeof accessToken === 'string' ? accessToken : accessToken.cookie).digest('base64url') : '';
+  const authScope = accessToken
+    ? createHash('sha256')
+        .update(typeof accessToken === 'string' ? accessToken : accessToken.cookie)
+        .digest('base64url')
+    : '';
   return `${apiUrl}\0${page || ''}\0${authScope}`;
 }
 
