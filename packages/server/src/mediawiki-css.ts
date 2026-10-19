@@ -1,7 +1,12 @@
 import { serverFetch, SsrfError } from 'server-fetch';
 
 import { logger } from './logging.js';
-import { assertCredentialTransport, type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJson } from './mediawiki-http.js';
+import {
+  assertCredentialTransport,
+  type MediaWikiAuth,
+  mediaWikiHeaders,
+  readMediaWikiJson,
+} from './mediawiki-http.js';
 import {
   emptyMediaWikiUrlMetadata,
   type MediaWikiUrlMetadataResult,
