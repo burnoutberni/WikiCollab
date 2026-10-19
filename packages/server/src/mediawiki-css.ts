@@ -134,7 +134,7 @@ export async function fetchMediaWikiCssAndUrlMetadata(
       format: 'json',
     });
     const siteInfoRes = await serverFetch(siteInfoUrl, {
-      redirect: 'manual',
+      ...(accessToken ? { redirect: 'manual' as const } : {}),
       headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
     });
     const siteInfoData = await readMediaWikiJson<{
@@ -160,7 +160,7 @@ export async function fetchMediaWikiCssAndUrlMetadata(
       loadUrl.searchParams.set('only', 'styles');
       loadUrl.searchParams.set('modules', RESOURCE_LOADER_MODULES.join('|'));
       const res = await serverFetch(loadUrl.toString(), {
-        redirect: 'manual',
+        ...(accessToken ? { redirect: 'manual' as const } : {}),
         headers: mediaWikiHeaders({ Accept: 'text/css,*/*;q=0.1' }, accessToken),
       });
       const css = await readCssResponse(res, 'ResourceLoader');
@@ -183,7 +183,7 @@ export async function fetchMediaWikiCssAndUrlMetadata(
           format: 'json',
         });
         const res = await serverFetch(url, {
-          redirect: 'manual',
+          ...(accessToken ? { redirect: 'manual' as const } : {}),
           headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken),
         });
         const data = await readMediaWikiJson<{
