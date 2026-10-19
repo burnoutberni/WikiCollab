@@ -29,6 +29,9 @@ const mockDoc = {
   mediawiki_script_path: '/w',
   restored_version_id: null,
   visibility: 'public' as DocumentVisibility,
+  owner_user_id: 'user-1',
+  is_owner: true,
+  has_mediawiki_api_key: false,
 };
 
 const mockNavigate = vi.fn();
@@ -50,8 +53,11 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 vi.mock('@/hooks/useApi', () => ({
   API_BASE: '/api',
+  apiFetch: (...args: Parameters<typeof fetch>) => fetch(...args),
   useDocument: vi.fn(),
 }));
+
+vi.mock('@/components/AuthControls', () => ({ AuthControls: () => <div>AuthControls</div> }));
 
 vi.mock('@/hooks/useEditorLock', () => ({
   useEditorLock: vi.fn(),
