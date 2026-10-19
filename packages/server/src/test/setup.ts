@@ -5,6 +5,13 @@ import { migrateRevisionStorage } from '../db/revision-storage.js';
 import * as schema from '../db/schema.js';
 
 const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    wiki_username TEXT NOT NULL,
+    oauth_access_token TEXT,
+    oauth_refresh_token TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL DEFAULT 'Untitled',
@@ -19,7 +26,9 @@ const SCHEMA_SQL = `
     mediawiki_article_path TEXT,
     mediawiki_script_path TEXT,
     restored_version_id TEXT,
-    visibility TEXT NOT NULL DEFAULT 'public'
+    visibility TEXT NOT NULL DEFAULT 'public',
+    owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    mediawiki_api_key TEXT
   );
   CREATE TABLE IF NOT EXISTS document_revisions (
     id TEXT PRIMARY KEY,
