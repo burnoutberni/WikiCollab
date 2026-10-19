@@ -386,7 +386,8 @@ async function fetchRemotePreview(
       }
 
       const html = result.data?.parse?.text?.['*'];
-      if (!html) return { status: 'broken', statusCode: res.status, errorCode: result.data?.error?.code };
+      if (!html)
+        return { status: 'broken', statusCode: res.status, errorCode: result.data?.error?.code };
 
       const expiresAt = Date.now() + REMOTE_PREVIEW_CACHE_TTL_MS;
       remotePreviewCache.set(cacheKey, { html, expiresAt });
