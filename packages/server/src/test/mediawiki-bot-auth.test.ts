@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { mockServerFetch } = vi.hoisted(() => ({ mockServerFetch: vi.fn() }));
 vi.mock('server-fetch', () => ({ serverFetch: mockServerFetch }));
 
-import { botSessionCookie, invalidateBotSession, loginWithBotPassword } from '../mediawiki-bot-auth.js';
+import {
+  botSessionCookie,
+  invalidateBotSession,
+  loginWithBotPassword,
+} from '../mediawiki-bot-auth.js';
 import { mediaWikiHeaders } from '../mediawiki-http.js';
 
 const apiUrl = 'https://private.example/w/api.php';
@@ -54,7 +58,9 @@ describe('MediaWiki Bot Password authentication', () => {
         count++;
         return {
           ok: true,
-          headers: { get: (name: string) => name === 'set-cookie' ? `session=login-${count}` : null },
+          headers: {
+            get: (name: string) => (name === 'set-cookie' ? `session=login-${count}` : null),
+          },
           json: async () => ({ login: { result: 'Success' } }),
         };
       }
