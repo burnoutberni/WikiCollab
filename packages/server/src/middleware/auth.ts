@@ -52,7 +52,10 @@ function unsealSession(value: string): SessionData | null {
 }
 export function readSession(c: Context): SessionData | null {
   const header = c.req.header('Cookie');
-  const part = header?.split(';').map((item) => item.trim()).find((item) => item.startsWith(`${COOKIE_NAME}=`));
+  const part = header
+    ?.split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${COOKIE_NAME}=`));
   if (!part) return null;
   try {
     return unsealSession(decodeURIComponent(part.slice(COOKIE_NAME.length + 1)));
