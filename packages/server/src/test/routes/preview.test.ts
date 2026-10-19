@@ -851,6 +851,21 @@ describe('Preview route sanitization', () => {
       consoleWarn.mockRestore();
     });
 
+    it('logs blocked SSRF preview attempts with their URL', async () => {
+      const { SsrfError } = await import('server-fetch');
+      const { logger } = await import('../../logging.js');
+      const errorLog = vi.spyOn(logger, 'error').mockImplementation(() => logger);
+      const blockedUrl = 'http://127.0.0.1/private';
+      mockServerFetch.mockRejectedValueOnce(new SsrfError(blockedUrl));
+      const result = await generatePreview('blocked', 'https://wiki.example.com/w/api.php', 'Page');
+      expect(result.renderer).toBe('error');
+      expect(errorLog).toHaveBeenCalledWith(
+        { url: blockedUrl },
+        'SSRF blocked fetching MediaWiki preview'
+      );
+      errorLog.mockRestore();
+    });
+
     it('does not fall back to the local parser when the configured instance is broken', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
