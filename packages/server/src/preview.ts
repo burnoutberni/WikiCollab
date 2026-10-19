@@ -4,7 +4,7 @@ import { serverFetch, SsrfError } from 'server-fetch';
 import { absolutizeMediaWikiUrl } from 'shared';
 
 import { logger } from './logging.js';
-import { mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';
+import { type MediaWikiAuth, mediaWikiHeaders, readMediaWikiJsonResult } from './mediawiki-http.js';
 
 const REMOTE_PREVIEW_CACHE_TTL_MS = 30_000;
 const REMOTE_PREVIEW_THROTTLE_MS = 1_500;
@@ -30,9 +30,9 @@ function remotePreviewKey(
   apiUrl: string,
   page: string | null | undefined,
   wikitext: string,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): string {
-  const authScope = accessToken ? createHash('sha256').update(accessToken).digest('base64url') : '';
+  const authScope = accessToken ? createHash('sha256').update(typeof accessToken === 'string' ? accessToken : accessToken.cookie).digest('base64url') : '';
   return createHash('sha256')
     .update(`${apiUrl}\0${page || ''}\0${wikitext}\0${authScope}`)
     .digest('base64url');
