@@ -86,22 +86,6 @@ async function proposedMediaWikiAuth(
   return bearer ?? null;
 }
 
-function clearMediaWikiInstance(docId: string): void {
-  db.update(schema.documents)
-    .set({
-      mediawiki_instance_name: null,
-      mediawiki_instance_api_url: null,
-      mediawiki_instance_css: null,
-      mediawiki_api_key: null,
-      mediawiki_bot_username: null,
-      mediawiki_bot_password: null,
-      mediawiki_canonical_server: null,
-      mediawiki_article_path: null,
-      mediawiki_script_path: null,
-    })
-    .where(eq(schema.documents.id, docId))
-    .run();
-}
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const doc = getDocumentById(documentId);
   const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(
