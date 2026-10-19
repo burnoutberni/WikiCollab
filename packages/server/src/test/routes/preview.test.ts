@@ -851,6 +851,18 @@ describe('Preview route sanitization', () => {
       consoleWarn.mockRestore();
     });
 
+    it('follows redirects only for anonymous remote previews', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: async () => ({ parse: { text: { '*': '<p>Rendered</p>' } } }),
+      });
+      const apiUrl = 'https://wiki.example.com/w/api.php';
+      await generatePreview('anon-redirect', apiUrl, 'Page');
+      await generatePreview('bearer-redirect', apiUrl, 'Page', null, null, 'test-access-token');
+      expect(mockServerFetch).toHaveBeenCalledTimes(2);
+      expect(mockServerFetch.mock.calls[0][1].redirect).toBeUndefined();
+      expect(mockServerFetch.mock.calls[1][1].redirect).toBe('manual');
+    });
+
     it('logs blocked SSRF preview attempts with their URL', async () => {
       const { SsrfError } = await import('server-fetch');
       const { logger } = await import('../../logging.js');
