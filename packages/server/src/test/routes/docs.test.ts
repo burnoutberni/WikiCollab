@@ -473,6 +473,48 @@ describe('Docs routes', () => {
     expect(stored.mediawiki_api_key).not.toContain('super-secret-token');
   });
 
+  it('does not send stored bearer tokens or Bot Passwords to another wiki origin', async () => {
+    const original = 'https://old.example/w/api.php';
+    const replacement = 'https://new.example/w/api.php';
+    const encrypted = (await import('../../middleware/encryption.js')).encryptSecret;
+    mockDbModule.db.insert(schema.documents).values({
+      id: 'origin-doc',
+      title: 'Origin-bound credentials',
+      content: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      owner_user_id: 'owner-1',
+      mediawiki_instance_api_url: original,
+      mediawiki_api_key: encrypted('old-bearer-secret'),
+      mediawiki_bot_username: 'Owner@Bot',
+      mediawiki_bot_password: encrypted('old-bot-secret'),
+    }).run();
+    mockServerFetch.mockImplementation(async (url: string, options: { headers?: Record<string, string> }) => {
+      if (String(url).startsWith('https://new.example')) {
+        expect(options.headers?.Authorization).toBeUndefined();
+        expect(options.headers?.Cookie).toBeUndefined();
+      }
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        text: async () => '',
+        json: async () => ({ query: { general: { server: 'https://new.example' } } }),
+      };
+    });
+    const response = await app.request('/api/docs/origin-doc', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediawiki_instance_api_url: replacement }),
+    });
+    expect(response.status).toBe(200);
+    const persisted = mockDbModule.db.select().from(schema.documents)
+      .where(eq(schema.documents.id, 'origin-doc')).get();
+    expect(persisted.mediawiki_api_key).toBeNull();
+    expect(persisted.mediawiki_bot_username).toBeNull();
+    expect(persisted.mediawiki_bot_password).toBeNull();
+  });
+
   it('PATCH /:id updates a document', async () => {
     const createRes = await app.request('/api/docs', {
       method: 'POST',
