@@ -32,6 +32,8 @@ const mockDoc = {
   owner_user_id: 'user-1',
   is_owner: true,
   has_mediawiki_api_key: false,
+    mediawiki_bot_username: null,
+    has_mediawiki_bot_password: false,
 };
 
 const mockNavigate = vi.fn();
