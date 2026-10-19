@@ -367,7 +367,7 @@ docs.post('/:id/preview', async (c) => {
     refreshDocumentMediaWikiCssInBackground(id, doc.mediawiki_instance_api_url);
   }
   try {
-    const { html, remoteStatusCode } = await generatePreview(
+    const { html, renderer, remoteStatusCode } = await generatePreview(
       wikitext,
       doc.mediawiki_instance_api_url,
       page,
@@ -384,7 +384,7 @@ docs.post('/:id/preview', async (c) => {
       clearMediaWikiInstance(id);
       css = null;
     }
-    return c.json({ html, css });
+    return c.json({ html, css, renderer });
   } catch (err) {
     logger.error(
       { docId: id, err: err instanceof Error ? err.message : String(err) },
@@ -393,6 +393,7 @@ docs.post('/:id/preview', async (c) => {
     return c.json({
       html: '<p class="text-red-500">Failed to generate preview</p>',
       css: doc.mediawiki_instance_css,
+      renderer: doc.mediawiki_instance_api_url ? 'error' : 'local',
     });
   }
 });

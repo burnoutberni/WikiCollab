@@ -378,6 +378,96 @@ describe('SplitPaneEditor', () => {
     expect(getPreviewShadowRoot().textContent).toContain('Collapsed peer preview');
   });
 
+  it('reports the renderer from websocket preview updates', async () => {
+    let previewUpdate: (payload: {
+      html: string;
+      page: string;
+      requestId?: string;
+      renderer?: string;
+    }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_update') previewUpdate = handler as typeof previewUpdate;
+      return vi.fn();
+    });
+    const onRendererStatus = vi.fn();
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        onRendererStatus={onRendererStatus}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    act(() => {
+      previewUpdate({
+        html: '<p>Peer preview</p>',
+        page: 'Same Page',
+        requestId: sendCustomMessage.mock.calls[0][1].requestId,
+        renderer: 'mediawiki',
+      });
+    });
+
+    expect(onRendererStatus).toHaveBeenCalledWith('mediawiki');
+  });
+
+  it('reports an error renderer when the websocket preview errors', async () => {
+    let previewError: (payload: { page: string; requestId?: string }) => void = () => {};
+    const sendCustomMessage = vi.fn();
+    const onCustomMessage = vi.fn((type, handler) => {
+      if (type === 'preview_error') previewError = handler as typeof previewError;
+      return vi.fn();
+    });
+    const onRendererStatus = vi.fn();
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        apiUrl="https://wiki.example.com/w/api.php"
+        title="Same Page"
+        provider={{ ws: { readyState: WebSocket.OPEN } } as never}
+        sendCustomMessage={sendCustomMessage}
+        onCustomMessage={onCustomMessage}
+        onRendererStatus={onRendererStatus}
+      />
+    );
+
+    await vi.waitFor(() => expect(sendCustomMessage).toHaveBeenCalledTimes(1));
+    act(() => {
+      previewError({
+        page: 'Same Page',
+        requestId: sendCustomMessage.mock.calls[0][1].requestId,
+      });
+    });
+
+    expect(onRendererStatus).toHaveBeenCalledWith('error');
+  });
+
+  it('reports the renderer from HTTP preview responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ html: '<p>HTTP preview</p>', css: null, renderer: 'mediawiki' }),
+    });
+    global.fetch = fetchMock;
+    const onRendererStatus = vi.fn();
+
+    renderWithProviders(
+      <SplitPaneEditor
+        {...defaultProps}
+        apiUrl="https://wiki.example.com/w/api.php"
+        onRendererStatus={onRendererStatus}
+      />
+    );
+
+    await vi.waitFor(() => expect(onRendererStatus).toHaveBeenCalledWith('mediawiki'));
+  });
+
   it('falls back to HTTP preview when websocket preview times out', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue({

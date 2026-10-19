@@ -1,5 +1,6 @@
-import { ExternalLink, Pencil, Plus, Server, X } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Pencil, Plus, Server, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PreviewRenderer } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +36,8 @@ const WIKI_PRESETS: { name: string; api_url: string }[] = [
 interface InstanceManagerProps {
   name: string | null;
   apiUrl: string | null;
+  /** Renderer that produced the latest preview; drives the failure state. */
+  renderer?: PreviewRenderer;
   hasApiKey?: boolean;
   botUsername?: string | null;
   hasBotPassword?: boolean;
@@ -52,6 +55,7 @@ interface InstanceManagerProps {
 export function InstanceManager({
   name,
   apiUrl,
+  renderer,
   hasApiKey = false,
   botUsername = null,
   hasBotPassword = false,
@@ -75,6 +79,7 @@ export function InstanceManager({
   const listRef = useRef<HTMLDivElement>(null);
 
   const configured = Boolean(name && apiUrl);
+  const renderError = configured && renderer === 'error';
   const wikiBaseUrl = apiUrl ? getWikiBaseUrl(apiUrl) : null;
   const nameListboxId = 'instance-name-presets';
   const activePresetId =
@@ -207,17 +212,29 @@ export function InstanceManager({
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-2">
+      <div className={`flex items-center gap-2 mb-2 ${renderError ? 'text-destructive' : ''}`}>
         <Server className="h-4 w-4" />
         <h3 className="text-sm font-medium">MediaWiki Instance</h3>
+        {renderError && (
+          <span className="ml-auto text-xs font-medium" data-testid="instance-render-error">
+            Renderer failed
+          </span>
+        )}
       </div>
 
       {configured ? (
-        <div className="rounded-md border p-3">
+        <div
+          className={`rounded-md border p-3 ${renderError ? 'border-destructive bg-destructive/10' : ''}`}
+          data-testid="instance-config-card"
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{name}</span>
+                <span
+                  className={`text-sm font-medium truncate ${renderError ? 'text-destructive' : ''}`}
+                >
+                  {name}
+                </span>
                 {wikiBaseUrl && (
                   <a
                     href={wikiBaseUrl}
@@ -263,6 +280,18 @@ export function InstanceManager({
               <TooltipContent>Clear instance</TooltipContent>
             </Tooltip>
           </div>
+          {renderError && (
+            <p
+              className="mt-2 flex items-start gap-1.5 text-xs text-destructive"
+              data-testid="instance-render-error-detail"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                This instance failed to render the preview. WikiCollab does not fall back to the
+                built-in renderer while an instance is configured.
+              </span>
+            </p>
+          )}
           {instanceError && <p className="mt-2 text-sm text-destructive">{instanceError}</p>}
         </div>
       ) : (

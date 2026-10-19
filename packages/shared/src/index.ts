@@ -87,6 +87,9 @@ export interface SourceMapEntry {
   blockIndex: number;
 }
 
+/** Which renderer produced a preview payload. */
+export type PreviewRenderer = 'mediawiki' | 'local' | 'error';
+
 /** Preview response returned by the server preview endpoint. */
 export interface PreviewResponse {
   html: string;

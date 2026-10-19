@@ -76,6 +76,7 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
+      expect(data.renderer).toBe('local');
       expect(data.html).not.toContain('<script>');
       expect(data.html).not.toContain('alert');
       expect(data.html).toContain('<p>Hello</p>');
@@ -561,6 +562,7 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
+      expect(data.renderer).toBe('mediawiki');
       expect(data.html).toContain('<p>Content</p>');
       expect(data.html).not.toContain('<script>');
       expect(data.html).not.toContain('hack');
@@ -809,7 +811,7 @@ describe('Preview route sanitization', () => {
       consoleWarn.mockRestore();
     });
 
-    it('falls back to local parser when the configured instance is broken', async () => {
+    it('does not fall back to the local parser when the configured instance is broken', async () => {
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockParser.toHtml.mockReturnValue('<p>Built-in fallback</p>');
       mockServerFetch.mockRejectedValue(new Error('connection failed'));
@@ -826,7 +828,10 @@ describe('Preview route sanitization', () => {
       });
       const data = await res.json();
 
-      expect(data.html).toContain('<p>Built-in fallback</p>');
+      expect(data.renderer).toBe('error');
+      expect(data.html).toContain('could not render this preview');
+      expect(data.html).not.toContain('Built-in fallback');
+      expect(mockParser.toHtml).not.toHaveBeenCalled();
       consoleWarn.mockRestore();
     });
 
@@ -846,11 +851,18 @@ describe('Preview route sanitization', () => {
       rejectFetch(new Error('connection failed'));
 
       await expect(first).resolves.toEqual(
-        expect.objectContaining({ html: '<p>Built-in fallback</p>' })
+        expect.objectContaining({
+          renderer: 'error',
+          html: expect.stringContaining('could not render this preview'),
+        })
       );
       await expect(second).resolves.toEqual(
-        expect.objectContaining({ html: '<p>Built-in fallback</p>' })
+        expect.objectContaining({
+          renderer: 'error',
+          html: expect.stringContaining('could not render this preview'),
+        })
       );
+      expect(mockParser.toHtml).not.toHaveBeenCalled();
       consoleWarn.mockRestore();
     });
 

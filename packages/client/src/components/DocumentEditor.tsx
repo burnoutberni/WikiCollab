@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Document, DocumentVisibility } from 'shared';
+import type { Document, DocumentVisibility, PreviewRenderer } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -156,6 +156,11 @@ export function DocumentEditor() {
   const [botUsername, setBotUsername] = useState<string | null>(null);
   const [hasBotPassword, setHasBotPassword] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const [previewRenderer, setPreviewRenderer] = useState<PreviewRenderer | null>(null);
+
+  /** Last reported preview renderer; optimistic until the first preview returns. */
+  const effectiveRenderer: PreviewRenderer =
+    previewRenderer ?? (instanceApiUrl ? 'mediawiki' : 'local');
 
   useEffect(() => {
     titleRef.current = title;
@@ -181,6 +186,7 @@ export function DocumentEditor() {
       setHasMediaWikiApiKey(doc.has_mediawiki_api_key);
       setBotUsername(doc.mediawiki_bot_username);
       setHasBotPassword(doc.has_mediawiki_bot_password);
+      setPreviewRenderer(null);
       lastPersistedVisibilityRef.current = doc.visibility;
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
@@ -390,6 +396,7 @@ export function DocumentEditor() {
         setHasMediaWikiApiKey(updatedDoc.has_mediawiki_api_key);
         setBotUsername(updatedDoc.mediawiki_bot_username);
         setHasBotPassword(updatedDoc.has_mediawiki_bot_password);
+        setPreviewRenderer(null);
         setPreviewRefreshKey((key) => key + 1);
         lastPersistedInstanceRef.current = {
           name: updatedDoc.mediawiki_instance_name,
@@ -523,6 +530,8 @@ export function DocumentEditor() {
               connected={connected}
               lastConnected={lastConnected}
               collaboratorCount={collaboratorCount}
+              renderer={effectiveRenderer}
+              instanceName={instanceName}
               onReconnect={provider ? () => provider.connect() : undefined}
               peers={peers}
               userName={userName}
@@ -663,6 +672,7 @@ export function DocumentEditor() {
                       <InstanceManager
                         name={instanceName}
                         apiUrl={instanceApiUrl}
+                        renderer={effectiveRenderer}
                         hasApiKey={hasMediaWikiApiKey}
                         botUsername={botUsername}
                         hasBotPassword={hasBotPassword}
@@ -749,6 +759,7 @@ export function DocumentEditor() {
                 onCursorChange={handleCursorChange}
                 sendCustomMessage={sendCustomMessage}
                 onCustomMessage={onCustomMessage}
+                onRendererStatus={setPreviewRenderer}
                 initialMobileTab={isMobile ? 'preview' : 'source'}
               />
             )}
@@ -773,6 +784,8 @@ export function DocumentEditor() {
                 connected={connected}
                 lastConnected={lastConnected}
                 collaboratorCount={collaboratorCount}
+                renderer={effectiveRenderer}
+                instanceName={instanceName}
                 onReconnect={provider ? () => provider.connect() : undefined}
                 peers={peers}
                 userName={userName}
@@ -828,6 +841,7 @@ export function DocumentEditor() {
                 <InstanceManager
                   name={instanceName}
                   apiUrl={instanceApiUrl}
+                  renderer={effectiveRenderer}
                   hasApiKey={hasMediaWikiApiKey}
                   botUsername={botUsername}
                   hasBotPassword={hasBotPassword}
