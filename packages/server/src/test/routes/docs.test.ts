@@ -917,7 +917,7 @@ describe('Docs routes', () => {
     expect(text).not.toHaveBeenCalled();
   });
 
-  it('PATCH /:id preserves existing CSS and metadata when same-URL refresh fails', async () => {
+  it('PATCH /:id clears stale CSS while retaining metadata after same-URL refresh', async () => {
     mockMediaWikiSiteinfo({ server: 'https://example.com' }, []);
     mockServerFetch.mockRejectedValueOnce(new Error('siteinfo failed'));
 
@@ -956,7 +956,7 @@ describe('Docs routes', () => {
       .from(schema.documents)
       .where(eq(schema.documents.id, created.id))
       .get();
-    expect(stored?.mediawiki_instance_css).toBe('.cached{}');
+    expect(stored?.mediawiki_instance_css).toBeNull();
     expect(stored?.mediawiki_canonical_server).toBe('https://example.com');
     expect(stored?.mediawiki_article_path).toBe('/wiki/$1');
     expect(stored?.mediawiki_script_path).toBe('/w');
