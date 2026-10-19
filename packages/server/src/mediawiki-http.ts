@@ -5,9 +5,13 @@ const MEDIAWIKI_CONTACT =
 export const MEDIAWIKI_USER_AGENT = `WikiCollab/${process.env.APP_VERSION || 'dev'} (MediaWiki preview; ${MEDIAWIKI_CONTACT})`;
 const MAX_RETRY_AFTER_MS = 5 * 60_000;
 
-export function mediaWikiHeaders(headers: Record<string, string> = {}): Record<string, string> {
+export function mediaWikiHeaders(
+  headers: Record<string, string> = {},
+  accessToken?: string | null
+): Record<string, string> {
   return {
     'User-Agent': MEDIAWIKI_USER_AGENT,
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     ...headers,
   };
 }
