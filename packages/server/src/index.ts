@@ -4,8 +4,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { logger } from './logging.js';
+import { authMiddleware } from './middleware/auth.js';
 import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
 import { securityHeaders } from './middleware/security-headers.js';
+import authRoutes from './routes/auth.js';
 import docsRoutes from './routes/docs.js';
 import { startRuntimeMemoryLogging } from './runtime-memory-logging.js';
 import { setupWebSocket } from './ws/index.js';
@@ -63,11 +65,15 @@ app.use(
 );
 
 app.use('/api/*', securityHeaders());
+app.use('/api/*', authMiddleware);
+app.use('/auth/*', securityHeaders());
+app.use('/auth/*', authMiddleware);
 
 app.use('/api/docs/*', crudLimiter);
 app.use('/api/docs/:id/preview', previewLimiter);
 
 app.route('/api/docs', docsRoutes);
+app.route('/auth', authRoutes);
 
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok', version: process.env.APP_VERSION || '0.0.0' });
