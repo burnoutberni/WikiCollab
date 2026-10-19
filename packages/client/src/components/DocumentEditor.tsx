@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { API_BASE, apiFetch, useDocument } from '@/hooks/useApi';
+import { API_BASE, apiFetch, useAuth, useDocument } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { usePersistField } from '@/hooks/usePersistField';
@@ -89,6 +89,7 @@ export function DocumentEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { document: doc, loading, setDocument } = useDocument(id || null);
+  const { user: authUser } = useAuth();
   const { lockedByOther, takeOver } = useEditorLock(id || null);
   const {
     ytext,
@@ -165,6 +166,13 @@ export function DocumentEditor() {
   useEffect(() => {
     titleRef.current = title;
   }, [title]);
+
+  useEffect(() => {
+    const wikiName = authUser?.wiki_username;
+    if (wikiName && wikiName !== userName) {
+      setUserName(wikiName);
+    }
+  }, [authUser?.wiki_username, userName, setUserName]);
 
   useEffect(() => {
     if (doc) {
@@ -541,6 +549,7 @@ export function DocumentEditor() {
               content={content}
               localCursor={localCursor}
               onUserNameChange={setUserName}
+              userNameLocked={!!authUser}
               onUserColorChange={setUserColor}
               onJumpToCursor={jumpToCursor}
               onScrollToCursor={scrollToCursor}
@@ -754,6 +763,7 @@ export function DocumentEditor() {
                     content={content}
                     localCursor={localCursor}
                     onUserNameChange={setUserName}
+                    userNameLocked={!!authUser}
                     onUserColorChange={setUserColor}
                     onJumpToCursor={jumpToCursor}
                     onScrollToCursor={scrollToCursor}
@@ -794,6 +804,7 @@ export function DocumentEditor() {
                 content={content}
                 localCursor={localCursor}
                 onUserNameChange={setUserName}
+                userNameLocked={!!authUser}
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}
@@ -884,6 +895,7 @@ export function DocumentEditor() {
                 content={content}
                 localCursor={localCursor}
                 onUserNameChange={setUserName}
+                userNameLocked={!!authUser}
                 onUserColorChange={setUserColor}
                 onJumpToCursor={jumpToCursor}
                 onScrollToCursor={scrollToCursor}

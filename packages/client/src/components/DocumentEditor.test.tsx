@@ -57,6 +57,7 @@ vi.mock('@/hooks/useApi', () => ({
   API_BASE: '/api',
   apiFetch: (...args: Parameters<typeof fetch>) => fetch(...args),
   useDocument: vi.fn(),
+  useAuth: vi.fn(() => ({ user: null, loading: false })),
 }));
 
 vi.mock('@/components/AuthControls', () => ({ AuthControls: () => <div>AuthControls</div> }));

@@ -18,6 +18,7 @@ interface CollaboratorListProps {
   onLocalCursorClicked?: () => void;
   onPeerCursorClicked?: () => void;
   onFlashPeerCursor?: (peerName: string) => void;
+  userNameLocked?: boolean;
 }
 
 function posToLineCol(content: string, pos: number): { line: number; col: number } {
@@ -75,6 +76,7 @@ export function CollaboratorList({
   onLocalCursorClicked,
   onPeerCursorClicked,
   onFlashPeerCursor,
+  userNameLocked = false,
 }: CollaboratorListProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(userName);
@@ -232,7 +234,7 @@ export function CollaboratorList({
             document.body
           )}
         <div className="flex-1 min-w-0">
-          {editing ? (
+          {editing && !userNameLocked ? (
             <input
               ref={inputRef}
               type="text"
@@ -251,11 +253,15 @@ export function CollaboratorList({
             />
           ) : (
             <div
-              className="text-xs font-medium truncate cursor-pointer hover:underline"
-              onClick={() => {
-                setDraft(userName);
-                setEditing(true);
-              }}
+              className={`text-xs font-medium truncate${userNameLocked ? '' : ' cursor-pointer hover:underline'}`}
+              onClick={
+                userNameLocked
+                  ? undefined
+                  : () => {
+                      setDraft(userName);
+                      setEditing(true);
+                    }
+              }
             >
               {userName} (you)
             </div>

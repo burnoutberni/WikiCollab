@@ -31,6 +31,7 @@ interface ConnectionStatePopoverProps {
   onLocalCursorClicked?: () => void;
   onPeerCursorClicked?: () => void;
   onFlashPeerCursor?: (peerName: string) => void;
+  userNameLocked?: boolean;
 }
 
 function formatDuration(ms: number): string {
@@ -75,6 +76,7 @@ export function ConnectionStatePopover({
   onLocalCursorClicked,
   onPeerCursorClicked,
   onFlashPeerCursor,
+  userNameLocked = false,
 }: ConnectionStatePopoverProps) {
   const [now, setNow] = useState(Date.now());
   const [retrying, setRetrying] = useState(false);
@@ -212,6 +214,7 @@ export function ConnectionStatePopover({
                 onPeerCursorClicked?.();
               }}
               onFlashPeerCursor={onFlashPeerCursor}
+              userNameLocked={userNameLocked}
             />
 
             {lastConnected && (
