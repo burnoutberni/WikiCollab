@@ -34,6 +34,16 @@ describe('mediawiki-http', () => {
     expect(MEDIAWIKI_USER_AGENT).not.toContain('local development');
   });
 
+  it('adds a bearer token only when provided', async () => {
+    const { mediaWikiHeaders } = await import('../mediawiki-http.js');
+
+    expect(mediaWikiHeaders({ Accept: 'application/json' })).not.toHaveProperty('Authorization');
+    expect(mediaWikiHeaders({ Accept: 'application/json' }, 'doc-token')).toMatchObject({
+      Accept: 'application/json',
+      Authorization: 'Bearer doc-token',
+    });
+  });
+
   it('does not classify arbitrary prose as rate limited', async () => {
     const { readMediaWikiJsonResult } = await import('../mediawiki-http.js');
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
