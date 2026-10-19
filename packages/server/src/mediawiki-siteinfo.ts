@@ -67,7 +67,8 @@ export async function fetchMediaWikiUrlMetadata(
         siprop: 'general',
         format: 'json',
       }),
-      { headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken) }
+      { redirect: 'manual',
+      headers: mediaWikiHeaders({ Accept: 'application/json' }, accessToken) }
     );
     const data = await readMediaWikiJson<{
       query?: { general?: { server?: unknown; articlepath?: unknown; scriptpath?: unknown } };
