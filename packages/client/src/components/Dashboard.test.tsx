@@ -25,6 +25,9 @@ const mockDocuments = [
     mediawiki_script_path: null,
     restored_version_id: null,
     visibility: 'public' as DocumentVisibility,
+    owner_user_id: null,
+    is_owner: false,
+    has_mediawiki_api_key: false,
   },
   {
     id: 'doc2',
@@ -41,6 +44,9 @@ const mockDocuments = [
     mediawiki_script_path: null,
     restored_version_id: null,
     visibility: 'public' as DocumentVisibility,
+    owner_user_id: null,
+    is_owner: false,
+    has_mediawiki_api_key: false,
   },
   {
     id: 'doc3',
@@ -57,6 +63,9 @@ const mockDocuments = [
     mediawiki_script_path: null,
     restored_version_id: null,
     visibility: 'public' as DocumentVisibility,
+    owner_user_id: null,
+    is_owner: false,
+    has_mediawiki_api_key: false,
   },
 ];
 
