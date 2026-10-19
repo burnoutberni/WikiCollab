@@ -27,15 +27,22 @@ type RemotePreviewResult =
 function remotePreviewKey(
   apiUrl: string,
   page: string | null | undefined,
-  wikitext: string
+  wikitext: string,
+  accessToken?: string | null
 ): string {
+  const authScope = accessToken ? createHash('sha256').update(accessToken).digest('base64url') : '';
   return createHash('sha256')
-    .update(`${apiUrl}\0${page || ''}\0${wikitext}`)
+    .update(`${apiUrl}\0${page || ''}\0${wikitext}\0${authScope}`)
     .digest('base64url');
 }
 
-function remotePreviewTargetKey(apiUrl: string, page: string | null | undefined): string {
-  return `${apiUrl}\0${page || ''}`;
+function remotePreviewTargetKey(
+  apiUrl: string,
+  page: string | null | undefined,
+  accessToken?: string | null
+): string {
+  const authScope = accessToken ? createHash('sha256').update(accessToken).digest('base64url') : '';
+  return `${apiUrl}\0${page || ''}\0${authScope}`;
 }
 
 function remotePreviewLatestKey(
@@ -268,13 +275,14 @@ async function fetchRemotePreview(
   apiUrl: string,
   wikitext: string,
   page?: string | null,
-  documentId?: string | null
+  documentId?: string | null,
+  accessToken?: string | null
 ): Promise<RemotePreviewResult> {
   const now = Date.now();
   evictRemotePreviewCache(now);
 
-  const cacheKey = remotePreviewKey(apiUrl, page, wikitext);
-  const targetKey = remotePreviewTargetKey(apiUrl, page);
+  const cacheKey = remotePreviewKey(apiUrl, page, wikitext, accessToken);
+  const targetKey = remotePreviewTargetKey(apiUrl, page, accessToken);
   const latestKey = remotePreviewLatestKey(apiUrl, page, documentId);
   const cached = remotePreviewCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
@@ -324,10 +332,13 @@ async function fetchRemotePreview(
 
       const res = await serverFetch(apiUrl, {
         method: 'POST',
-        headers: mediaWikiHeaders({
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        }),
+        headers: mediaWikiHeaders(
+          {
+            Accept: 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          accessToken
+        ),
         body: formData.toString(),
       });
 
@@ -409,13 +420,20 @@ export async function generatePreview(
   api_url?: string | null,
   page?: string | null,
   documentId?: string | null,
-  canonicalServer?: string | null
+  canonicalServer?: string | null,
+  accessToken?: string | null
 ): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
 
   if (api_url) {
     try {
-      const remotePreview = await fetchRemotePreview(api_url, wikitext || '', page, documentId);
+      const remotePreview = await fetchRemotePreview(
+        api_url,
+        wikitext || '',
+        page,
+        documentId,
+        accessToken
+      );
       if ('html' in remotePreview && remotePreview.html) {
         return { html: sanitize(sanitizeStyleBlocks(remotePreview.html), true, canonicalServer) };
       }
