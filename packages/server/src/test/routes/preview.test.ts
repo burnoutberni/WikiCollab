@@ -868,7 +868,7 @@ describe('Preview route sanitization', () => {
       const { logger } = await import('../../logging.js');
       const errorLog = vi.spyOn(logger, 'error').mockImplementation(() => logger);
       const blockedUrl = 'http://127.0.0.1/private';
-      mockServerFetch.mockRejectedValueOnce(new SsrfError(blockedUrl));
+      mockServerFetch.mockRejectedValueOnce(new (SsrfError as unknown as new (url: string) => Error)(blockedUrl));
       const result = await generatePreview('blocked', 'https://wiki.example.com/w/api.php', 'Page');
       expect(result.renderer).toBe('error');
       expect(errorLog).toHaveBeenCalledWith(
