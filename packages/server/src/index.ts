@@ -1,8 +1,4 @@
-import path from 'node:path';
-
-import dotenv from 'dotenv';
-
-dotenv.config({ path: path.resolve(import.meta.dirname, '../../../.env') });
+import './load-env.js';
 
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
