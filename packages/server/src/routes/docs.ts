@@ -82,7 +82,7 @@ export async function generateDocumentPreview(
     doc.mediawiki_instance_api_url &&
     doc.mediawiki_bot_username &&
     doc.mediawiki_bot_password &&
-    (result.remoteStatusCode === 401 || result.remoteStatusCode === 403)
+    (result.remoteStatusCode === 401 || result.remoteStatusCode === 403 || result.remoteErrorCode === 'assertuserfailed')
   ) {
     const bot = {
       username: doc.mediawiki_bot_username,
