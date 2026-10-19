@@ -28,6 +28,8 @@ const mockDocuments = [
     owner_user_id: null,
     is_owner: false,
     has_mediawiki_api_key: false,
+    mediawiki_bot_username: null,
+    has_mediawiki_bot_password: false,
   },
   {
     id: 'doc2',
@@ -47,6 +49,8 @@ const mockDocuments = [
     owner_user_id: null,
     is_owner: false,
     has_mediawiki_api_key: false,
+    mediawiki_bot_username: null,
+    has_mediawiki_bot_password: false,
   },
   {
     id: 'doc3',
@@ -66,6 +70,8 @@ const mockDocuments = [
     owner_user_id: null,
     is_owner: false,
     has_mediawiki_api_key: false,
+    mediawiki_bot_username: null,
+    has_mediawiki_bot_password: false,
   },
 ];
 
