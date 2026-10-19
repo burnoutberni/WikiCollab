@@ -37,7 +37,7 @@ function documentApiKey(doc: ReturnType<typeof getDocumentById>): string | null 
   return doc?.mediawiki_api_key ? decryptSecret(doc.mediawiki_api_key) : null;
 }
 
-async function documentMediaWikiAuth(
+export async function documentMediaWikiAuth(
   doc: ReturnType<typeof getDocumentById>
 ): Promise<MediaWikiAuth> {
   if (!doc?.mediawiki_instance_api_url) return null;

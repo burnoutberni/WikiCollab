@@ -13,6 +13,7 @@ import { getDocumentById, getVersionById } from '../db/helpers.js';
 import { db, schema } from '../db/index.js';
 import { logger } from '../logging.js';
 import { generatePreview } from '../preview.js';
+import { documentMediaWikiAuth } from '../routes/docs.js';
 import { setVersionStarred } from '../services/versions.js';
 import { envInt } from '../utils/env.js';
 import { getClientIp } from '../utils/ip.js';
@@ -235,7 +236,8 @@ function handleCustomMessage(doc: WSSharedDoc, data: Uint8Array) {
               apiUrl,
               page || null,
               doc.name,
-              storedDoc?.mediawiki_canonical_server || null
+              storedDoc?.mediawiki_canonical_server || null,
+              await documentMediaWikiAuth(storedDoc)
             );
             const responseBase: Record<string, string> = { page };
             if (pendingRequestIds.length)
