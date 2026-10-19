@@ -35,7 +35,10 @@ function documentApiKey(doc: ReturnType<typeof getDocumentById>): string | null 
 
 async function refreshDocumentMediaWikiCss(documentId: string, apiUrl: string): Promise<void> {
   const doc = getDocumentById(documentId);
-  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(apiUrl, documentApiKey(doc));
+  const { css, urlMetadata } = await fetchMediaWikiCssAndUrlMetadata(
+    apiUrl,
+    documentApiKey(doc)
+  );
   const updates: Record<string, string | null> = {};
   if (urlMetadata.fetched) {
     updates.mediawiki_canonical_server = urlMetadata.server;
@@ -172,7 +175,9 @@ docs.delete('/:id', (c) => {
   const doc = getDocumentById(id);
   if (!doc) return c.json({ error: 'Document not found' }, 404);
   if (!userId) return c.json({ error: 'Authentication required' }, 401);
-  if (doc.owner_user_id !== userId) return c.json({ error: 'Only the owner may delete this document' }, 403);
+  if (doc.owner_user_id !== userId) {
+    return c.json({ error: 'Only the owner may delete this document' }, 403);
+  }
 
   const result = db
     .delete(schema.documents)
