@@ -39,13 +39,28 @@ describe('Docs routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockServerFetch.mockReset();
+    vi.stubEnv('ENCRYPTION_KEY', Buffer.alloc(32, 7).toString('base64'));
     // Swap to a fresh in-memory DB for each test
     const testDb = createTestDb();
     mockDbModule.db = testDb.db;
     mockDbModule.schema = schema;
     closeDb = testDb.close;
+    testDb.db
+      .insert(schema.users)
+      .values([
+        { id: 'owner-1', wiki_username: 'Owner', created_at: new Date().toISOString() },
+        { id: 'other-1', wiki_username: 'Other', created_at: new Date().toISOString() },
+      ])
+      .run();
 
     app = new Hono();
+    app.use('*', async (c, next) => {
+      const requested = c.req.header('x-test-user');
+      const userId = requested === 'anonymous' ? null : requested || 'owner-1';
+      const setCtx = c.set as unknown as (key: string, value: unknown) => void;
+      setCtx('userId', userId);
+      await next();
+    });
     app.route('/api/docs', docsRoutes);
   });
 
@@ -53,6 +68,7 @@ describe('Docs routes', () => {
     await drainDocumentMediaWikiCssRefreshesForTest();
     closeDb?.();
     closeDb = undefined;
+    vi.unstubAllEnvs();
   });
 
   it('GET / returns empty array initially', async () => {
@@ -195,6 +211,93 @@ describe('Docs routes', () => {
 
     const getRes = await app.request(`/api/docs/${created.id}`);
     expect(getRes.status).toBe(404);
+  });
+
+  it('DELETE requires authentication and ownership', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Protected delete' }),
+    });
+    const created = await createRes.json();
+
+    const unauthenticated = await app.request(`/api/docs/${created.id}`, {
+      method: 'DELETE',
+      headers: { 'x-test-user': 'anonymous' },
+    });
+    expect(unauthenticated.status).toBe(401);
+
+    const nonOwner = await app.request(`/api/docs/${created.id}`, {
+      method: 'DELETE',
+      headers: { 'x-test-user': 'other-1' },
+    });
+    expect(nonOwner.status).toBe(403);
+  });
+
+  it('PATCH protects owner-only settings', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Protected settings' }),
+    });
+    const created = await createRes.json();
+
+    const nonOwner = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-test-user': 'other-1' },
+      body: JSON.stringify({ visibility: 'unlisted' }),
+    });
+    expect(nonOwner.status).toBe(403);
+
+    const titleOnly = await app.request(`/api/docs/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-test-user': 'other-1' },
+      body: JSON.stringify({ title: 'Collaborative title' }),
+    });
+    expect(titleOnly.status).toBe(200);
+  });
+
+  it('claims a legacy unowned document on authenticated access', async () => {
+    mockDbModule.db
+      .insert(schema.documents)
+      .values({
+        id: 'legacy',
+        title: 'Legacy',
+        content: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        visibility: 'public',
+      })
+      .run();
+
+    const res = await app.request('/api/docs/legacy');
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.owner_user_id).toBe('owner-1');
+    expect(data.is_owner).toBe(true);
+  });
+
+  it('encrypts document API keys and never returns them', async () => {
+    const createRes = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Secret wiki',
+        mediawiki_api_key: 'super-secret-token',
+      }),
+    });
+    expect(createRes.status).toBe(201);
+    const created = await createRes.json();
+    expect(created.mediawiki_api_key).toBeUndefined();
+    expect(created.has_mediawiki_api_key).toBe(true);
+
+    const stored = mockDbModule.db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, created.id))
+      .get();
+    expect(stored.mediawiki_api_key).toBeTruthy();
+    expect(stored.mediawiki_api_key).not.toContain('super-secret-token');
   });
 
   it('PATCH /:id updates a document', async () => {
