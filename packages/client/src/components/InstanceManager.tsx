@@ -146,7 +146,12 @@ export function InstanceManager({
       return;
     }
     try {
-      await onChange(trimmedName, trimmedApiUrl, draftApiKey.trim() || undefined);
+      const apiKey = draftApiKey.trim();
+      if (apiKey) {
+        await onChange(trimmedName, trimmedApiUrl, apiKey);
+      } else {
+        await onChange(trimmedName, trimmedApiUrl);
+      }
       setDialogOpen(false);
     } catch (err) {
       setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
@@ -156,7 +161,7 @@ export function InstanceManager({
   const handleClear = async () => {
     setInstanceError(null);
     try {
-      await onChange(null, null, null);
+      await onChange(null, null);
     } catch (err) {
       setInstanceError(err instanceof Error ? err.message : 'Failed to update MediaWiki instance');
     }
