@@ -569,6 +569,33 @@ describe('Preview route sanitization', () => {
       expect(mockServerFetch.mock.calls[0][1].headers['User-Agent']).toContain('WikiCollab/');
     });
 
+    it('requests pre-save transform so subst templates expand like a real save', async () => {
+      mockServerFetch.mockResolvedValue({
+        json: () => Promise.resolve({ parse: { text: { '*': '<p>Substituted</p>' } } }),
+      });
+      mockDbModule.db
+        .update(schema.documents)
+        .set({
+          mediawiki_instance_api_url: 'https://wiki.example.com/w/api.php',
+          mediawiki_instance_css: '.cached{}',
+        })
+        .where(eq(schema.documents.id, 'doc1'))
+        .run();
+
+      const res = await app.request('/api/docs/doc1/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wikitext: '{{subst:Welcome}}' }),
+      });
+      const data = await res.json();
+      expect(data.renderer).toBe('mediawiki');
+
+      const body = new URLSearchParams(String(mockServerFetch.mock.calls[0][1].body));
+      expect(body.get('action')).toBe('parse');
+      expect(body.get('pst')).toBe('true');
+      expect(body.get('text')).toBe('{{subst:Welcome}}');
+    });
+
     it('absolutizes relative preview links and assets against canonical server', async () => {
       mockServerFetch.mockResolvedValue({
         json: () =>

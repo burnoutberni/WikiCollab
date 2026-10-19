@@ -345,6 +345,7 @@ async function fetchRemotePreview(
       formData.append('prop', 'text');
       formData.append('contentmodel', 'wikitext');
       formData.append('format', 'json');
+      formData.append('pst', 'true');
       if (page) {
         formData.append('title', page);
       }
