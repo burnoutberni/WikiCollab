@@ -153,6 +153,8 @@ export function DocumentEditor() {
   const [scriptPath, setScriptPath] = useState<string | null>(null);
   const [instanceSaving, setInstanceSaving] = useState(false);
   const [hasMediaWikiApiKey, setHasMediaWikiApiKey] = useState(false);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [hasBotPassword, setHasBotPassword] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -177,6 +179,8 @@ export function DocumentEditor() {
       setArticlePath(doc.mediawiki_article_path);
       setScriptPath(doc.mediawiki_script_path);
       setHasMediaWikiApiKey(doc.has_mediawiki_api_key);
+      setBotUsername(doc.mediawiki_bot_username);
+      setHasBotPassword(doc.has_mediawiki_bot_password);
       lastPersistedVisibilityRef.current = doc.visibility;
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
@@ -328,7 +332,7 @@ export function DocumentEditor() {
   const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
 
   const updateInstance = useCallback(
-    async (name: string | null, apiUrl: string | null, apiKey?: string | null) => {
+    async (name: string | null, apiUrl: string | null, apiKey?: string | null, username?: string | null, password?: string | null) => {
       if (!id) return;
       const previous = lastPersistedInstanceRef.current;
       setInstanceName(name);
@@ -341,6 +345,8 @@ export function DocumentEditor() {
             mediawiki_instance_name: name,
             mediawiki_instance_api_url: apiUrl,
             ...(apiKey !== undefined ? { mediawiki_api_key: apiKey } : {}),
+            ...(username !== undefined ? { mediawiki_bot_username: username } : {}),
+            ...(password !== undefined ? { mediawiki_bot_password: password } : {}),
           }),
         });
         let updatedDoc = (await res.json().catch(() => ({}))) as Document & { error?: string };
@@ -376,6 +382,8 @@ export function DocumentEditor() {
         setArticlePath(updatedDoc.mediawiki_article_path);
         setScriptPath(updatedDoc.mediawiki_script_path);
         setHasMediaWikiApiKey(updatedDoc.has_mediawiki_api_key);
+        setBotUsername(updatedDoc.mediawiki_bot_username);
+        setHasBotPassword(updatedDoc.has_mediawiki_bot_password);
         setPreviewRefreshKey((key) => key + 1);
         lastPersistedInstanceRef.current = {
           name: updatedDoc.mediawiki_instance_name,
@@ -650,6 +658,8 @@ export function DocumentEditor() {
                         name={instanceName}
                         apiUrl={instanceApiUrl}
                         hasApiKey={hasMediaWikiApiKey}
+                        botUsername={botUsername}
+                        hasBotPassword={hasBotPassword}
                         saving={instanceSaving}
                         onChange={updateInstance}
                       />
@@ -813,6 +823,8 @@ export function DocumentEditor() {
                   name={instanceName}
                   apiUrl={instanceApiUrl}
                   hasApiKey={hasMediaWikiApiKey}
+                        botUsername={botUsername}
+                        hasBotPassword={hasBotPassword}
                   saving={instanceSaving}
                   onChange={updateInstance}
                 />
