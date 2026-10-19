@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { apiFetch, API_BASE, useDocument } from '@/hooks/useApi';
+import { API_BASE, apiFetch, useDocument } from '@/hooks/useApi';
 import { useEditorLock } from '@/hooks/useEditorLock';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { usePersistField } from '@/hooks/usePersistField';
