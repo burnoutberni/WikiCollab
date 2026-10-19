@@ -41,9 +41,9 @@ function remotePreviewKey(
 function remotePreviewTargetKey(
   apiUrl: string,
   page: string | null | undefined,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): string {
-  const authScope = accessToken ? createHash('sha256').update(accessToken).digest('base64url') : '';
+  const authScope = accessToken ? createHash('sha256').update(typeof accessToken === 'string' ? accessToken : accessToken.cookie).digest('base64url') : '';
   return `${apiUrl}\0${page || ''}\0${authScope}`;
 }
 
@@ -279,7 +279,7 @@ async function fetchRemotePreview(
   wikitext: string,
   page?: string | null,
   documentId?: string | null,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): Promise<RemotePreviewResult> {
   const now = Date.now();
   evictRemotePreviewCache(now);
@@ -426,7 +426,7 @@ export async function generatePreview(
   page?: string | null,
   documentId?: string | null,
   canonicalServer?: string | null,
-  accessToken?: string | null
+  accessToken?: MediaWikiAuth
 ): Promise<PreviewResult> {
   const Parser = (await import('wikiparser-node')).default;
 
