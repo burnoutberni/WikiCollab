@@ -17,7 +17,7 @@ overrides:
   colord@<2.9.4: 2.10.0
   shell-quote@<1.8.5: 1.12.0
   handlebars@<4.7.10: 4.7.10
-  postcss-selector-parser@<7.1.6: 7.1.6
+  postcss-selector-parser@<7.1.6: 7.1.7
 
 allowBuilds:
   better-sqlite3: true
