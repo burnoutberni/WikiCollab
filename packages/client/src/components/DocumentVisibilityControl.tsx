@@ -2,17 +2,15 @@ import { Globe, Link2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import type { DocumentVisibility } from 'shared';
 
+import { Button } from '@/components/ui/button';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface DocumentVisibilityControlProps {
   visibility: DocumentVisibility;
@@ -58,6 +56,11 @@ export function DocumentVisibilityControl({
     },
     [visibility, requestChange]
   );
+
+  const confirmPublic = useCallback(() => {
+    setPublicConfirmOpen(false);
+    onChange('public');
+  }, [onChange]);
 
   return (
     <section className="space-y-3" aria-labelledby="document-visibility-heading">
@@ -115,41 +118,27 @@ export function DocumentVisibilityControl({
         {!isPublic ? 'Only accessible via direct link' : 'Visible on start page and in search'}
       </p>
 
-      <AlertDialog open={publicConfirmOpen} onOpenChange={setPublicConfirmOpen}>
-        <AlertDialogContent className="md:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Make this document public?</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={publicConfirmOpen} onOpenChange={setPublicConfirmOpen}>
+        <DialogContent className="md:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Make this document public?</DialogTitle>
+            <DialogDescription>
               Public documents are listed on the start page and in search results, so anyone can
               find and read this content. Switch back to link-only at any time.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogCancel className="gap-2">
-                    <Link2 className="h-4 w-4" aria-hidden="true" />
-                    Keep link-only
-                  </AlertDialogCancel>
-                </TooltipTrigger>
-                <TooltipContent>Stay hidden from the start page and search</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogAction className="gap-2" onClick={() => onChange('public')}>
-                    <Globe className="h-4 w-4" aria-hidden="true" />
-                    Make public
-                  </AlertDialogAction>
-                </TooltipTrigger>
-                <TooltipContent>
-                  List this document on the start page and in search results
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" className="gap-2" onClick={() => setPublicConfirmOpen(false)}>
+              <Link2 className="h-4 w-4" aria-hidden="true" />
+              Keep link-only
+            </Button>
+            <Button className="gap-2" onClick={confirmPublic}>
+              <Globe className="h-4 w-4" aria-hidden="true" />
+              Make public
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
