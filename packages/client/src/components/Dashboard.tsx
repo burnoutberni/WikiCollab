@@ -10,7 +10,6 @@ import { Separator } from '@/components/ui/separator';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth, useDocuments } from '@/hooks/useApi';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-import { cn } from '@/lib/utils';
 
 import NEW_DOC_BOILERPLATE from '../content/new-doc-boilerplate.wikitext?raw';
 import { AuthControls } from './AuthControls';
@@ -207,38 +206,35 @@ export function Dashboard() {
                 {filtered.map((doc) => (
                   <Card
                     key={doc.id}
-                    className={cn(
-                      'cursor-pointer hover:bg-muted/50 transition-colors group border-l-4',
-                      doc.visibility === 'public'
-                        ? 'border-l-emerald-500/70'
-                        : 'border-l-amber-500/80'
-                    )}
+                    className="group flex h-full cursor-pointer flex-col border-border/70 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none"
                     onClick={() => handleOpen(doc.id)}
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base truncate">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="truncate text-base">
                             {doc.title || 'Untitled'}
                           </CardTitle>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
                             <DocumentVisibilityBadge visibility={doc.visibility} />
-                            <CardDescription className="flex items-center gap-1">
+                            <CardDescription className="flex items-center gap-1 text-xs">
                               <Clock className="h-3 w-3" />
-                              {formatDate(doc.updated_at)}
+                              Edited {formatDate(doc.updated_at)}
                             </CardDescription>
                           </div>
                         </div>
                         <ShareButton documentId={doc.id} />
                       </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex flex-1 flex-col">
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {doc.content?.substring(0, 150) || 'No content yet'}
                       </p>
-                      <Separator className="mt-3 mb-2" />
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{doc.id}</span>
+                      <div className="mt-auto">
+                        <Separator className="mt-3 mb-2" />
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{doc.id}</span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
