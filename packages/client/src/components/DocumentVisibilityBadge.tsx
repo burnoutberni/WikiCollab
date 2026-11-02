@@ -15,7 +15,7 @@ const VISIBILITY_COPY: Record<DocumentVisibility, { label: string; hint: string 
   },
   unlisted: {
     label: 'Link only',
-    hint: 'Hidden from the start page and search; accessible via link',
+    hint: "Hidden from other users' listings and search; accessible via link",
   },
 };
 

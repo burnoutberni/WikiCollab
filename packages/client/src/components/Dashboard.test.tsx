@@ -322,7 +322,10 @@ describe('Dashboard', () => {
     renderWithProviders(<Dashboard />);
 
     expect(screen.getByText('Public')).toBeInTheDocument();
-    expect(screen.getByText('Link only')).toBeInTheDocument();
+    expect(screen.getByText('Link only')).toHaveAttribute(
+      'title',
+      "Hidden from other users' listings and search; accessible via link"
+    );
   });
 
   it('pending documents banner appears', () => {
