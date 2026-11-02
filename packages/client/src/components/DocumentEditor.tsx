@@ -420,6 +420,7 @@ export function DocumentEditor() {
           currentDoc
             ? {
                 ...currentDoc,
+                visibility: lastPersistedVisibilityRef.current ?? currentDoc.visibility,
                 mediawiki_instance_name: updatedDoc.mediawiki_instance_name,
                 mediawiki_instance_api_url: updatedDoc.mediawiki_instance_api_url,
                 mediawiki_instance_css: updatedDoc.mediawiki_instance_css,
