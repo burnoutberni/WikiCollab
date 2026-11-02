@@ -4,6 +4,7 @@ import type { Document, DocumentVisibility, User, Version } from 'shared';
 export type { Document, Version };
 
 export const API_BASE = '/api';
+const DOCUMENT_POLL_TIMEOUT_MS = 15_000;
 
 interface DocumentListState {
   documents: Document[];
@@ -154,23 +155,33 @@ export function useDocuments() {
   useEffect(() => {
     if (loading) return;
 
-    let pollInFlight = false;
+    let pollController: AbortController | null = null;
     const poll = async () => {
-      if (pollInFlight) return;
-      pollInFlight = true;
+      if (pollController) return;
+      const controller = new AbortController();
+      pollController = controller;
+      const timeout = window.setTimeout(() => {
+        if (pollController === controller) pollController = null;
+        controller.abort();
+      }, DOCUMENT_POLL_TIMEOUT_MS);
       try {
-        const res = await apiFetch(`${API_BASE}/docs`);
+        const res = await apiFetch(`${API_BASE}/docs`, { signal: controller.signal });
         const latest = await parseDocumentsResponse(res);
         dispatch({ type: 'poll', documents: latest });
       } catch (err) {
         console.error('Failed to poll documents:', err);
       } finally {
-        pollInFlight = false;
+        window.clearTimeout(timeout);
+        if (pollController === controller) pollController = null;
       }
     };
 
     const interval = setInterval(poll, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      pollController?.abort();
+      pollController = null;
+    };
   }, [loading]);
 
   const loadPending = useCallback(() => dispatch({ type: 'acceptPending' }), []);

@@ -163,6 +163,37 @@ describe('useDocuments', () => {
     });
   });
 
+  it('aborts a stalled poll and allows a later poll to retry', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    const pollSignals: AbortSignal[] = [];
+    const fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal) {
+        pollSignals.push(init.signal as AbortSignal);
+        return new Promise<Response>(() => {});
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(initial) } as Response);
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { unmount } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(pollSignals).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+
+    expect(pollSignals[0].aborted).toBe(true);
+    expect(pollSignals).toHaveLength(2);
+    unmount();
+  });
+
   it('applies a poll and pending acceptance atomically', async () => {
     vi.useFakeTimers();
     const initial = [createDoc({ id: '1' })];
