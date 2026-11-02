@@ -6,6 +6,8 @@ import {
   Code,
   Columns,
   FileText,
+  Globe,
+  Link2,
   Settings,
   Share2,
   Users,
@@ -823,12 +825,25 @@ export function DocumentEditor() {
                       await copyCurrentUrl();
                     }}
                   >
+                    {visibility === 'public' ? (
+                      <Globe className="h-3 w-3" aria-hidden="true" />
+                    ) : (
+                      <Link2 className="h-3 w-3" aria-hidden="true" />
+                    )}
+                    <span className="sr-only">
+                      {visibility === 'public' ? 'Public document.' : 'Link-only document.'}
+                    </span>
+                    <span className="h-3 w-px bg-border" aria-hidden="true" />
                     {linkCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
                     {linkCopied ? 'Copied!' : id}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {linkCopied ? 'Link copied!' : 'Copy link to clipboard'}
+                  {linkCopied
+                    ? 'Link copied!'
+                    : visibility === 'public'
+                      ? 'Copy link to this public document'
+                      : 'Copy link to this link-only document'}
                 </TooltipContent>
               </Tooltip>
             </div>

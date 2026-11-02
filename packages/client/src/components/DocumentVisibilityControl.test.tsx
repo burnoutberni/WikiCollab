@@ -55,6 +55,32 @@ describe('DocumentVisibilityControl', () => {
     expect(onChange).toHaveBeenCalledWith('public');
   });
 
+  it('shows a tooltip on the cancel action', async () => {
+    const user = userEvent.setup();
+
+    render(<DocumentVisibilityControl visibility="unlisted" onChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('radio', { name: /Public/i }));
+    await user.hover(screen.getByRole('button', { name: 'Keep link-only' }));
+
+    expect(
+      await screen.findByText('Stay hidden from the start page and search')
+    ).toBeInTheDocument();
+  });
+
+  it('shows a tooltip on the confirm action', async () => {
+    const user = userEvent.setup();
+
+    render(<DocumentVisibilityControl visibility="unlisted" onChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('radio', { name: /Public/i }));
+    await user.hover(screen.getByRole('button', { name: 'Make public' }));
+
+    expect(
+      await screen.findByText('List this document on the start page and in search results')
+    ).toBeInTheDocument();
+  });
+
   it('asks for confirmation when switching to public with the keyboard', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

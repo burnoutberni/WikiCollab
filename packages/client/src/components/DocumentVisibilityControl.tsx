@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DocumentVisibilityControlProps {
   visibility: DocumentVisibility;
@@ -124,8 +125,28 @@ export function DocumentVisibilityControl({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep link-only</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onChange('public')}>Make public</AlertDialogAction>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialogCancel className="gap-2">
+                    <Link2 className="h-4 w-4" aria-hidden="true" />
+                    Keep link-only
+                  </AlertDialogCancel>
+                </TooltipTrigger>
+                <TooltipContent>Stay hidden from the start page and search</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialogAction className="gap-2" onClick={() => onChange('public')}>
+                    <Globe className="h-4 w-4" aria-hidden="true" />
+                    Make public
+                  </AlertDialogAction>
+                </TooltipTrigger>
+                <TooltipContent>
+                  List this document on the start page and in search results
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
