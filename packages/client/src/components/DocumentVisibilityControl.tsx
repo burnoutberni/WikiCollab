@@ -25,7 +25,8 @@ export function DocumentVisibilityControl({
 }: DocumentVisibilityControlProps) {
   const isPublic = visibility === 'public';
   const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
-  const visibilityRadioRef = useRef<HTMLButtonElement>(null);
+  const linkRadioRef = useRef<HTMLButtonElement>(null);
+  const publicRadioRef = useRef<HTMLButtonElement>(null);
 
   const requestChange = useCallback(
     (next: DocumentVisibility) => {
@@ -92,6 +93,7 @@ export function DocumentVisibilityControl({
 
         <button
           type="button"
+          ref={linkRadioRef}
           role="radio"
           aria-checked={!isPublic}
           tabIndex={isPublic ? -1 : 0}
@@ -104,7 +106,7 @@ export function DocumentVisibilityControl({
 
         <button
           type="button"
-          ref={visibilityRadioRef}
+          ref={publicRadioRef}
           role="radio"
           aria-checked={isPublic}
           tabIndex={isPublic ? 0 : -1}
@@ -125,7 +127,7 @@ export function DocumentVisibilityControl({
           className="md:max-w-md"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            visibilityRadioRef.current?.focus();
+            (isPublic ? publicRadioRef : linkRadioRef).current?.focus();
           }}
         >
           <DialogHeader>
