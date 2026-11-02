@@ -75,6 +75,7 @@ export function useDocuments() {
         setDocuments((current) => {
           const currentIds = new Set(current.map((d) => d.id));
           const newDocs = latest.filter((d) => !currentIds.has(d.id));
+          const latestById = new Map(latest.map((d) => [d.id, d]));
           if (newDocs.length > 0) {
             setPendingDocs((prev) => {
               const existingIds = new Set(prev.map((d) => d.id));
@@ -82,7 +83,7 @@ export function useDocuments() {
               return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
             });
           }
-          return current;
+          return current.map((doc) => latestById.get(doc.id) ?? doc);
         });
       } catch (err) {
         console.error('Failed to poll documents:', err);

@@ -48,6 +48,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('useDocuments', () => {
@@ -65,6 +66,29 @@ describe('useDocuments', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.documents).toEqual(docs);
+  });
+
+  it('merges refreshed fields for known documents while polling', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1', visibility: 'unlisted' })];
+    const refreshed = [createDoc({ id: '1', visibility: 'public' })];
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(refreshed) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.documents[0].visibility).toBe('unlisted');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.documents[0].visibility).toBe('public');
   });
 
   it('handles fetch error gracefully', async () => {
