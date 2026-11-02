@@ -131,6 +131,7 @@ export function DocumentEditor() {
   const lastPersistedTitleRef = useRef<string | null>(null);
   const titleRef = useRef('');
   const lastPersistedVisibilityRef = useRef<DocumentVisibility | null>(null);
+  const lastPersistedVisibilityDocumentIdRef = useRef<string | null>(null);
   const latestVisibilityRef = useRef<DocumentVisibility>('public');
   const lastPersistedInstanceRef = useRef<{
     name: string | null;
@@ -199,8 +200,9 @@ export function DocumentEditor() {
       setBotUsername(doc.mediawiki_bot_username);
       setHasBotPassword(doc.has_mediawiki_bot_password);
       setPreviewRenderer(null);
-      if (lastPersistedVisibilityRef.current === null) {
+      if (lastPersistedVisibilityDocumentIdRef.current !== doc.id) {
         lastPersistedVisibilityRef.current = doc.visibility;
+        lastPersistedVisibilityDocumentIdRef.current = doc.id;
       }
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,

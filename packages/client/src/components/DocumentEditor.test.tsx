@@ -13,6 +13,7 @@ import { useYjs } from '@/hooks/useYjs';
 import { DocumentEditor } from './DocumentEditor';
 
 let mockIsMobile = false;
+let mockDocumentId = 'test-doc';
 
 const mockDoc = {
   id: 'test-doc',
@@ -49,7 +50,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return {
     ...(actual as Record<string, unknown>),
     useNavigate: () => mockNavigate,
-    useParams: () => ({ id: 'test-doc' }),
+    useParams: () => ({ id: mockDocumentId }),
   };
 });
 
@@ -191,6 +192,7 @@ describe('DocumentEditor', () => {
     vi.clearAllMocks();
     document.title = 'WikiCollab - Collaborative Wikitext Editor';
     mockIsMobile = false;
+    mockDocumentId = 'test-doc';
     mockEditorHandle.jumpToPosition.mockReset();
     mockEditorHandle.scrollToPosition.mockReset();
     mockConnectionStatePopover.mockReset();
@@ -963,6 +965,36 @@ describe('DocumentEditor', () => {
         method: 'PATCH',
         body: JSON.stringify({ visibility: 'unlisted' }),
       })
+    );
+  });
+
+  it('resets persisted visibility when navigating to another document', async () => {
+    vi.useFakeTimers();
+    const firstDoc = { ...mockDoc, id: 'first-doc', visibility: 'unlisted' as DocumentVisibility };
+    const secondDoc = { ...mockDoc, id: 'second-doc', visibility: 'public' as DocumentVisibility };
+    const fetch = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetch);
+    mockDocumentId = firstDoc.id;
+    useDocumentMock.mockReturnValue({ document: firstDoc, loading: false, setDocument: vi.fn() });
+    const { rerender } = renderWithProviders(<DocumentEditor />);
+
+    mockDocumentId = secondDoc.id;
+    useDocumentMock.mockReturnValue({ document: secondDoc, loading: false, setDocument: vi.fn() });
+    rerender(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DocumentEditor />
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /Link/i }));
+    await React.act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/docs/second-doc',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ visibility: 'unlisted' }) })
     );
   });
 
