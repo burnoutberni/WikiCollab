@@ -131,6 +131,7 @@ export function DocumentEditor() {
   const lastPersistedTitleRef = useRef<string | null>(null);
   const titleRef = useRef('');
   const lastPersistedVisibilityRef = useRef<DocumentVisibility | null>(null);
+  const latestVisibilityRef = useRef<DocumentVisibility>('public');
   const lastPersistedInstanceRef = useRef<{
     name: string | null;
     apiUrl: string | null;
@@ -187,6 +188,7 @@ export function DocumentEditor() {
       }
       setContentState(doc.content);
       setVisibility(doc.visibility);
+      latestVisibilityRef.current = doc.visibility;
       setInstanceName(doc.mediawiki_instance_name);
       setInstanceApiUrl(doc.mediawiki_instance_api_url);
       setInstanceCss(doc.mediawiki_instance_css);
@@ -345,7 +347,14 @@ export function DocumentEditor() {
   }, []);
 
   const revertTitle = useCallback((v: string) => setTitle(v), []);
-  const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
+  const updateVisibility = useCallback((next: DocumentVisibility) => {
+    latestVisibilityRef.current = next;
+    setVisibility(next);
+  }, []);
+  const revertVisibility = useCallback((v: DocumentVisibility) => {
+    latestVisibilityRef.current = v;
+    setVisibility(v);
+  }, []);
 
   const updateInstance = useCallback(
     async (
@@ -420,7 +429,7 @@ export function DocumentEditor() {
           currentDoc
             ? {
                 ...currentDoc,
-                visibility: lastPersistedVisibilityRef.current ?? currentDoc.visibility,
+                visibility: latestVisibilityRef.current,
                 mediawiki_instance_name: updatedDoc.mediawiki_instance_name,
                 mediawiki_instance_api_url: updatedDoc.mediawiki_instance_api_url,
                 mediawiki_instance_css: updatedDoc.mediawiki_instance_css,
@@ -717,7 +726,10 @@ export function DocumentEditor() {
               {doc.is_owner ? (
                 <>
                   <div className="p-4 border-b">
-                    <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+                    <DocumentVisibilityControl
+                      visibility={visibility}
+                      onChange={updateVisibility}
+                    />
                   </div>
 
                   <div className="p-4 border-b">
@@ -863,7 +875,7 @@ export function DocumentEditor() {
           <Separator />
           {doc.is_owner ? (
             <>
-              <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+              <DocumentVisibilityControl visibility={visibility} onChange={updateVisibility} />
 
               <Separator />
 
