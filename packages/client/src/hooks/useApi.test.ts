@@ -230,6 +230,44 @@ describe('useDocuments', () => {
     expect(result.current.pendingCount).toBe(0);
   });
 
+  it('discards a poll response superseded by a local document update', async () => {
+    vi.useFakeTimers();
+    const initial = createDoc({ id: '1', title: 'Original' });
+    const stalePollDoc = createDoc({ id: '1', title: 'Stale poll value' });
+    const updated = createDoc({ id: '1', title: 'Updated locally' });
+    let resolvePoll!: (response: Response) => void;
+    const fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(updated) } as Response);
+      }
+      if (init?.signal) {
+        return new Promise<Response>((resolve) => {
+          resolvePoll = resolve;
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([initial]) } as Response);
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await act(async () => {
+      await result.current.updateDocument('1', { title: 'Updated locally' });
+    });
+    await act(async () => {
+      resolvePoll({ ok: true, json: () => Promise.resolve([stalePollDoc]) } as Response);
+      await Promise.resolve();
+    });
+
+    expect(result.current.documents[0].title).toBe('Updated locally');
+  });
+
   it('removes missing documents from both the list and pending queue after polling', async () => {
     vi.useFakeTimers();
     const first = createDoc({ id: '1' });

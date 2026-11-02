@@ -967,6 +967,33 @@ describe('DocumentEditor', () => {
     );
   });
 
+  it('closes visibility confirmation when navigating to another document', () => {
+    const firstDoc = { ...mockDoc, id: 'first-doc', visibility: 'unlisted' as DocumentVisibility };
+    const secondDoc = {
+      ...mockDoc,
+      id: 'second-doc',
+      visibility: 'unlisted' as DocumentVisibility,
+    };
+    mockDocumentId = firstDoc.id;
+    useDocumentMock.mockReturnValue({ document: firstDoc, loading: false, setDocument: vi.fn() });
+    const { rerender } = renderWithProviders(<DocumentEditor />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Public/i }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    mockDocumentId = secondDoc.id;
+    useDocumentMock.mockReturnValue({ document: secondDoc, loading: false, setDocument: vi.fn() });
+    rerender(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DocumentEditor />
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('resets persisted visibility when navigating to another document', async () => {
     vi.useFakeTimers();
     const firstDoc = { ...mockDoc, id: 'first-doc', visibility: 'unlisted' as DocumentVisibility };

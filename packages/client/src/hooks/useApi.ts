@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { Document, DocumentVisibility, User, Version } from 'shared';
 
 export type { Document, Version };
@@ -135,11 +135,13 @@ export function useDocuments() {
     pendingDocs: [],
   });
   const [loading, setLoading] = useState(true);
+  const listVersionRef = useRef(0);
 
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await apiFetch(`${API_BASE}/docs`);
       const data = await parseDocumentsResponse(res);
+      listVersionRef.current++;
       dispatch({ type: 'replace', documents: data });
     } catch (error) {
       console.error('Failed to fetch documents:', error);
@@ -159,6 +161,7 @@ export function useDocuments() {
     const poll = async () => {
       if (pollController) return;
       const controller = new AbortController();
+      const versionAtStart = listVersionRef.current;
       pollController = controller;
       const timeout = window.setTimeout(() => {
         if (pollController === controller) pollController = null;
@@ -167,7 +170,9 @@ export function useDocuments() {
       try {
         const res = await apiFetch(`${API_BASE}/docs`, { signal: controller.signal });
         const latest = await parseDocumentsResponse(res);
-        dispatch({ type: 'poll', documents: latest });
+        if (versionAtStart === listVersionRef.current) {
+          dispatch({ type: 'poll', documents: latest });
+        }
       } catch (err) {
         console.error('Failed to poll documents:', err);
       } finally {
@@ -184,7 +189,10 @@ export function useDocuments() {
     };
   }, [loading]);
 
-  const loadPending = useCallback(() => dispatch({ type: 'acceptPending' }), []);
+  const loadPending = useCallback(() => {
+    listVersionRef.current++;
+    dispatch({ type: 'acceptPending' });
+  }, []);
 
   const createDocument = useCallback(
     async (options?: {
@@ -207,6 +215,7 @@ export function useDocuments() {
       if (!res.ok) {
         throw new Error(doc.error || 'Failed to create document');
       }
+      listVersionRef.current++;
       if (doc.visibility !== 'unlisted') {
         dispatch({ type: 'add', document: doc });
       }
@@ -217,6 +226,7 @@ export function useDocuments() {
 
   const deleteDocument = useCallback(async (id: string) => {
     await apiFetch(`${API_BASE}/docs/${id}`, { method: 'DELETE' });
+    listVersionRef.current++;
     dispatch({ type: 'remove', id });
   }, []);
 
@@ -227,6 +237,7 @@ export function useDocuments() {
       body: JSON.stringify(updates),
     });
     const doc = await res.json();
+    listVersionRef.current++;
     dispatch({ type: 'update', document: doc });
     return doc;
   }, []);

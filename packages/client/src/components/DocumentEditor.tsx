@@ -732,6 +732,7 @@ export function DocumentEditor() {
                 <>
                   <div className="p-4 border-b">
                     <DocumentVisibilityControl
+                      key={id}
                       visibility={visibility}
                       onChange={updateVisibility}
                     />
@@ -880,7 +881,11 @@ export function DocumentEditor() {
           <Separator />
           {doc.is_owner ? (
             <>
-              <DocumentVisibilityControl visibility={visibility} onChange={updateVisibility} />
+              <DocumentVisibilityControl
+                key={id}
+                visibility={visibility}
+                onChange={updateVisibility}
+              />
 
               <Separator />
 
