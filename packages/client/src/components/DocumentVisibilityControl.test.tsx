@@ -43,6 +43,17 @@ describe('DocumentVisibilityControl', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('returns focus to the requested visibility radio when the dialog closes', async () => {
+    const user = userEvent.setup();
+    render(<DocumentVisibilityControl visibility="unlisted" onChange={vi.fn()} />);
+
+    const publicRadio = screen.getByRole('radio', { name: /Public/i });
+    await user.click(publicRadio);
+    await user.click(screen.getByRole('button', { name: 'Keep link-only' }));
+
+    expect(publicRadio).toHaveFocus();
+  });
+
   it('applies public visibility after confirmation', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

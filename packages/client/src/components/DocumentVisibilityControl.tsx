@@ -1,5 +1,5 @@
 import { Globe, Link2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { DocumentVisibility } from 'shared';
 
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ export function DocumentVisibilityControl({
 }: DocumentVisibilityControlProps) {
   const isPublic = visibility === 'public';
   const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
+  const visibilityRadioRef = useRef<HTMLButtonElement>(null);
 
   const requestChange = useCallback(
     (next: DocumentVisibility) => {
@@ -103,6 +104,7 @@ export function DocumentVisibilityControl({
 
         <button
           type="button"
+          ref={visibilityRadioRef}
           role="radio"
           aria-checked={isPublic}
           tabIndex={isPublic ? 0 : -1}
@@ -119,7 +121,13 @@ export function DocumentVisibilityControl({
       </p>
 
       <Dialog open={publicConfirmOpen} onOpenChange={setPublicConfirmOpen}>
-        <DialogContent className="md:max-w-md">
+        <DialogContent
+          className="md:max-w-md"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            visibilityRadioRef.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Make this document public?</DialogTitle>
             <DialogDescription>
