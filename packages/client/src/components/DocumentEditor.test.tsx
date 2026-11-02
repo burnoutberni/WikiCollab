@@ -485,13 +485,13 @@ describe('DocumentEditor', () => {
       return { document, loading: false, setDocument };
     });
     let resolveVisibilityPatch: (response: Response) => void = () => {};
-    let visibilityPatchSignal: AbortSignal | null = null;
+    const visibilityPatch = { signal: null as AbortSignal | null };
     let visibilityPatchStarted = false;
     const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
       if ('visibility' in body) {
         visibilityPatchStarted = true;
-        visibilityPatchSignal = init?.signal as AbortSignal;
+        visibilityPatch.signal = init?.signal as AbortSignal;
         return new Promise<Response>((resolve) => {
           resolveVisibilityPatch = resolve;
         });
@@ -517,7 +517,7 @@ describe('DocumentEditor', () => {
       await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
     });
     expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true');
-    expect(visibilityPatchSignal?.aborted).toBe(false);
+    expect(visibilityPatch.signal?.aborted).toBe(false);
 
     await React.act(async () => {
       resolveVisibilityPatch({ ok: true } as Response);
