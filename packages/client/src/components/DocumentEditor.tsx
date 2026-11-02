@@ -6,6 +6,8 @@ import {
   Code,
   Columns,
   FileText,
+  Globe,
+  Link2,
   Settings,
   Share2,
   Users,
@@ -129,6 +131,8 @@ export function DocumentEditor() {
   const lastPersistedTitleRef = useRef<string | null>(null);
   const titleRef = useRef('');
   const lastPersistedVisibilityRef = useRef<DocumentVisibility | null>(null);
+  const lastPersistedVisibilityDocumentIdRef = useRef<string | null>(null);
+  const latestVisibilityRef = useRef<DocumentVisibility>('public');
   const lastPersistedInstanceRef = useRef<{
     name: string | null;
     apiUrl: string | null;
@@ -184,7 +188,13 @@ export function DocumentEditor() {
         lastPersistedTitleRef.current = doc.title;
       }
       setContentState(doc.content);
-      setVisibility(doc.visibility);
+      const isNewVisibilityDocument = lastPersistedVisibilityDocumentIdRef.current !== doc.id;
+      if (isNewVisibilityDocument) {
+        setVisibility(doc.visibility);
+        latestVisibilityRef.current = doc.visibility;
+        lastPersistedVisibilityRef.current = doc.visibility;
+        lastPersistedVisibilityDocumentIdRef.current = doc.id;
+      }
       setInstanceName(doc.mediawiki_instance_name);
       setInstanceApiUrl(doc.mediawiki_instance_api_url);
       setInstanceCss(doc.mediawiki_instance_css);
@@ -195,7 +205,6 @@ export function DocumentEditor() {
       setBotUsername(doc.mediawiki_bot_username);
       setHasBotPassword(doc.has_mediawiki_bot_password);
       setPreviewRenderer(null);
-      lastPersistedVisibilityRef.current = doc.visibility;
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
         apiUrl: doc.mediawiki_instance_api_url,
@@ -343,7 +352,14 @@ export function DocumentEditor() {
   }, []);
 
   const revertTitle = useCallback((v: string) => setTitle(v), []);
-  const revertVisibility = useCallback((v: DocumentVisibility) => setVisibility(v), []);
+  const updateVisibility = useCallback((next: DocumentVisibility) => {
+    latestVisibilityRef.current = next;
+    setVisibility(next);
+  }, []);
+  const revertVisibility = useCallback((v: DocumentVisibility) => {
+    latestVisibilityRef.current = v;
+    setVisibility(v);
+  }, []);
 
   const updateInstance = useCallback(
     async (
@@ -414,10 +430,21 @@ export function DocumentEditor() {
           articlePath: updatedDoc.mediawiki_article_path,
           scriptPath: updatedDoc.mediawiki_script_path,
         };
+        const hasPendingVisibilityChange =
+          latestVisibilityRef.current !== lastPersistedVisibilityRef.current;
+        const visibilityForDocument = hasPendingVisibilityChange
+          ? latestVisibilityRef.current
+          : updatedDoc.visibility;
+        if (!hasPendingVisibilityChange) {
+          latestVisibilityRef.current = updatedDoc.visibility;
+          lastPersistedVisibilityRef.current = updatedDoc.visibility;
+          setVisibility(updatedDoc.visibility);
+        }
         setDocument((currentDoc) =>
           currentDoc
             ? {
                 ...currentDoc,
+                visibility: visibilityForDocument,
                 mediawiki_instance_name: updatedDoc.mediawiki_instance_name,
                 mediawiki_instance_api_url: updatedDoc.mediawiki_instance_api_url,
                 mediawiki_instance_css: updatedDoc.mediawiki_instance_css,
@@ -714,7 +741,11 @@ export function DocumentEditor() {
               {doc.is_owner ? (
                 <>
                   <div className="p-4 border-b">
-                    <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+                    <DocumentVisibilityControl
+                      key={id}
+                      visibility={visibility}
+                      onChange={updateVisibility}
+                    />
                   </div>
 
                   <div className="p-4 border-b">
@@ -823,12 +854,25 @@ export function DocumentEditor() {
                       await copyCurrentUrl();
                     }}
                   >
+                    {visibility === 'public' ? (
+                      <Globe className="h-3 w-3" aria-hidden="true" />
+                    ) : (
+                      <Link2 className="h-3 w-3" aria-hidden="true" />
+                    )}
+                    <span className="sr-only">
+                      {visibility === 'public' ? 'Public document.' : 'Link-only document.'}
+                    </span>
+                    <span className="h-3 w-px bg-border" aria-hidden="true" />
                     {linkCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
                     {linkCopied ? 'Copied!' : id}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {linkCopied ? 'Link copied!' : 'Copy link to clipboard'}
+                  {linkCopied
+                    ? 'Link copied!'
+                    : visibility === 'public'
+                      ? 'Copy link to this public document'
+                      : 'Copy link to this link-only document'}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -847,7 +891,11 @@ export function DocumentEditor() {
           <Separator />
           {doc.is_owner ? (
             <>
-              <DocumentVisibilityControl visibility={visibility} onChange={setVisibility} />
+              <DocumentVisibilityControl
+                key={id}
+                visibility={visibility}
+                onChange={updateVisibility}
+              />
 
               <Separator />
 

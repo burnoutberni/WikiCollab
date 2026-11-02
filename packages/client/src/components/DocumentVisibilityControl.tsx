@@ -1,6 +1,16 @@
 import { Globe, Link2 } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { DocumentVisibility } from 'shared';
+
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface DocumentVisibilityControlProps {
   visibility: DocumentVisibility;
@@ -14,6 +24,21 @@ export function DocumentVisibilityControl({
   onChange,
 }: DocumentVisibilityControlProps) {
   const isPublic = visibility === 'public';
+  const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
+  const linkRadioRef = useRef<HTMLButtonElement>(null);
+  const publicRadioRef = useRef<HTMLButtonElement>(null);
+
+  const requestChange = useCallback(
+    (next: DocumentVisibility) => {
+      if (next === 'public' && visibility !== 'public') {
+        setPublicConfirmOpen(true);
+        return;
+      }
+
+      onChange(next);
+    },
+    [visibility, onChange]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -28,11 +53,16 @@ export function DocumentVisibilityControl({
 
       if (next !== null) {
         e.preventDefault();
-        onChange(VISIBILITY_OPTIONS[next]);
+        requestChange(VISIBILITY_OPTIONS[next]);
       }
     },
-    [visibility, onChange]
+    [visibility, requestChange]
   );
+
+  const confirmPublic = useCallback(() => {
+    setPublicConfirmOpen(false);
+    onChange('public');
+  }, [onChange]);
 
   return (
     <section className="space-y-3" aria-labelledby="document-visibility-heading">
@@ -63,11 +93,12 @@ export function DocumentVisibilityControl({
 
         <button
           type="button"
+          ref={linkRadioRef}
           role="radio"
           aria-checked={!isPublic}
           tabIndex={isPublic ? -1 : 0}
           className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
-          onClick={() => onChange('unlisted')}
+          onClick={() => requestChange('unlisted')}
         >
           <Link2 className="h-4 w-4" />
           <span>Link</span>
@@ -75,11 +106,12 @@ export function DocumentVisibilityControl({
 
         <button
           type="button"
+          ref={publicRadioRef}
           role="radio"
           aria-checked={isPublic}
           tabIndex={isPublic ? 0 : -1}
           className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
-          onClick={() => onChange('public')}
+          onClick={() => requestChange('public')}
         >
           <Globe className="h-4 w-4" />
           <span>Public</span>
@@ -89,6 +121,34 @@ export function DocumentVisibilityControl({
       <p className="text-xs text-muted-foreground text-center">
         {!isPublic ? 'Only accessible via direct link' : 'Visible on start page and in search'}
       </p>
+
+      <Dialog open={publicConfirmOpen} onOpenChange={setPublicConfirmOpen}>
+        <DialogContent
+          className="md:max-w-md"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            (isPublic ? publicRadioRef : linkRadioRef).current?.focus();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Make this document public?</DialogTitle>
+            <DialogDescription>
+              Public documents are listed on the start page and in search results, so anyone can
+              find and read this content. Switch back to link-only at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" className="gap-2" onClick={() => setPublicConfirmOpen(false)}>
+              <Link2 className="h-4 w-4" aria-hidden="true" />
+              Keep link-only
+            </Button>
+            <Button className="gap-2" onClick={confirmPublic}>
+              <Globe className="h-4 w-4" aria-hidden="true" />
+              Make public
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import type { DocumentVisibility } from 'shared';
+import type { Document, DocumentVisibility } from 'shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -13,6 +13,7 @@ import { useYjs } from '@/hooks/useYjs';
 import { DocumentEditor } from './DocumentEditor';
 
 let mockIsMobile = false;
+let mockDocumentId = 'test-doc';
 
 const mockDoc = {
   id: 'test-doc',
@@ -49,7 +50,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return {
     ...(actual as Record<string, unknown>),
     useNavigate: () => mockNavigate,
-    useParams: () => ({ id: 'test-doc' }),
+    useParams: () => ({ id: mockDocumentId }),
   };
 });
 
@@ -191,6 +192,7 @@ describe('DocumentEditor', () => {
     vi.clearAllMocks();
     document.title = 'WikiCollab - Collaborative Wikitext Editor';
     mockIsMobile = false;
+    mockDocumentId = 'test-doc';
     mockEditorHandle.jumpToPosition.mockReset();
     mockEditorHandle.scrollToPosition.mockReset();
     mockConnectionStatePopover.mockReset();
@@ -428,6 +430,97 @@ describe('DocumentEditor', () => {
         mediawiki_instance_api_url: 'https://en.wikipedia.org/w/api.php',
       })
     );
+  });
+
+  it('adopts server visibility when no local visibility change is pending', async () => {
+    const user = userEvent.setup();
+    const linkOnlyDoc = { ...mockDoc, visibility: 'unlisted' as DocumentVisibility };
+    useDocumentMock.mockReturnValue({
+      document: linkOnlyDoc,
+      loading: false,
+      setDocument: vi.fn(),
+    });
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
+      return {
+        ok: true,
+        json: async () =>
+          'visibility' in body
+            ? {}
+            : {
+                ...linkOnlyDoc,
+                mediawiki_instance_name: 'Updated wiki',
+                visibility: 'public',
+              },
+      } as Response;
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    renderWithProviders(<DocumentEditor />);
+    await screen.findByTestId('instance-manager');
+    expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true');
+    await React.act(async () => {
+      await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
+    });
+    await vi.waitFor(() =>
+      expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true')
+    );
+
+    await user.click(screen.getByRole('radio', { name: /Link/i }));
+    await vi.waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/docs/test-doc',
+        expect.objectContaining({ body: JSON.stringify({ visibility: 'unlisted' }) })
+      )
+    );
+  });
+
+  it('preserves a pending visibility change during an instance save', async () => {
+    const user = userEvent.setup();
+    const linkOnlyDoc = { ...mockDoc, visibility: 'unlisted' as DocumentVisibility };
+    useDocumentMock.mockImplementation(() => {
+      const [document, setDocument] = React.useState<Document | null>(linkOnlyDoc);
+      return { document, loading: false, setDocument };
+    });
+    let resolveVisibilityPatch: (response: Response) => void = () => {};
+    const visibilityPatch = { signal: null as AbortSignal | null };
+    let visibilityPatchStarted = false;
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
+      if ('visibility' in body) {
+        visibilityPatchStarted = true;
+        visibilityPatch.signal = init?.signal as AbortSignal;
+        return new Promise<Response>((resolve) => {
+          resolveVisibilityPatch = resolve;
+        });
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          ...linkOnlyDoc,
+          mediawiki_instance_name: 'Updated wiki',
+          visibility: 'unlisted',
+        }),
+      } as Response;
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    renderWithProviders(<DocumentEditor />);
+    await user.click(screen.getByRole('radio', { name: /Public/i }));
+    await user.click(screen.getByRole('button', { name: 'Make public' }));
+    await vi.waitFor(() => expect(visibilityPatchStarted).toBe(true));
+    expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true');
+
+    await React.act(async () => {
+      await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
+    });
+    expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true');
+    expect(visibilityPatch.signal?.aborted).toBe(false);
+
+    await React.act(async () => {
+      resolveVisibilityPatch({ ok: true } as Response);
+    });
+    expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('refetches instance CSS after PATCH returns before async refresh completes', async () => {
@@ -869,6 +962,63 @@ describe('DocumentEditor', () => {
         method: 'PATCH',
         body: JSON.stringify({ visibility: 'unlisted' }),
       })
+    );
+  });
+
+  it('closes visibility confirmation when navigating to another document', () => {
+    const firstDoc = { ...mockDoc, id: 'first-doc', visibility: 'unlisted' as DocumentVisibility };
+    const secondDoc = {
+      ...mockDoc,
+      id: 'second-doc',
+      visibility: 'unlisted' as DocumentVisibility,
+    };
+    mockDocumentId = firstDoc.id;
+    useDocumentMock.mockReturnValue({ document: firstDoc, loading: false, setDocument: vi.fn() });
+    const { rerender } = renderWithProviders(<DocumentEditor />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Public/i }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    mockDocumentId = secondDoc.id;
+    useDocumentMock.mockReturnValue({ document: secondDoc, loading: false, setDocument: vi.fn() });
+    rerender(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DocumentEditor />
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('resets persisted visibility when navigating to another document', async () => {
+    vi.useFakeTimers();
+    const firstDoc = { ...mockDoc, id: 'first-doc', visibility: 'unlisted' as DocumentVisibility };
+    const secondDoc = { ...mockDoc, id: 'second-doc', visibility: 'public' as DocumentVisibility };
+    const fetch = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetch);
+    mockDocumentId = firstDoc.id;
+    useDocumentMock.mockReturnValue({ document: firstDoc, loading: false, setDocument: vi.fn() });
+    const { rerender } = renderWithProviders(<DocumentEditor />);
+
+    mockDocumentId = secondDoc.id;
+    useDocumentMock.mockReturnValue({ document: secondDoc, loading: false, setDocument: vi.fn() });
+    rerender(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DocumentEditor />
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /Link/i }));
+    await React.act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/docs/second-doc',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ visibility: 'unlisted' }) })
     );
   });
 

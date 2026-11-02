@@ -61,7 +61,8 @@ export function BottomSheet({ open, onOpenChange, children, title }: BottomSheet
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      // Nested dialogs (e.g. Radix) prevent default so Escape only dismisses them.
+      if (e.key === 'Escape' && !e.defaultPrevented) close();
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);

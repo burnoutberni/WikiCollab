@@ -48,6 +48,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('useDocuments', () => {
@@ -65,6 +66,271 @@ describe('useDocuments', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.documents).toEqual(docs);
+  });
+
+  it.each([
+    ['non-success status', { ok: false, status: 503, json: () => Promise.resolve([]) }],
+    ['non-array body', { ok: true, status: 200, json: () => Promise.resolve({ docs: [] }) }],
+  ])('ignores an invalid initial documents response (%s)', async (_description, response) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const { result } = renderHook(() => useDocuments());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.documents).toEqual([]);
+  });
+
+  it('merges refreshed fields for known documents while polling', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1', visibility: 'unlisted' })];
+    const refreshed = [createDoc({ id: '1', visibility: 'public' })];
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(refreshed) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.documents[0].visibility).toBe('unlisted');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.documents[0].visibility).toBe('public');
+  });
+
+  it.each([
+    ['non-success status', { ok: false, status: 503, json: () => Promise.resolve([]) }],
+    ['non-array body', { ok: true, status: 200, json: () => Promise.resolve({ docs: [] }) }],
+  ])('ignores an invalid poll response (%s)', async (_description, invalidResponse) => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const initial = [createDoc({ id: '1' })];
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockResolvedValueOnce(invalidResponse);
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(result.current.documents).toEqual(initial);
+  });
+
+  it('does not start a second poll while the previous request is pending', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    let resolvePoll!: (value: { ok: boolean; json: () => Promise<Document[]> }) => void;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePoll = resolve;
+          })
+      );
+    vi.stubGlobal('fetch', fetch);
+
+    renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolvePoll({ ok: true, json: () => Promise.resolve(initial) });
+      await Promise.resolve();
+    });
+  });
+
+  it('aborts a stalled poll and allows a later poll to retry', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    const pollSignals: AbortSignal[] = [];
+    const fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal) {
+        pollSignals.push(init.signal as AbortSignal);
+        return new Promise<Response>(() => {});
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(initial) } as Response);
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { unmount } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(pollSignals).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+
+    expect(pollSignals[0].aborted).toBe(true);
+    expect(pollSignals).toHaveLength(2);
+    unmount();
+  });
+
+  it('applies a poll and pending acceptance atomically', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    const discovered = createDoc({ id: '2' });
+    let resolvePoll!: (value: { ok: boolean; json: () => Promise<Document[]> }) => void;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePoll = resolve;
+          })
+      );
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await act(async () => {
+      resolvePoll({ ok: true, json: () => Promise.resolve([...initial, discovered]) });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      result.current.loadPending();
+    });
+
+    expect(result.current.documents.map((doc) => doc.id)).toEqual(['2', '1']);
+    expect(result.current.pendingCount).toBe(0);
+  });
+
+  it('discards a poll response superseded by a local document update', async () => {
+    vi.useFakeTimers();
+    const initial = createDoc({ id: '1', title: 'Original' });
+    const stalePollDoc = createDoc({ id: '1', title: 'Stale poll value' });
+    const updated = createDoc({ id: '1', title: 'Updated locally' });
+    let resolvePoll!: (response: Response) => void;
+    const fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(updated) } as Response);
+      }
+      if (init?.signal) {
+        return new Promise<Response>((resolve) => {
+          resolvePoll = resolve;
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([initial]) } as Response);
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await act(async () => {
+      await result.current.updateDocument('1', { title: 'Updated locally' });
+    });
+    await act(async () => {
+      resolvePoll({ ok: true, json: () => Promise.resolve([stalePollDoc]) } as Response);
+      await Promise.resolve();
+    });
+
+    expect(result.current.documents[0].title).toBe('Updated locally');
+  });
+
+  it('removes missing documents from both the list and pending queue after polling', async () => {
+    vi.useFakeTimers();
+    const first = createDoc({ id: '1' });
+    const second = createDoc({ id: '2' });
+    const newlyVisible = createDoc({ id: '3' });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([first, second]) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([first, second, newlyVisible]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([first]) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.documents.map((doc) => doc.id)).toEqual(['1', '2']);
+    expect(result.current.pendingCount).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.documents.map((doc) => doc.id)).toEqual(['1']);
+    expect(result.current.pendingCount).toBe(0);
+  });
+
+  it('removes replaced documents from pending while preserving undisclosed pending documents', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    const discovered = createDoc({ id: '2' });
+    const stillPending = createDoc({ id: '3' });
+    const replacement = createDoc({ id: '2', title: 'Refreshed' });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([...initial, discovered, stillPending]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([replacement]) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.pendingCount).toBe(2);
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.documents).toEqual([replacement]);
+    expect(result.current.pendingCount).toBe(1);
   });
 
   it('handles fetch error gracefully', async () => {
