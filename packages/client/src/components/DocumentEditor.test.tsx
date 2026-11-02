@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import type { DocumentVisibility } from 'shared';
+import type { Document, DocumentVisibility } from 'shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -479,7 +479,7 @@ describe('DocumentEditor', () => {
     const user = userEvent.setup();
     const linkOnlyDoc = { ...mockDoc, visibility: 'unlisted' as DocumentVisibility };
     useDocumentMock.mockImplementation(() => {
-      const [document, setDocument] = React.useState(linkOnlyDoc);
+      const [document, setDocument] = React.useState<Document | null>(linkOnlyDoc);
       return { document, loading: false, setDocument };
     });
     let resolveVisibilityPatch: (response: Response) => void = () => {};
@@ -519,10 +519,7 @@ describe('DocumentEditor', () => {
     await React.act(async () => {
       resolveVisibilityPatch({ ok: false, status: 500 } as Response);
       await vi.waitFor(() =>
-        expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute(
-          'aria-checked',
-          'true'
-        )
+        expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true')
       );
     });
   });
