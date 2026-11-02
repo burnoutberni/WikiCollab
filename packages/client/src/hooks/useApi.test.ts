@@ -126,6 +126,41 @@ describe('useDocuments', () => {
     });
   });
 
+  it('applies a poll and pending acceptance atomically', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    const discovered = createDoc({ id: '2' });
+    let resolvePoll!: (value: { ok: boolean; json: () => Promise<Document[]> }) => void;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePoll = resolve;
+          })
+      );
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await act(async () => {
+      resolvePoll({ ok: true, json: () => Promise.resolve([...initial, discovered]) });
+      await Promise.resolve();
+      await Promise.resolve();
+      result.current.loadPending();
+    });
+
+    expect(result.current.documents.map((doc) => doc.id)).toEqual(['2', '1']);
+    expect(result.current.pendingCount).toBe(0);
+  });
+
   it('removes missing documents from both the list and pending queue after polling', async () => {
     vi.useFakeTimers();
     const first = createDoc({ id: '1' });

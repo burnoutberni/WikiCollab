@@ -1,9 +1,74 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import type { Document, DocumentVisibility, User, Version } from 'shared';
 
 export type { Document, Version };
 
 export const API_BASE = '/api';
+
+interface DocumentListState {
+  documents: Document[];
+  pendingDocs: Document[];
+}
+
+type DocumentListAction =
+  | { type: 'replace'; documents: Document[] }
+  | { type: 'poll'; documents: Document[] }
+  | { type: 'acceptPending' }
+  | { type: 'add'; document: Document }
+  | { type: 'remove'; id: string }
+  | { type: 'update'; document: Document };
+
+function documentListReducer(
+  state: DocumentListState,
+  action: DocumentListAction
+): DocumentListState {
+  switch (action.type) {
+    case 'replace':
+      return { ...state, documents: action.documents };
+    case 'poll': {
+      const currentIds = new Set(state.documents.map((doc) => doc.id));
+      const latestById = new Map(action.documents.map((doc) => [doc.id, doc]));
+      const pendingDocs = state.pendingDocs
+        .filter((doc) => latestById.has(doc.id))
+        .map((doc) => latestById.get(doc.id)!);
+      const pendingIds = new Set(pendingDocs.map((doc) => doc.id));
+      pendingDocs.push(
+        ...action.documents.filter((doc) => !currentIds.has(doc.id) && !pendingIds.has(doc.id))
+      );
+
+      return {
+        documents: state.documents
+          .filter((doc) => latestById.has(doc.id))
+          .map((doc) => latestById.get(doc.id)!),
+        pendingDocs,
+      };
+    }
+    case 'acceptPending': {
+      const documentIds = new Set(state.documents.map((doc) => doc.id));
+      return {
+        documents: [
+          ...state.pendingDocs.filter((doc) => !documentIds.has(doc.id)),
+          ...state.documents,
+        ],
+        pendingDocs: [],
+      };
+    }
+    case 'add':
+      return { ...state, documents: [action.document, ...state.documents] };
+    case 'remove':
+      return {
+        documents: state.documents.filter((doc) => doc.id !== action.id),
+        pendingDocs: state.pendingDocs.filter((doc) => doc.id !== action.id),
+      };
+    case 'update':
+      return {
+        ...state,
+        documents: state.documents.map((doc) =>
+          doc.id === action.document.id ? action.document : doc
+        ),
+      };
+  }
+}
 
 export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   return fetch(input, { ...init, credentials: 'include' });
@@ -45,15 +110,17 @@ export function useAuth() {
  * Polls the API every 5 seconds after the initial load.
  */
 export function useDocuments() {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [{ documents, pendingDocs }, dispatch] = useReducer(documentListReducer, {
+    documents: [],
+    pendingDocs: [],
+  });
   const [loading, setLoading] = useState(true);
-  const [pendingDocs, setPendingDocs] = useState<Document[]>([]);
 
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await apiFetch(`${API_BASE}/docs`);
       const data = await res.json();
-      setDocuments(data);
+      dispatch({ type: 'replace', documents: data });
     } catch (error) {
       console.error('Failed to fetch documents:', error);
     } finally {
@@ -75,22 +142,7 @@ export function useDocuments() {
       try {
         const res = await apiFetch(`${API_BASE}/docs`);
         const latest: Document[] = await res.json();
-        setDocuments((current) => {
-          const currentIds = new Set(current.map((d) => d.id));
-          const newDocs = latest.filter((d) => !currentIds.has(d.id));
-          const latestById = new Map(latest.map((d) => [d.id, d]));
-          setPendingDocs((prev) => {
-            const stillVisible = prev
-              .filter((doc) => latestById.has(doc.id))
-              .map((doc) => latestById.get(doc.id)!);
-            const existingIds = new Set(stillVisible.map((d) => d.id));
-            const toAdd = newDocs.filter((d) => !existingIds.has(d.id));
-            return [...stillVisible, ...toAdd];
-          });
-          return current
-            .filter((doc) => latestById.has(doc.id))
-            .map((doc) => latestById.get(doc.id)!);
-        });
+        dispatch({ type: 'poll', documents: latest });
       } catch (err) {
         console.error('Failed to poll documents:', err);
       } finally {
@@ -102,14 +154,7 @@ export function useDocuments() {
     return () => clearInterval(interval);
   }, [loading]);
 
-  const loadPending = useCallback(() => {
-    setDocuments((prev) => {
-      const existingIds = new Set(prev.map((d) => d.id));
-      const toAdd = pendingDocs.filter((d) => !existingIds.has(d.id));
-      return toAdd.length > 0 ? [...toAdd, ...prev] : prev;
-    });
-    setPendingDocs([]);
-  }, [pendingDocs]);
+  const loadPending = useCallback(() => dispatch({ type: 'acceptPending' }), []);
 
   const createDocument = useCallback(
     async (options?: {
@@ -133,7 +178,7 @@ export function useDocuments() {
         throw new Error(doc.error || 'Failed to create document');
       }
       if (doc.visibility !== 'unlisted') {
-        setDocuments((prev) => [doc, ...prev]);
+        dispatch({ type: 'add', document: doc });
       }
       return doc;
     },
@@ -142,7 +187,7 @@ export function useDocuments() {
 
   const deleteDocument = useCallback(async (id: string) => {
     await apiFetch(`${API_BASE}/docs/${id}`, { method: 'DELETE' });
-    setDocuments((prev) => prev.filter((d) => d.id !== id));
+    dispatch({ type: 'remove', id });
   }, []);
 
   const updateDocument = useCallback(async (id: string, updates: Partial<Document>) => {
@@ -152,7 +197,7 @@ export function useDocuments() {
       body: JSON.stringify(updates),
     });
     const doc = await res.json();
-    setDocuments((prev) => prev.map((d) => (d.id === id ? doc : d)));
+    dispatch({ type: 'update', document: doc });
     return doc;
   }, []);
 
