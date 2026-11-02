@@ -231,6 +231,39 @@ describe('useDocuments', () => {
     expect(result.current.pendingCount).toBe(0);
   });
 
+  it('removes replaced documents from pending while preserving undisclosed pending documents', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    const discovered = createDoc({ id: '2' });
+    const stillPending = createDoc({ id: '3' });
+    const replacement = createDoc({ id: '2', title: 'Refreshed' });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([...initial, discovered, stillPending]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([replacement]) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.pendingCount).toBe(2);
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.documents).toEqual([replacement]);
+    expect(result.current.pendingCount).toBe(1);
+  });
+
   it('handles fetch error gracefully', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
 

@@ -37,8 +37,13 @@ function documentListReducer(
   action: DocumentListAction
 ): DocumentListState {
   switch (action.type) {
-    case 'replace':
-      return { ...state, documents: action.documents };
+    case 'replace': {
+      const replacementIds = new Set(action.documents.map((doc) => doc.id));
+      return {
+        documents: action.documents,
+        pendingDocs: state.pendingDocs.filter((doc) => !replacementIds.has(doc.id)),
+      };
+    }
     case 'poll': {
       const currentIds = new Set(state.documents.map((doc) => doc.id));
       const latestById = new Map(action.documents.map((doc) => [doc.id, doc]));
