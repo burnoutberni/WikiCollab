@@ -91,6 +91,41 @@ describe('useDocuments', () => {
     expect(result.current.documents[0].visibility).toBe('public');
   });
 
+  it('does not start a second poll while the previous request is pending', async () => {
+    vi.useFakeTimers();
+    const initial = [createDoc({ id: '1' })];
+    let resolvePoll!: (value: { ok: boolean; json: () => Promise<Document[]> }) => void;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePoll = resolve;
+          })
+      );
+    vi.stubGlobal('fetch', fetch);
+
+    renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolvePoll({ ok: true, json: () => Promise.resolve(initial) });
+      await Promise.resolve();
+    });
+  });
+
   it('handles fetch error gracefully', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
 

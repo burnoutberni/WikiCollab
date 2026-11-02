@@ -68,7 +68,10 @@ export function useDocuments() {
   useEffect(() => {
     if (loading) return;
 
+    let pollInFlight = false;
     const poll = async () => {
+      if (pollInFlight) return;
+      pollInFlight = true;
       try {
         const res = await apiFetch(`${API_BASE}/docs`);
         const latest: Document[] = await res.json();
@@ -87,6 +90,8 @@ export function useDocuments() {
         });
       } catch (err) {
         console.error('Failed to poll documents:', err);
+      } finally {
+        pollInFlight = false;
       }
     };
 
