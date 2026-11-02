@@ -5,7 +5,7 @@ ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
 
 RUN apk add --no-cache python3 make g++
 
-RUN npm install --global pnpm@11.28.3
+RUN npm install --global pnpm@11.28.10
 
 WORKDIR /app
 
