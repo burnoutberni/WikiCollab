@@ -126,6 +126,38 @@ describe('useDocuments', () => {
     });
   });
 
+  it('removes missing documents from both the list and pending queue after polling', async () => {
+    vi.useFakeTimers();
+    const first = createDoc({ id: '1' });
+    const second = createDoc({ id: '2' });
+    const newlyVisible = createDoc({ id: '3' });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([first, second]) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([first, second, newlyVisible]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([first]) });
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.documents.map((doc) => doc.id)).toEqual(['1', '2']);
+    expect(result.current.pendingCount).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.documents.map((doc) => doc.id)).toEqual(['1']);
+    expect(result.current.pendingCount).toBe(0);
+  });
+
   it('handles fetch error gracefully', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
 

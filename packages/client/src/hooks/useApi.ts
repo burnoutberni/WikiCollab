@@ -79,14 +79,17 @@ export function useDocuments() {
           const currentIds = new Set(current.map((d) => d.id));
           const newDocs = latest.filter((d) => !currentIds.has(d.id));
           const latestById = new Map(latest.map((d) => [d.id, d]));
-          if (newDocs.length > 0) {
-            setPendingDocs((prev) => {
-              const existingIds = new Set(prev.map((d) => d.id));
-              const toAdd = newDocs.filter((d) => !existingIds.has(d.id));
-              return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
-            });
-          }
-          return current.map((doc) => latestById.get(doc.id) ?? doc);
+          setPendingDocs((prev) => {
+            const stillVisible = prev
+              .filter((doc) => latestById.has(doc.id))
+              .map((doc) => latestById.get(doc.id)!);
+            const existingIds = new Set(stillVisible.map((d) => d.id));
+            const toAdd = newDocs.filter((d) => !existingIds.has(d.id));
+            return [...stillVisible, ...toAdd];
+          });
+          return current
+            .filter((doc) => latestById.has(doc.id))
+            .map((doc) => latestById.get(doc.id)!);
         });
       } catch (err) {
         console.error('Failed to poll documents:', err);
