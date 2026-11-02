@@ -1,8 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
   "packageRules": [
     {
       "description": "Group all GitHub Actions updates into one weekly PR",
@@ -39,6 +37,13 @@
       "schedule": ["before 9am on Monday"]
     }
   ],
+  "vulnerabilityAlerts": {
+    "description": "Open security fixes immediately instead of waiting for the weekly schedule",
+    "enabled": true,
+    "labels": ["security"],
+    "schedule": ["at any time"]
+  },
+  "osvVulnerabilityAlerts": true,
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 9am on Monday"]
