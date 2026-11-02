@@ -10,9 +10,11 @@ import { Separator } from '@/components/ui/separator';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth, useDocuments } from '@/hooks/useApi';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { cn } from '@/lib/utils';
 
 import NEW_DOC_BOILERPLATE from '../content/new-doc-boilerplate.wikitext?raw';
 import { AuthControls } from './AuthControls';
+import { DocumentVisibilityBadge } from './DocumentVisibilityBadge';
 import { NewDocumentButton } from './NewDocumentButton';
 import { ShareButton } from './ShareButton';
 
@@ -205,7 +207,12 @@ export function Dashboard() {
                 {filtered.map((doc) => (
                   <Card
                     key={doc.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors group"
+                    className={cn(
+                      'cursor-pointer hover:bg-muted/50 transition-colors group border-l-4',
+                      doc.visibility === 'public'
+                        ? 'border-l-emerald-500/70'
+                        : 'border-l-amber-500/80'
+                    )}
                     onClick={() => handleOpen(doc.id)}
                   >
                     <CardHeader className="pb-3">
@@ -214,10 +221,13 @@ export function Dashboard() {
                           <CardTitle className="text-base truncate">
                             {doc.title || 'Untitled'}
                           </CardTitle>
-                          <CardDescription className="flex items-center gap-1 mt-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDate(doc.updated_at)}
-                          </CardDescription>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <DocumentVisibilityBadge visibility={doc.visibility} />
+                            <CardDescription className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatDate(doc.updated_at)}
+                            </CardDescription>
+                          </div>
                         </div>
                         <ShareButton documentId={doc.id} />
                       </div>

@@ -112,6 +112,7 @@ vi.mock('lucide-react', () => {
         'ChevronDown',
         'Clock',
         'FileText',
+        'Globe',
         'Link2',
         'Plus',
         'Search',
@@ -298,6 +299,30 @@ describe('Dashboard', () => {
     await user.click(card);
 
     expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1');
+  });
+
+  it('highlights public and link-only documents with visibility badges', () => {
+    const linkOnlyDoc = {
+      ...mockDocuments[1],
+      id: 'doc4',
+      title: 'Hidden Doc',
+      visibility: 'unlisted' as DocumentVisibility,
+    };
+
+    useDocumentsMock.mockReturnValue({
+      documents: [mockDocuments[0], linkOnlyDoc],
+      loading: false,
+      pendingCount: 0,
+      loadPending: mockLoadPending,
+      createDocument: mockCreateDocument,
+      deleteDocument: vi.fn(),
+      updateDocument: vi.fn(),
+      refetch: vi.fn(),
+    });
+    renderWithProviders(<Dashboard />);
+
+    expect(screen.getByText('Public')).toBeInTheDocument();
+    expect(screen.getByText('Link only')).toBeInTheDocument();
   });
 
   it('pending documents banner appears', () => {

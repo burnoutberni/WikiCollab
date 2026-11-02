@@ -1,6 +1,17 @@
 import { Globe, Link2 } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { DocumentVisibility } from 'shared';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface DocumentVisibilityControlProps {
   visibility: DocumentVisibility;
@@ -14,6 +25,19 @@ export function DocumentVisibilityControl({
   onChange,
 }: DocumentVisibilityControlProps) {
   const isPublic = visibility === 'public';
+  const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
+
+  const requestChange = useCallback(
+    (next: DocumentVisibility) => {
+      if (next === 'public' && visibility !== 'public') {
+        setPublicConfirmOpen(true);
+        return;
+      }
+
+      onChange(next);
+    },
+    [visibility, onChange]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -28,10 +52,10 @@ export function DocumentVisibilityControl({
 
       if (next !== null) {
         e.preventDefault();
-        onChange(VISIBILITY_OPTIONS[next]);
+        requestChange(VISIBILITY_OPTIONS[next]);
       }
     },
-    [visibility, onChange]
+    [visibility, requestChange]
   );
 
   return (
@@ -67,7 +91,7 @@ export function DocumentVisibilityControl({
           aria-checked={!isPublic}
           tabIndex={isPublic ? -1 : 0}
           className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
-          onClick={() => onChange('unlisted')}
+          onClick={() => requestChange('unlisted')}
         >
           <Link2 className="h-4 w-4" />
           <span>Link</span>
@@ -79,7 +103,7 @@ export function DocumentVisibilityControl({
           aria-checked={isPublic}
           tabIndex={isPublic ? 0 : -1}
           className="relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
-          onClick={() => onChange('public')}
+          onClick={() => requestChange('public')}
         >
           <Globe className="h-4 w-4" />
           <span>Public</span>
@@ -89,6 +113,22 @@ export function DocumentVisibilityControl({
       <p className="text-xs text-muted-foreground text-center">
         {!isPublic ? 'Only accessible via direct link' : 'Visible on start page and in search'}
       </p>
+
+      <AlertDialog open={publicConfirmOpen} onOpenChange={setPublicConfirmOpen}>
+        <AlertDialogContent className="md:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Make this document public?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Public documents are listed on the start page and in search results, so anyone can
+              find and read this content. Switch back to link-only at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep link-only</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onChange('public')}>Make public</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
