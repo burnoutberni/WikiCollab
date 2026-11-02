@@ -188,8 +188,13 @@ export function DocumentEditor() {
         lastPersistedTitleRef.current = doc.title;
       }
       setContentState(doc.content);
-      setVisibility(doc.visibility);
-      latestVisibilityRef.current = doc.visibility;
+      const isNewVisibilityDocument = lastPersistedVisibilityDocumentIdRef.current !== doc.id;
+      if (isNewVisibilityDocument) {
+        setVisibility(doc.visibility);
+        latestVisibilityRef.current = doc.visibility;
+        lastPersistedVisibilityRef.current = doc.visibility;
+        lastPersistedVisibilityDocumentIdRef.current = doc.id;
+      }
       setInstanceName(doc.mediawiki_instance_name);
       setInstanceApiUrl(doc.mediawiki_instance_api_url);
       setInstanceCss(doc.mediawiki_instance_css);
@@ -200,10 +205,6 @@ export function DocumentEditor() {
       setBotUsername(doc.mediawiki_bot_username);
       setHasBotPassword(doc.has_mediawiki_bot_password);
       setPreviewRenderer(null);
-      if (lastPersistedVisibilityDocumentIdRef.current !== doc.id) {
-        lastPersistedVisibilityRef.current = doc.visibility;
-        lastPersistedVisibilityDocumentIdRef.current = doc.id;
-      }
       lastPersistedInstanceRef.current = {
         name: doc.mediawiki_instance_name,
         apiUrl: doc.mediawiki_instance_api_url,
@@ -433,7 +434,7 @@ export function DocumentEditor() {
           currentDoc
             ? {
                 ...currentDoc,
-                visibility: lastPersistedVisibilityRef.current ?? currentDoc.visibility,
+                visibility: latestVisibilityRef.current,
                 mediawiki_instance_name: updatedDoc.mediawiki_instance_name,
                 mediawiki_instance_api_url: updatedDoc.mediawiki_instance_api_url,
                 mediawiki_instance_css: updatedDoc.mediawiki_instance_css,

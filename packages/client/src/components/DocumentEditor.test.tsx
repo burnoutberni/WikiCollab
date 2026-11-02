@@ -485,11 +485,13 @@ describe('DocumentEditor', () => {
       return { document, loading: false, setDocument };
     });
     let resolveVisibilityPatch: (response: Response) => void = () => {};
+    let visibilityPatchSignal: AbortSignal | null = null;
     let visibilityPatchStarted = false;
     const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
       if ('visibility' in body) {
         visibilityPatchStarted = true;
+        visibilityPatchSignal = init?.signal as AbortSignal;
         return new Promise<Response>((resolve) => {
           resolveVisibilityPatch = resolve;
         });
@@ -514,16 +516,13 @@ describe('DocumentEditor', () => {
     await React.act(async () => {
       await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
     });
-    await vi.waitFor(() =>
-      expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true')
-    );
+    expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true');
+    expect(visibilityPatchSignal?.aborted).toBe(false);
 
     await React.act(async () => {
-      resolveVisibilityPatch({ ok: false, status: 500 } as Response);
-      await vi.waitFor(() =>
-        expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true')
-      );
+      resolveVisibilityPatch({ ok: true } as Response);
     });
+    expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('refetches instance CSS after PATCH returns before async refresh completes', async () => {
