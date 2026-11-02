@@ -68,6 +68,19 @@ describe('useDocuments', () => {
     expect(result.current.documents).toEqual(docs);
   });
 
+  it.each([
+    ['non-success status', { ok: false, status: 503, json: () => Promise.resolve([]) }],
+    ['non-array body', { ok: true, status: 200, json: () => Promise.resolve({ docs: [] }) }],
+  ])('ignores an invalid initial documents response (%s)', async (_description, response) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const { result } = renderHook(() => useDocuments());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.documents).toEqual([]);
+  });
+
   it('merges refreshed fields for known documents while polling', async () => {
     vi.useFakeTimers();
     const initial = [createDoc({ id: '1', visibility: 'unlisted' })];
@@ -89,6 +102,30 @@ describe('useDocuments', () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
     expect(result.current.documents[0].visibility).toBe('public');
+  });
+
+  it.each([
+    ['non-success status', { ok: false, status: 503, json: () => Promise.resolve([]) }],
+    ['non-array body', { ok: true, status: 200, json: () => Promise.resolve({ docs: [] }) }],
+  ])('ignores an invalid poll response (%s)', async (_description, invalidResponse) => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const initial = [createDoc({ id: '1' })];
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(initial) })
+      .mockResolvedValueOnce(invalidResponse);
+    vi.stubGlobal('fetch', fetch);
+
+    const { result } = renderHook(() => useDocuments());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(result.current.documents).toEqual(initial);
   });
 
   it('does not start a second poll while the previous request is pending', async () => {
@@ -152,6 +189,7 @@ describe('useDocuments', () => {
 
     await act(async () => {
       resolvePoll({ ok: true, json: () => Promise.resolve([...initial, discovered]) });
+      await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
       result.current.loadPending();

@@ -18,6 +18,20 @@ type DocumentListAction =
   | { type: 'remove'; id: string }
   | { type: 'update'; document: Document };
 
+async function parseDocumentsResponse(response: Response): Promise<Document[]> {
+  if (!response.ok) throw new Error(`Unexpected status ${response.status}`);
+
+  const data: unknown = await response.json();
+  if (
+    !Array.isArray(data) ||
+    !data.every((item) => item !== null && typeof item === 'object' && typeof item.id === 'string')
+  ) {
+    throw new Error('Unexpected documents response shape');
+  }
+
+  return data as Document[];
+}
+
 function documentListReducer(
   state: DocumentListState,
   action: DocumentListAction
@@ -119,7 +133,7 @@ export function useDocuments() {
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await apiFetch(`${API_BASE}/docs`);
-      const data = await res.json();
+      const data = await parseDocumentsResponse(res);
       dispatch({ type: 'replace', documents: data });
     } catch (error) {
       console.error('Failed to fetch documents:', error);
@@ -141,7 +155,7 @@ export function useDocuments() {
       pollInFlight = true;
       try {
         const res = await apiFetch(`${API_BASE}/docs`);
-        const latest: Document[] = await res.json();
+        const latest = await parseDocumentsResponse(res);
         dispatch({ type: 'poll', documents: latest });
       } catch (err) {
         console.error('Failed to poll documents:', err);
