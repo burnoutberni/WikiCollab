@@ -430,11 +430,21 @@ export function DocumentEditor() {
           articlePath: updatedDoc.mediawiki_article_path,
           scriptPath: updatedDoc.mediawiki_script_path,
         };
+        const hasPendingVisibilityChange =
+          latestVisibilityRef.current !== lastPersistedVisibilityRef.current;
+        const visibilityForDocument = hasPendingVisibilityChange
+          ? latestVisibilityRef.current
+          : updatedDoc.visibility;
+        if (!hasPendingVisibilityChange) {
+          latestVisibilityRef.current = updatedDoc.visibility;
+          lastPersistedVisibilityRef.current = updatedDoc.visibility;
+          setVisibility(updatedDoc.visibility);
+        }
         setDocument((currentDoc) =>
           currentDoc
             ? {
                 ...currentDoc,
-                visibility: latestVisibilityRef.current,
+                visibility: visibilityForDocument,
                 mediawiki_instance_name: updatedDoc.mediawiki_instance_name,
                 mediawiki_instance_api_url: updatedDoc.mediawiki_instance_api_url,
                 mediawiki_instance_css: updatedDoc.mediawiki_instance_css,

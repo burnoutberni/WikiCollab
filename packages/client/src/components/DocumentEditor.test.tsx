@@ -432,11 +432,14 @@ describe('DocumentEditor', () => {
     );
   });
 
-  it('preserves persisted visibility when saving instance settings', async () => {
+  it('adopts server visibility when no local visibility change is pending', async () => {
     const user = userEvent.setup();
     const linkOnlyDoc = { ...mockDoc, visibility: 'unlisted' as DocumentVisibility };
-    const setDocument = vi.fn();
-    useDocumentMock.mockReturnValue({ document: linkOnlyDoc, loading: false, setDocument });
+    useDocumentMock.mockReturnValue({
+      document: linkOnlyDoc,
+      loading: false,
+      setDocument: vi.fn(),
+    });
     const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
       return {
@@ -447,33 +450,28 @@ describe('DocumentEditor', () => {
             : {
                 ...linkOnlyDoc,
                 mediawiki_instance_name: 'Updated wiki',
-                visibility: 'unlisted',
+                visibility: 'public',
               },
       } as Response;
     });
     vi.stubGlobal('fetch', fetch);
 
     renderWithProviders(<DocumentEditor />);
-    await user.click(screen.getByRole('radio', { name: /Public/i }));
-    await user.click(screen.getByRole('button', { name: 'Make public' }));
+    await screen.findByTestId('instance-manager');
+    expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true');
+    await React.act(async () => {
+      await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
+    });
+    await vi.waitFor(() =>
+      expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true')
+    );
 
-    await vi.waitFor(() => {
+    await user.click(screen.getByRole('radio', { name: /Link/i }));
+    await vi.waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         '/api/docs/test-doc',
-        expect.objectContaining({ body: JSON.stringify({ visibility: 'public' }) })
-      );
-    });
-
-    await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
-
-    const updateDocument = setDocument.mock.calls.at(-1)?.[0] as (
-      doc: typeof linkOnlyDoc
-    ) => typeof linkOnlyDoc | undefined;
-    expect(updateDocument(linkOnlyDoc)).toEqual(
-      expect.objectContaining({
-        visibility: 'public',
-        mediawiki_instance_name: 'Updated wiki',
-      })
+        expect.objectContaining({ body: JSON.stringify({ visibility: 'unlisted' }) })
+      )
     );
   });
 
