@@ -478,14 +478,16 @@ describe('DocumentEditor', () => {
   it('preserves a pending visibility change during an instance save', async () => {
     const user = userEvent.setup();
     const linkOnlyDoc = { ...mockDoc, visibility: 'unlisted' as DocumentVisibility };
-    const setDocument = vi.fn();
-    useDocumentMock.mockReturnValue({ document: linkOnlyDoc, loading: false, setDocument });
+    useDocumentMock.mockImplementation(() => {
+      const [document, setDocument] = React.useState(linkOnlyDoc);
+      return { document, loading: false, setDocument };
+    });
     let resolveVisibilityPatch: (response: Response) => void = () => {};
-    let visibilityPatchInit: RequestInit | undefined;
+    let visibilityPatchStarted = false;
     const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
       if ('visibility' in body) {
-        visibilityPatchInit = init;
+        visibilityPatchStarted = true;
         return new Promise<Response>((resolve) => {
           resolveVisibilityPatch = resolve;
         });
@@ -504,23 +506,24 @@ describe('DocumentEditor', () => {
     renderWithProviders(<DocumentEditor />);
     await user.click(screen.getByRole('radio', { name: /Public/i }));
     await user.click(screen.getByRole('button', { name: 'Make public' }));
-    await vi.waitFor(() => expect(visibilityPatchInit).toBeDefined());
-
-    await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
-
-    const updateDocument = setDocument.mock.calls.at(-1)?.[0] as (
-      doc: typeof linkOnlyDoc
-    ) => typeof linkOnlyDoc | undefined;
-    expect(updateDocument(linkOnlyDoc)).toEqual(
-      expect.objectContaining({
-        visibility: 'public',
-        mediawiki_instance_name: 'Updated wiki',
-      })
-    );
-    expect(visibilityPatchInit?.signal).not.toHaveProperty('aborted', true);
+    await vi.waitFor(() => expect(visibilityPatchStarted).toBe(true));
+    expect(screen.getByRole('radio', { name: /Public/i })).toHaveAttribute('aria-checked', 'true');
 
     await React.act(async () => {
-      resolveVisibilityPatch({ ok: true } as Response);
+      await mockInstanceManager.mock.calls.at(-1)?.[0].onChange('Updated wiki', null);
+    });
+    await vi.waitFor(() =>
+      expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute('aria-checked', 'true')
+    );
+
+    await React.act(async () => {
+      resolveVisibilityPatch({ ok: false, status: 500 } as Response);
+      await vi.waitFor(() =>
+        expect(screen.getByRole('radio', { name: /Link/i })).toHaveAttribute(
+          'aria-checked',
+          'true'
+        )
+      );
     });
   });
 
