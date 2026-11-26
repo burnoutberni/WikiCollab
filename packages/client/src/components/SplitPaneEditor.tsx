@@ -337,7 +337,7 @@ export function SplitPaneEditor({
     if (isMobile && initialMobileTab !== 'preview') return;
     skipNextContentRefreshRef.current = true;
     refreshPreviewRef.current();
-  }, [apiUrl, title, documentId, previewRefreshKey, isMobile, initialMobileTab]);
+  }, [apiUrl, title, documentId, previewRefreshKey, isMobile, initialMobileTab, ytext, provider]);
 
   useEffect(() => {
     if (ytext) return;

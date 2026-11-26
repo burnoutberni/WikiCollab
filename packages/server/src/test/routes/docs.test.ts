@@ -108,6 +108,77 @@ describe('Docs routes', () => {
     expect(data).toHaveLength(0);
   });
 
+  it('imports server-fetched text, auto-configures the wiki, and persists attribution', async () => {
+    mockServerFetch.mockImplementation(async (value: string) => {
+      const url = new URL(value);
+      const query =
+        url.searchParams.get('prop') === 'revisions'
+          ? {
+              pages: [
+                {
+                  title: 'Source article',
+                  revisions: [
+                    {
+                      revid: 123,
+                      timestamp: '2026-11-01T12:00:00Z',
+                      slots: { main: { contentmodel: 'wikitext', content: 'Original wikitext' } },
+                    },
+                  ],
+                },
+              ],
+            }
+          : {
+              general: {
+                sitename: 'Example Wiki',
+                server: 'https://wiki.example',
+                articlepath: '/wiki/$1',
+                scriptpath: '/w',
+              },
+            };
+      return new Response(JSON.stringify({ query }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    const response = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'My draft',
+        content: 'Untrusted client text',
+        visibility: 'unlisted',
+        mediawiki_api_key: 'ignored',
+        wiki_import: { api_url: 'https://wiki.example/w/api.php', revision_id: 123 },
+      }),
+    });
+    expect(response.status).toBe(201);
+    const doc = await response.json();
+    expect(doc).toMatchObject({
+      title: 'My draft',
+      content: 'Original wikitext',
+      visibility: 'unlisted',
+      mediawiki_instance_name: 'Example Wiki',
+      mediawiki_instance_api_url: 'https://wiki.example/w/api.php',
+      mediawiki_canonical_server: 'https://wiki.example',
+      has_mediawiki_api_key: false,
+      wiki_source: { title: 'Source article', revision_id: 123 },
+    });
+    const stored = await (await app.request(`/api/docs/${doc.id}`)).json();
+    expect(stored.wiki_source).toEqual(doc.wiki_source);
+  });
+
+  it('does not create a partial document when the wiki import fails', async () => {
+    mockServerFetch.mockRejectedValue(new Error('Network failed'));
+    const response = await app.request('/api/docs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        wiki_import: { api_url: 'https://wiki.example/w/api.php', title: 'Hello' },
+      }),
+    });
+    expect(response.status).toBe(400);
+    expect(await (await app.request('/api/docs')).json()).toEqual([]);
+  });
+
   it('POST / creates a document', async () => {
     const res = await app.request('/api/docs', {
       method: 'POST',

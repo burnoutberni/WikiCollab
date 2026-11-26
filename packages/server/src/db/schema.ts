@@ -1,4 +1,5 @@
 import { blob, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { WikiAttribution } from 'shared';
 
 /** Wikimedia OAuth users. OAuth tokens are encrypted before storage. */
 export const users = sqliteTable('users', {
@@ -29,6 +30,7 @@ export const documents = sqliteTable('documents', {
   mediawiki_api_key: text('mediawiki_api_key'),
   mediawiki_bot_username: text('mediawiki_bot_username'),
   mediawiki_bot_password: text('mediawiki_bot_password'),
+  wiki_source: text('wiki_source', { mode: 'json' }).$type<WikiAttribution>(),
 });
 
 /** Immutable Yjs checkpoints/deltas, with legacy base64 snapshots retained for compatibility. */

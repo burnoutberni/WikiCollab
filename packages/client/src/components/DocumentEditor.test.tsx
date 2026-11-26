@@ -223,6 +223,7 @@ describe('DocumentEditor', () => {
     useYjsMock.mockReturnValue({
       ydoc: mockYDoc,
       ytext: mockYText,
+      ready: true,
       connected: true,
       peers: [],
       userId: 'test-user',

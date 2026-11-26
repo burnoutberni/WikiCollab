@@ -60,6 +60,7 @@ for (const [column, definition] of [
   ['mediawiki_api_key', 'TEXT'],
   ['mediawiki_bot_username', 'TEXT'],
   ['mediawiki_bot_password', 'TEXT'],
+  ['wiki_source', 'TEXT'],
 ] as const) {
   try {
     sqlite.exec(`ALTER TABLE documents ADD COLUMN ${column} ${definition}`);

@@ -73,6 +73,7 @@ export function useYjs(docId: string | null) {
   const ytextRef = useRef<Y.Text>(ydoc.getText('wikitext'));
   const ytext = ytextRef.current;
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+  const [ready, setReady] = useState(false);
   const [peers, setPeers] = useState<Presence[]>([]);
   const [lastConnected, setLastConnected] = useState<number | null>(null);
   const customHandlersRef = useRef<Map<string, Set<CustomMessageHandler>>>(new Map());
@@ -116,6 +117,7 @@ export function useYjs(docId: string | null) {
   useEffect(() => {
     if (!docId) {
       setProvider(null);
+      setReady(false);
       setConnected(true);
       setPeers([]);
       setLastConnected(null);
@@ -123,6 +125,7 @@ export function useYjs(docId: string | null) {
     }
 
     setProvider(null);
+    setReady(false);
     setPeers([]);
     setLastConnected(null);
 
@@ -138,6 +141,19 @@ export function useYjs(docId: string | null) {
     });
 
     const idbPersistence = new IndexeddbPersistence(`wikicollab-${docId}`, freshDoc);
+    // A socket connection alone does not mean its Y.Text has received the document.
+    // Once initialized, keep the editor usable across temporary disconnections.
+    const handleSync = (synced: boolean) => {
+      if (synced) setReady(true);
+    };
+    const handleCachedContent = () => {
+      // An existing offline CRDT (including a deliberately emptied document) is
+      // authoritative too. Never seed REST text into Yjs: that duplicates imports.
+      if (Y.encodeStateVector(freshDoc).byteLength > 1) setReady(true);
+    };
+    wsProvider.on('sync', handleSync);
+    idbPersistence.on('synced', handleCachedContent);
+    if (wsProvider.synced) setReady(true);
 
     const handleStatus = ({ status }: { status: string }) => {
       if (status === 'connected') {
@@ -230,12 +246,15 @@ export function useYjs(docId: string | null) {
 
     return () => {
       wsProvider.off('status', handleStatus);
+      wsProvider.off('sync', handleSync);
+      idbPersistence.off('synced', handleCachedContent);
       awareness.off('change', updatePeers);
       wsProvider.destroy();
       idbPersistence.destroy();
       freshDoc.destroy();
       setConnected(true);
       setProvider(null);
+      setReady(false);
       setPeers([]);
       setLastConnected(null);
     };
@@ -285,6 +304,7 @@ export function useYjs(docId: string | null) {
     ydoc,
     ytext,
     provider,
+    ready,
     connected,
     lastConnected,
     peers,

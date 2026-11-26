@@ -8,8 +8,33 @@ A collaborative wikitext editor with real-time preview and MediaWiki integration
 - **Live preview** rendered through the MediaWiki `action=parse` API (handles templates, Lua modules, parser functions), with local wikiparser-node fallback when no instance is configured
 - **Version history** with restore and star support
 - **MediaWiki instance config** stored per document, editable only by its owner
+- **Start from a wiki article** by searching a Wikimedia/public MediaWiki site or pasting an article/revision URL; imports wikitext and automatically connects the source wiki
 - **Configurable OAuth 2.0 login** and encrypted document-scoped MediaWiki Bot Password or bearer-token authentication
 - **Push to Wiki** (not yet implemented)
+
+### Importing wiki articles
+
+Choose **New Document → Start from a wiki article**. Type in the single search field for
+automatic suggestions from Wikipedia only. The language picker in the suggestions
+uses Wikimedia's language names and autonyms, defaults to your browser language when available,
+and switches language versions without retyping your query. Selecting a result immediately
+creates a public document named after the source page; you can rename it or change visibility
+in the editor as usual.
+
+Paste or type an article URL, then press Enter or choose **Import article** to confirm,
+including URLs from other public MediaWiki sites. Ordinary links load the latest revision;
+`oldid` links and revision permalinks load that exact revision.
+
+For custom installations, WikiCollab checks standard API locations and the page's advertised
+`EditURI`. The API must allow
+anonymous reads. Only wikitext pages are supported, not binary files, Wikidata entities,
+or other non-wikitext content models. Document text has no character-count limit.
+
+The source revision is copied into an independent document, with source attribution saved
+and available in its settings. The source wiki is configured for previews, but importing does
+not synchronize changes or publish anything back. Source licensing and attribution requirements
+still apply. Import/search requests require a WikiCollab login and use bounded, rate-limited,
+SSRF-protected server-side requests without forwarding wiki credentials.
 
 ## Authenticated preview security model
 

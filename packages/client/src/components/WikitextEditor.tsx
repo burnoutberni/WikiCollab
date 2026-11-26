@@ -249,7 +249,7 @@ export interface WikitextEditorHandle {
  */
 export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorProps>(
   function WikitextEditor(
-    { ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor },
+    { content, ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor },
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -258,6 +258,9 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
     const undoManagerRef = useRef<Y.UndoManager | null>(null);
     const flashRef = useRef<((name: string) => void) | null>(null);
     const isMobile = useIsMobile();
+    const collaborative = Boolean(ytext && provider);
+    // REST content is a read-only loading fallback, not another Yjs insertion.
+    const fallbackContent = collaborative ? null : content;
 
     useImperativeHandle(
       ref,
@@ -289,7 +292,7 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
     );
 
     useEffect(() => {
-      if (!containerRef.current || !ytext || !provider) return;
+      if (!containerRef.current) return;
 
       if (!registered) {
         registerMediaWiki();
@@ -299,16 +302,21 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
       const getLang = languages.get('mediawiki');
       const langExtension = getLang ? getLang(defaultMwConfig) : [];
 
-      const undoManager = new Y.UndoManager(ytext);
+      const undoManager = ytext && provider ? new Y.UndoManager(ytext) : null;
       undoManagerRef.current = undoManager;
 
       const checkUndoRedo = () => {
-        setUndoRedo({ canUndo: undoManager.canUndo(), canRedo: undoManager.canRedo() });
+        setUndoRedo({
+          canUndo: undoManager?.canUndo() ?? false,
+          canRedo: undoManager?.canRedo() ?? false,
+        });
       };
 
       const state = EditorState.create({
-        doc: ytext.toString(),
+        doc: ytext && provider ? ytext.toString() : (fallbackContent ?? ''),
         extensions: [
+          EditorState.readOnly.of(!collaborative),
+          EditorView.editable.of(collaborative),
           lineNumbers(),
           highlightActiveLineGutter(),
           highlightSpecialChars(),
@@ -369,9 +377,11 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
                 return plugin.extensions;
               })()
             : []),
-          yCollab(ytext, provider.awareness, { undoManager }),
+          ...(ytext && provider && undoManager
+            ? [yCollab(ytext, provider.awareness, { undoManager })]
+            : []),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
+            if (update.docChanged && collaborative) {
               const newValue = update.state.doc.toString();
               onChange(newValue);
               onRemoteChange?.(newValue);
@@ -390,10 +400,10 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
         parent: containerRef.current,
       });
 
-      undoManager.on('stack-item-added', checkUndoRedo);
-      undoManager.on('stack-item-popped', checkUndoRedo);
-      undoManager.on('stack-cleared', checkUndoRedo);
-      undoManager.on('stack-item-updated', checkUndoRedo);
+      undoManager?.on('stack-item-added', checkUndoRedo);
+      undoManager?.on('stack-item-popped', checkUndoRedo);
+      undoManager?.on('stack-cleared', checkUndoRedo);
+      undoManager?.on('stack-item-updated', checkUndoRedo);
 
       // Trigger yCollab to sync the initial cursor position to awareness
       // by dispatching a no-op selection update (same position, forces
@@ -404,14 +414,25 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
       checkUndoRedo();
 
       return () => {
-        undoManager.off('stack-item-added', checkUndoRedo);
-        undoManager.off('stack-item-popped', checkUndoRedo);
-        undoManager.off('stack-cleared', checkUndoRedo);
-        undoManager.off('stack-item-updated', checkUndoRedo);
+        undoManager?.off('stack-item-added', checkUndoRedo);
+        undoManager?.off('stack-item-popped', checkUndoRedo);
+        undoManager?.off('stack-cleared', checkUndoRedo);
+        undoManager?.off('stack-item-updated', checkUndoRedo);
+        undoManager?.destroy();
         v.destroy();
         setView(null);
       };
-    }, [ytext, provider, onChange, onRemoteChange, onCursorChange, userName, userColor]);
+    }, [
+      ytext,
+      provider,
+      collaborative,
+      fallbackContent,
+      onChange,
+      onRemoteChange,
+      onCursorChange,
+      userName,
+      userColor,
+    ]);
 
     return (
       <div className="h-full w-full flex flex-col relative">
@@ -435,13 +456,20 @@ export const WikitextEditor = forwardRef<WikitextEditorHandle, WikitextEditorPro
 .cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorInfo { opacity: 1 !important; }
 .cm-yLocalCursorLine.cm-y-flash > .cm-yLocalCursorDot { transform: scale(0) !important; }
 .cm-ySelectionInfo, .cm-yLocalCursorInfo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }`}</style>
-        <Toolbar
-          view={view}
-          undoManager={undoManagerRef.current}
-          canUndo={undoRedo.canUndo}
-          canRedo={undoRedo.canRedo}
-          isMobile={isMobile}
-        />
+        {collaborative && (
+          <Toolbar
+            view={view}
+            undoManager={undoManagerRef.current}
+            canUndo={undoRedo.canUndo}
+            canRedo={undoRedo.canRedo}
+            isMobile={isMobile}
+          />
+        )}
+        {!collaborative && (
+          <p role="status" className="px-3 py-1 text-xs text-muted-foreground">
+            Loading collaborative editor… Your saved text is shown below.
+          </p>
+        )}
         <div
           ref={containerRef}
           className="flex-1 w-full overflow-auto [&_.cm-editor]:h-full [&_.cm-editor]:font-mono [&_.cm-editor]:text-sm"

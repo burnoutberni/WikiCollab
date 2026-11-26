@@ -1,12 +1,13 @@
 import { ChevronDown, FileText, Link2, Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import type { DocumentVisibility } from 'shared';
+import type { CreateDocumentRequest, DocumentVisibility } from 'shared';
 
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
 import { BottomSheet } from './BottomSheet';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { WikiImportDialog } from './WikiImportDialog';
 
 const DOCUMENT_TYPES: Array<{
   visibility: DocumentVisibility;
@@ -29,7 +30,10 @@ const DOCUMENT_TYPES: Array<{
 ];
 
 interface NewDocumentButtonProps {
-  onCreate: (visibility: DocumentVisibility) => Promise<void> | void;
+  onCreate: (
+    visibility: DocumentVisibility,
+    imported?: CreateDocumentRequest
+  ) => Promise<void> | void;
   compact?: boolean;
   fullWidth?: boolean;
   className?: string;
@@ -37,8 +41,10 @@ interface NewDocumentButtonProps {
 
 function DocumentTypePicker({
   onSelect,
+  onImport,
 }: {
   onSelect: (visibility: DocumentVisibility) => Promise<void> | void;
+  onImport: () => void;
 }) {
   return (
     <div className="space-y-3">
@@ -48,6 +54,9 @@ function DocumentTypePicker({
           Pick whether the document should be listed publicly or only be reachable by link.
         </p>
       </div>
+      <Button type="button" variant="outline" className="min-h-11 w-full" onClick={onImport}>
+        Start from a wiki article
+      </Button>
 
       <div className="grid gap-2">
         {DOCUMENT_TYPES.map((type) => {
@@ -86,13 +95,22 @@ export function NewDocumentButton({
 }: NewDocumentButtonProps) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-
+  const [importOpen, setImportOpen] = useState(false);
   const handleSelect = useCallback(
     async (visibility: DocumentVisibility) => {
       setOpen(false);
       await onCreate(visibility);
     },
     [onCreate]
+  );
+  const picker = (
+    <DocumentTypePicker
+      onSelect={handleSelect}
+      onImport={() => {
+        setOpen(false);
+        setImportOpen(true);
+      }}
+    />
   );
 
   const triggerButton = (onClick?: () => void) => (
@@ -109,23 +127,28 @@ export function NewDocumentButton({
     </Button>
   );
 
-  if (isMobile) {
-    return (
-      <>
-        {triggerButton(() => setOpen(true))}
-        <BottomSheet open={open} onOpenChange={setOpen} title="New Document">
-          <DocumentTypePicker onSelect={handleSelect} />
-        </BottomSheet>
-      </>
-    );
-  }
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{triggerButton()}</PopoverTrigger>
-      <PopoverContent className={fullWidth ? 'w-[22rem]' : 'w-[20rem]'} align="end" sideOffset={8}>
-        <DocumentTypePicker onSelect={handleSelect} />
-      </PopoverContent>
-    </Popover>
+    <>
+      {isMobile ? (
+        <>
+          {triggerButton(() => setOpen(true))}
+          <BottomSheet open={open} onOpenChange={setOpen} title="New Document">
+            {picker}
+          </BottomSheet>
+        </>
+      ) : (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>{triggerButton()}</PopoverTrigger>
+          <PopoverContent
+            className={fullWidth ? 'w-[22rem]' : 'w-[20rem]'}
+            align="end"
+            sideOffset={8}
+          >
+            {picker}
+          </PopoverContent>
+        </Popover>
+      )}
+      <WikiImportDialog open={importOpen} onOpenChange={setImportOpen} onCreate={onCreate} />
+    </>
   );
 }
