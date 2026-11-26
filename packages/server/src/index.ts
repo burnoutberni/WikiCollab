@@ -11,6 +11,7 @@ import { crudLimiter, previewLimiter } from './middleware/rate-limit.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import authRoutes from './routes/auth.js';
 import docsRoutes from './routes/docs.js';
+import wikiRoutes from './routes/wiki.js';
 import { startRuntimeMemoryLogging } from './runtime-memory-logging.js';
 import { setupWebSocket } from './ws/index.js';
 import { getAllowedOrigins } from './ws/origin.js';
@@ -96,6 +97,7 @@ app.use('/api/docs/*', crudLimiter);
 app.use('/api/docs/:id/preview', previewLimiter);
 
 app.route('/api/docs', docsRoutes);
+app.route('/api/wiki', wikiRoutes);
 app.route('/auth', authRoutes);
 
 app.get('/api/health', (c) => {

@@ -2,8 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as Y from 'yjs';
 
 import { ConnectionProvider } from '../lib/connection-context';
+
+const { idbSyncCallbacks } = vi.hoisted(() => ({ idbSyncCallbacks: [] as Array<() => void> }));
 
 vi.mock('yjs', () => {
   class MockText {
@@ -44,6 +47,9 @@ vi.mock('yjs', () => {
     Text: MockText,
     applyUpdate: vi.fn(),
     encodeStateAsUpdate: vi.fn().mockReturnValue(new Uint8Array()),
+    encodeStateVector: vi.fn(
+      (doc: MockDoc) => new Uint8Array(doc.getText('wikitext').length ? [1, 1] : [0])
+    ),
     createAbsolutePositionFromRelativePosition: vi.fn().mockReturnValue(null),
     RelativePosition: vi.fn(),
   };
@@ -60,11 +66,18 @@ vi.mock('y-websocket', () => {
       getState: vi.fn().mockReturnValue({}),
     };
     private statusListeners: Array<(event: { status: string }) => void> = [];
-    on = vi.fn((event: string, handler: (event: { status: string }) => void) => {
-      if (event === 'status') {
-        this.statusListeners.push(handler);
+    private syncListeners: Array<(synced: boolean) => void> = [];
+    on = vi.fn(
+      (
+        event: string,
+        handler: ((event: { status: string }) => void) | ((synced: boolean) => void)
+      ) => {
+        if (event === 'status') {
+          this.statusListeners.push(handler as (event: { status: string }) => void);
+        }
+        if (event === 'sync') this.syncListeners.push(handler as (synced: boolean) => void);
       }
-    });
+    );
     off = vi.fn();
     connect = vi.fn();
     disconnect = vi.fn();
@@ -77,13 +90,19 @@ vi.mock('y-websocket', () => {
     emitStatus(status: string) {
       this.statusListeners.forEach((listener) => listener({ status }));
     }
+    emitSync(synced: boolean) {
+      this.synced = synced;
+      this.syncListeners.forEach((listener) => listener(synced));
+    }
   }
   return { WebsocketProvider: MockWebsocketProvider };
 });
 
 vi.mock('y-indexeddb', () => {
   class MockIndexeddbPersistence {
-    on = vi.fn();
+    on = vi.fn((event: string, handler: () => void) => {
+      if (event === 'synced') idbSyncCallbacks.push(handler);
+    });
     off = vi.fn();
     destroy = vi.fn();
   }
@@ -120,6 +139,7 @@ const withConnectionProvider = ({ children }: { children: ReactNode }) =>
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  idbSyncCallbacks.length = 0;
 });
 
 describe('useYjs', () => {
@@ -233,6 +253,49 @@ describe('useYjs', () => {
     expect(result.current.getContent()).toBe('');
   });
 
+  it('does not treat a connected socket as initialized content, and remains ready offline after sync', () => {
+    const { result } = renderHook(() => useYjs('imported-doc'), {
+      wrapper: withConnectionProvider,
+    });
+    const provider = result.current.provider as unknown as {
+      emitStatus: (status: string) => void;
+      emitSync: (synced: boolean) => void;
+    };
+    expect(result.current.ready).toBe(false);
+    act(() => provider.emitStatus('connected'));
+    expect(result.current.ready).toBe(false);
+    act(() => provider.emitSync(true));
+    expect(result.current.ready).toBe(true);
+    act(() => {
+      provider.emitStatus('disconnected');
+      provider.emitSync(false);
+    });
+    expect(result.current.ready).toBe(true);
+  });
+
+  it('does not consider a new empty IndexedDB cache to be imported content', () => {
+    const { result } = renderHook(() => useYjs('imported-doc'), {
+      wrapper: withConnectionProvider,
+    });
+    act(() => idbSyncCallbacks.at(-1)!());
+    expect(result.current.ready).toBe(false);
+    act(() => {
+      result.current.ytext.insert(0, 'Cached article');
+      idbSyncCallbacks.at(-1)!();
+    });
+    expect(result.current.ready).toBe(true);
+  });
+
+  it('recognizes a deliberately emptied offline document without resurrecting old REST text', () => {
+    const { result } = renderHook(() => useYjs('empty-offline-doc'), {
+      wrapper: withConnectionProvider,
+    });
+    vi.mocked(Y.encodeStateVector).mockReturnValueOnce(new Uint8Array([1, 2]));
+    act(() => idbSyncCallbacks.at(-1)!());
+    expect(result.current.ytext.toString()).toBe('');
+    expect(result.current.ready).toBe(true);
+  });
+
   it('resets connection metadata when the document id changes', async () => {
     const { result, rerender } = renderHook(({ docId }) => useYjs(docId), {
       initialProps: { docId: 'doc-a' as string | null },
@@ -259,6 +322,7 @@ describe('useYjs', () => {
       expect(result.current.connected).toBe(true);
       expect(result.current.lastConnected).toBeNull();
       expect(result.current.peers).toEqual([]);
+      expect(result.current.ready).toBe(false);
     });
   });
 

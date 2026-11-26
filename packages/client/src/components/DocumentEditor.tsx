@@ -38,10 +38,12 @@ import { AuthControls } from './AuthControls';
 import { BottomSheet } from './BottomSheet';
 import { CollaboratorList } from './CollaboratorList';
 import { ConnectionStatePopover } from './ConnectionStatePopover';
+import { DeleteDocumentButton } from './DeleteDocumentButton';
 import { DocumentVisibilityControl } from './DocumentVisibilityControl';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MobileEditorBar } from './MobileEditorBar';
 import { SplitPaneEditor } from './SplitPaneEditor';
+import { WikiSource } from './WikiSource';
 import { WikitextEditor, type WikitextEditorHandle } from './WikitextEditor';
 
 const InstanceManager = lazy(() =>
@@ -102,6 +104,7 @@ export function DocumentEditor() {
     setUserName,
     setUserColor,
     provider,
+    ready: collaborationReady,
     setContent,
     sendCustomMessage,
     onCustomMessage,
@@ -698,8 +701,8 @@ export function DocumentEditor() {
                 ref={editorRef}
                 content={content}
                 onChange={handleContentChange}
-                ytext={ytext}
-                provider={provider}
+                ytext={collaborationReady ? ytext : null}
+                provider={collaborationReady ? provider : null}
                 onRemoteChange={handleRemoteChange}
                 onCursorChange={handleCursorChange}
                 userName={userName}
@@ -717,8 +720,8 @@ export function DocumentEditor() {
                 previewRefreshKey={previewRefreshKey}
                 previewBusy={instanceSaving}
                 previewLoadingLabel={instanceSaving ? 'Updating wiki settings...' : undefined}
-                ytext={ytext}
-                provider={provider}
+                ytext={collaborationReady ? ytext : null}
+                provider={collaborationReady ? provider : null}
                 userName={userName}
                 userColor={userColor}
                 editorRef={editorRef}
@@ -734,6 +737,11 @@ export function DocumentEditor() {
           {/* Desktop Sidebar */}
           {!isMobile && desktopSidebarOpen && (
             <aside className="w-64 border-l flex flex-col">
+              {doc.wiki_source && (
+                <div className="p-4 border-b">
+                  <WikiSource source={doc.wiki_source} />
+                </div>
+              )}
               <div className="p-4 border-b">
                 <AuthControls isOwner={doc.is_owner} stacked />
               </div>
@@ -761,6 +769,14 @@ export function DocumentEditor() {
                         onChange={updateInstance}
                       />
                     </Suspense>
+                  </div>
+                  <div className="p-4 border-b">
+                    <DeleteDocumentButton
+                      key={id}
+                      documentId={id!}
+                      title={title}
+                      onDeleted={() => navigate('/')}
+                    />
                   </div>
                 </>
               ) : (
@@ -887,6 +903,7 @@ export function DocumentEditor() {
         title="Settings"
       >
         <div className="space-y-4">
+          <WikiSource source={doc.wiki_source} />
           <AuthControls isOwner={doc.is_owner} stacked />
           <Separator />
           {doc.is_owner ? (
@@ -911,6 +928,13 @@ export function DocumentEditor() {
                   onChange={updateInstance}
                 />
               </Suspense>
+              <Separator />
+              <DeleteDocumentButton
+                key={id}
+                documentId={id!}
+                title={title}
+                onDeleted={() => navigate('/')}
+              />
             </>
           ) : (
             <p className="text-xs text-muted-foreground">

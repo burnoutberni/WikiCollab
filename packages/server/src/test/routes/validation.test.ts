@@ -239,24 +239,26 @@ describe('Input validation', () => {
       expect(data.error).toBe('Validation failed');
     });
 
-    it('rejects oversized wikitext', async () => {
+    it('accepts creation and preview beyond the former wikitext character limit', async () => {
+      const content = 'x'.repeat(50001);
       const createRes = await app.request('/api/docs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Test' }),
+        body: JSON.stringify({ title: 'Test', content }),
       });
       expect(createRes.status).toBe(201);
       const created = await createRes.json();
+      expect(created.content).toBe(content);
 
       const res = await app.request(`/api/docs/${created.id}/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wikitext: 'x'.repeat(50001) }),
+        body: JSON.stringify({ wikitext: content }),
       });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.error).toBe('Validation failed');
+      expect(data.html).toContain(content);
     });
 
     it('returns 404 for missing document', async () => {

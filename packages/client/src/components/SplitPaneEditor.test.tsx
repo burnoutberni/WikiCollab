@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as Y from 'yjs';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -120,6 +121,27 @@ describe('SplitPaneEditor', () => {
     await vi.waitFor(() => {
       expect(getPreviewShadowRoot().textContent).toContain('Preview HTML');
     });
+  });
+
+  it('previews saved REST content before sync, then respects an authoritative empty shared document', async () => {
+    const fetchMock = vi.mocked(global.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ html: '<p>Imported article</p>' }),
+    } as Response);
+    const { rerenderWithProviders } = renderWithProviders(
+      <SplitPaneEditor {...defaultProps} ytext={null} provider={null} />
+    );
+    await vi.waitFor(() =>
+      expect(getPreviewShadowRoot().textContent).toContain('Imported article')
+    );
+    const doc = new Y.Doc();
+    rerenderWithProviders(<SplitPaneEditor {...defaultProps} ytext={doc.getText('wikitext')} />);
+    await vi.waitFor(() =>
+      expect(getPreviewShadowRoot().querySelector('.mw-preview-container')?.innerHTML).toBe('')
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    doc.destroy();
   });
 
   it('shows a generic preview error when a configured instance request fails', async () => {

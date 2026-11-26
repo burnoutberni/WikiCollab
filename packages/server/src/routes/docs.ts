@@ -19,6 +19,7 @@ import { parseAndValidate } from '../middleware/validate.js';
 import { generatePreview } from '../preview.js';
 import { reconstructRevisionContent, revisionMetadata } from '../services/revision-storage.js';
 import { setVersionStarred } from '../services/versions.js';
+import { importWikiArticle, WikiImportError } from '../services/wiki-import.js';
 /** REST endpoints for document CRUD, preview, and versioning. */
 const docs = new Hono();
 type CssRefresh = { apiUrl: string; nextApiUrl: string | null; promise: Promise<void> };
@@ -190,7 +191,31 @@ docs.post('/', async (c) => {
   if (!userId) {
     return c.json({ error: 'Authentication required to create documents' }, 401);
   }
-  if (body.mediawiki_instance_api_url) {
+  let imported;
+  if (body.wiki_import) {
+    try {
+      imported = await importWikiArticle(body.wiki_import);
+    } catch (error) {
+      return c.json(
+        {
+          error:
+            error instanceof WikiImportError
+              ? error.message
+              : 'Could not import from this public wiki API.',
+        },
+        400
+      );
+    }
+    // Never trust client-supplied text or credentials for an anonymous wiki import.
+    body.content = imported.content;
+    body.title = body.title || imported.title;
+    body.mediawiki_instance_api_url = imported.api_url;
+    body.mediawiki_instance_name = imported.site_name;
+    body.mediawiki_api_key = null;
+    body.mediawiki_bot_username = null;
+    body.mediawiki_bot_password = null;
+  }
+  if (body.mediawiki_instance_api_url && !imported) {
     let auth: MediaWikiAuth;
     try {
       auth = await proposedMediaWikiAuth(
@@ -229,9 +254,10 @@ docs.post('/', async (c) => {
       : null,
     mediawiki_instance_api_url: body.mediawiki_instance_api_url ?? null,
     mediawiki_instance_css: null,
-    mediawiki_canonical_server: null,
-    mediawiki_article_path: null,
-    mediawiki_script_path: null,
+    mediawiki_canonical_server: imported?.server ?? null,
+    mediawiki_article_path: imported?.articlePath ?? null,
+    mediawiki_script_path: imported?.scriptPath ?? null,
+    wiki_source: imported?.source ?? null,
     restored_version_id: null,
     visibility: body.visibility || 'public',
     owner_user_id: userId,

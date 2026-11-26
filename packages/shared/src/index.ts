@@ -1,5 +1,54 @@
 export type DocumentVisibility = 'public' | 'unlisted';
 
+export interface WikiImportRequest {
+  url?: string;
+  api_url?: string;
+  title?: string;
+  revision_id?: number;
+}
+
+export interface WikiAttribution {
+  url: string;
+  title: string;
+  revision_id: number;
+  timestamp: string;
+}
+
+export interface WikiArticle {
+  title: string;
+  content: string;
+  api_url: string;
+  site_name: string;
+  source: WikiAttribution;
+  server: string | null;
+  articlePath: string | null;
+  scriptPath: string | null;
+}
+
+export interface WikiSearchResponse {
+  api_url: string;
+  site_name: string;
+  results: Array<{ title: string }>;
+}
+
+export interface WikimediaLanguage {
+  code: string;
+  name: string;
+  autonym: string;
+}
+
+export interface WikimediaSuggestion {
+  title: string;
+  api_url: string;
+  site_name: string;
+  language: string | null;
+}
+
+export interface WikimediaSearchResponse {
+  results: WikimediaSuggestion[];
+  partial: boolean;
+}
+
 /** Authenticated Wikimedia user exposed to the client. */
 export interface User {
   id: string;
@@ -27,6 +76,7 @@ export interface Document {
   has_mediawiki_api_key: boolean;
   mediawiki_bot_username: string | null;
   has_mediawiki_bot_password: boolean;
+  wiki_source?: WikiAttribution | null;
 }
 
 /** Revision history metadata. Content is loaded separately through preview/restore. */
@@ -43,6 +93,7 @@ export type Version = DocumentRevision;
 
 /** Request body accepted when creating a document. */
 export interface CreateDocumentRequest {
+  wiki_import?: WikiImportRequest;
   title?: string;
   content?: string;
   slug?: string;
@@ -121,6 +172,12 @@ export {
   messageCustom,
   wrapCustomMessage,
 } from './protocol.js';
-export { CreateDocumentSchema, PreviewSchema, UpdateDocumentSchema } from './schemas.js';
+export {
+  CreateDocumentSchema,
+  PreviewSchema,
+  UpdateDocumentSchema,
+  WikiImportSchema,
+  WikiSearchSchema,
+} from './schemas.js';
 export { replaceYText } from './yjs.js';
 export type { z } from 'zod';

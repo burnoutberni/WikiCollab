@@ -78,6 +78,7 @@ const mockDocuments = [
 const mockCreateDocument = vi.fn().mockResolvedValue(mockDocuments[0]);
 const mockLoadPending = vi.fn();
 const mockNavigate = vi.fn();
+const mockApiFetch = vi.fn();
 let mockIsMobile = false;
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -89,6 +90,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('@/hooks/useApi', () => ({
+  apiFetch: (...args: unknown[]) => mockApiFetch(...args),
   useAuth: () => ({ user: { id: 'owner-1', wiki_username: 'Owner' }, loading: false }),
   useDocuments: vi.fn(),
 }));
@@ -117,6 +119,7 @@ vi.mock('lucide-react', () => {
         'Plus',
         'Search',
         'Share2',
+        'X',
       ].map((n) => [n, m])
     ),
   };
@@ -135,6 +138,21 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApiFetch.mockImplementation(async (path: string) =>
+      path.endsWith('/languages')
+        ? Response.json([{ code: 'en', name: 'English', autonym: 'English' }])
+        : Response.json({
+            results: [
+              {
+                title: 'Berlin',
+                api_url: 'https://en.wikipedia.org/w/api.php',
+                site_name: 'Wikipedia',
+                language: 'en',
+              },
+            ],
+            partial: false,
+          })
+    );
     mockIsMobile = false;
     useDocumentsMock.mockReturnValue({
       documents: [],
@@ -281,6 +299,22 @@ describe('Dashboard', () => {
     expect(screen.getByText('Choose document type')).toBeInTheDocument();
   });
 
+  it.each([false, true])(
+    'opens wiki import from the new-document chooser (mobile: %s)',
+    async (mobile) => {
+      const user = userEvent.setup();
+      mockIsMobile = mobile;
+      renderWithProviders(<Dashboard />);
+      await user.click(screen.getAllByRole('button', { name: 'New Document' })[0]);
+      await user.click(screen.getByRole('button', { name: 'Start from a wiki article' }));
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(
+        screen.getByRole('combobox', { name: 'Search articles or paste a URL' })
+      ).toBeInTheDocument();
+      expect(mockCreateDocument).not.toHaveBeenCalled();
+    }
+  );
+
   it('clicking a document card navigates to it', async () => {
     const user = userEvent.setup();
     useDocumentsMock.mockReturnValue({
@@ -299,6 +333,23 @@ describe('Dashboard', () => {
     await user.click(card);
 
     expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1');
+  });
+
+  it('imports directly without sending a placeholder title or boilerplate text', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Dashboard />);
+    await user.click(screen.getAllByRole('button', { name: 'New Document' })[0]);
+    await user.click(screen.getByRole('button', { name: 'Start from a wiki article' }));
+    await user.type(
+      screen.getByRole('combobox', { name: 'Search articles or paste a URL' }),
+      'Berlin'
+    );
+    await user.click(await screen.findByRole('option', { name: 'Berlin Wikipedia · en' }));
+    expect(mockCreateDocument).toHaveBeenCalledWith({
+      visibility: 'public',
+      wiki_import: { api_url: 'https://en.wikipedia.org/w/api.php', title: 'Berlin' },
+    });
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/doc/doc1'));
   });
 
   it('highlights public and link-only documents with visibility badges', () => {

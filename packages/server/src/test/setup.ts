@@ -30,7 +30,8 @@ const SCHEMA_SQL = `
     owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     mediawiki_api_key TEXT,
     mediawiki_bot_username TEXT,
-    mediawiki_bot_password TEXT
+    mediawiki_bot_password TEXT,
+    wiki_source TEXT
   );
   CREATE TABLE IF NOT EXISTS document_revisions (
     id TEXT PRIMARY KEY,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import type { Document, DocumentVisibility, User, Version } from 'shared';
+import type { CreateDocumentRequest, Document, User, Version } from 'shared';
 
 export type { Document, Version };
 
@@ -194,35 +194,28 @@ export function useDocuments() {
     dispatch({ type: 'acceptPending' });
   }, []);
 
-  const createDocument = useCallback(
-    async (options?: {
-      title?: string;
-      slug?: string;
-      content?: string;
-      visibility?: DocumentVisibility;
-    }) => {
-      const res = await apiFetch(`${API_BASE}/docs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: options?.title,
-          slug: options?.slug || undefined,
-          content: options?.content || undefined,
-          visibility: options?.visibility || undefined,
-        }),
-      });
-      const doc = await res.json();
-      if (!res.ok) {
-        throw new Error(doc.error || 'Failed to create document');
-      }
-      listVersionRef.current++;
-      if (doc.visibility !== 'unlisted') {
-        dispatch({ type: 'add', document: doc });
-      }
-      return doc;
-    },
-    []
-  );
+  const createDocument = useCallback(async (options?: CreateDocumentRequest) => {
+    const res = await apiFetch(`${API_BASE}/docs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: options?.title,
+        slug: options?.slug || undefined,
+        content: options?.content || undefined,
+        visibility: options?.visibility || undefined,
+        wiki_import: options?.wiki_import,
+      }),
+    });
+    const doc = await res.json();
+    if (!res.ok) {
+      throw new Error(doc.error || 'Failed to create document');
+    }
+    listVersionRef.current++;
+    if (doc.visibility !== 'unlisted') {
+      dispatch({ type: 'add', document: doc });
+    }
+    return doc;
+  }, []);
 
   const deleteDocument = useCallback(async (id: string) => {
     await apiFetch(`${API_BASE}/docs/${id}`, { method: 'DELETE' });

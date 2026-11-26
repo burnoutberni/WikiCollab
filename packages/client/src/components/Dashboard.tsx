@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUpDown, Clock, FileText, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { DocumentVisibility } from 'shared';
+import type { CreateDocumentRequest, DocumentVisibility } from 'shared';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,16 +77,16 @@ export function Dashboard() {
   }, [documents, search, sort]);
 
   const handleCreate = useCallback(
-    async (visibility: DocumentVisibility) => {
+    async (visibility: DocumentVisibility, imported?: CreateDocumentRequest) => {
       try {
         const doc = await createDocument({
-          title: 'Untitled',
-          content: NEW_DOC_BOILERPLATE,
           visibility,
+          ...(imported ?? { title: 'Untitled', content: NEW_DOC_BOILERPLATE }),
         });
         navigate(`/doc/${doc.id}`);
       } catch (error) {
         console.error('Failed to create document:', error);
+        if (imported) throw error;
       }
     },
     [createDocument, navigate]
