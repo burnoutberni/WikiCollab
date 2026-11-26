@@ -38,6 +38,7 @@ import { AuthControls } from './AuthControls';
 import { BottomSheet } from './BottomSheet';
 import { CollaboratorList } from './CollaboratorList';
 import { ConnectionStatePopover } from './ConnectionStatePopover';
+import { DeleteDocumentButton } from './DeleteDocumentButton';
 import { DocumentVisibilityControl } from './DocumentVisibilityControl';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MobileEditorBar } from './MobileEditorBar';
@@ -769,6 +770,14 @@ export function DocumentEditor() {
                       />
                     </Suspense>
                   </div>
+                  <div className="p-4 border-b">
+                    <DeleteDocumentButton
+                      key={id}
+                      documentId={id!}
+                      title={title}
+                      onDeleted={() => navigate('/')}
+                    />
+                  </div>
                 </>
               ) : (
                 <div className="p-4 border-b text-xs text-muted-foreground">
@@ -919,6 +928,13 @@ export function DocumentEditor() {
                   onChange={updateInstance}
                 />
               </Suspense>
+              <Separator />
+              <DeleteDocumentButton
+                key={id}
+                documentId={id!}
+                title={title}
+                onDeleted={() => navigate('/')}
+              />
             </>
           ) : (
             <p className="text-xs text-muted-foreground">

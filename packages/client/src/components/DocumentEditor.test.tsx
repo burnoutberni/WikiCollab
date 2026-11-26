@@ -161,6 +161,7 @@ vi.mock('lucide-react', () => {
         'Save',
         'Settings',
         'Share2',
+        'Trash2',
         'Users',
         'Wifi',
         'WifiOff',
@@ -244,6 +245,34 @@ describe('DocumentEditor', () => {
     useDocumentMock.mockReturnValue({ document: null, loading: true, setDocument: vi.fn() });
     renderWithProviders(<DocumentEditor />);
     expect(screen.getByText('Loading document...')).toBeInTheDocument();
+  });
+
+  it('lets the owner delete from settings and returns to the dashboard after confirmation', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ success: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithProviders(<DocumentEditor />);
+    await user.click(screen.getByRole('button', { name: 'Delete document' }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/docs/test-doc',
+      expect.objectContaining({ method: 'DELETE' })
+    );
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it.each([false, true])('hides deletion from non-owners (mobile: %s)', async (mobile) => {
+    const user = userEvent.setup();
+    mockIsMobile = mobile;
+    useDocumentMock.mockReturnValue({
+      document: { ...mockDoc, is_owner: false },
+      loading: false,
+      setDocument: vi.fn(),
+    });
+    renderWithProviders(<DocumentEditor />);
+    if (mobile) await user.click(screen.getByTestId('mobile-toggle-settings'));
+    expect(screen.queryByRole('button', { name: 'Delete document' })).not.toBeInTheDocument();
   });
 
   it('shows "Document not found" when doc is null', () => {
@@ -941,6 +970,7 @@ describe('DocumentEditor', () => {
     await user.click(screen.getByTestId('mobile-toggle-settings'));
 
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete document' })).toBeInTheDocument();
     expect(await screen.findByTestId('instance-manager')).toBeInTheDocument();
     expect(
       screen.getByText(/Changing this updates the visibility state for everyone/i)
